@@ -31,6 +31,25 @@ export function AppShell() {
     if (user) hydrate(user.id);
   }, [hydrate, user]);
 
+  // Persist pending edits when the tab is backgrounded or closed.
+  useEffect(() => {
+    const flush = () => {
+      const state = useWatchlistStore.getState();
+      if (state.userId && state.entries.length >= 0) {
+        void state.flushSync();
+      }
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
+
   useEffect(() => {
     const on = () => setOnline(true);
     const off = () => setOnline(false);

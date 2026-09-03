@@ -88,6 +88,10 @@ type WatchlistState = {
   // ---- Offline ----
   online: boolean;
   setOnline: (online: boolean) => void;
+  /** Force-push local entries to server now (awaitable). Call before sign-out. */
+  flushSync: () => Promise<void>;
+  /** Clear in-memory state on sign-out so next login always re-hydrates. */
+  resetSession: () => void;
 };
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -98,30 +102,61 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null;
 // never waits on the network. A failed push is logged and surfaced once via
 // toast — it does NOT roll back the local change, since the local copy (and
 // the next successful push) remains the source of truth.
-const SYNC_DEBOUNCE_MS = 700;
+const SYNC_DEBOUNCE_MS = 400;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncInFlight: Promise<unknown> | null = null;
 let syncQueued = false;
+let lastSyncErrorAt = 0;
 
 function scheduleSync(get: () => WatchlistState) {
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(() => void pushToServer(get), SYNC_DEBOUNCE_MS);
 }
 
-async function pushToServer(get: () => WatchlistState) {
+/** Cancel pending debounce and push immediately. */
+async function flushSyncNow(get: () => WatchlistState): Promise<void> {
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+  // Wait out any in-flight push, then push latest once more
   if (syncInFlight) {
-    // A push is already running: mark that another one is needed once it
-    // settles, instead of racing two writes for the same user.
+    try {
+      await syncInFlight;
+    } catch {
+      /* handled inside */
+    }
+  }
+  await pushToServer(get);
+}
+
+async function pushToServer(get: () => WatchlistState) {
+  if (!get().userId) return;
+  if (syncInFlight) {
     syncQueued = true;
     return;
   }
   const entries = get().entries;
-  syncInFlight = saveWatchlistState({ data: { entries } })
-    .catch((err) => {
+  const userId = get().userId;
+  syncInFlight = (async () => {
+    try {
+      const result = await saveWatchlistState({ data: { entries } });
+      console.info("[watchlist] synced", result?.count ?? entries.length, "entries for", userId);
+    } catch (err) {
       console.error("[watchlist] server sync failed", err);
-      get().showToast({
-        message: "Synchronisation impossible — enregistré sur cet appareil seulement",
-      });
+      const now = Date.now();
+      // Rate-limit the toast so a flapping network does not spam
+      if (now - lastSyncErrorAt > 8000) {
+        lastSyncErrorAt = now;
+        get().showToast({
+          message: "Synchronisation impossible — enregistré sur cet appareil seulement",
+        });
+      }
+      throw err;
+    }
+  })()
+    .catch(() => {
+      /* already toasted */
     })
     .finally(() => {
       syncInFlight = null;
@@ -141,6 +176,26 @@ function applyPersist(
   persistEntries(entries, userId);
   scheduleSync(get);
   return entries;
+}
+
+
+/** Union by anilistId — keep the most recently updated entry when both sides have it. */
+function mergeWatchlists(local: WatchlistEntry[], remote: WatchlistEntry[]): WatchlistEntry[] {
+  const map = new Map<number, WatchlistEntry>();
+  for (const e of remote) map.set(e.anilistId, e);
+  for (const e of local) {
+    const existing = map.get(e.anilistId);
+    if (!existing) {
+      map.set(e.anilistId, e);
+      continue;
+    }
+    const localT = +new Date(e.updatedAt || e.addedAt || 0);
+    const remoteT = +new Date(existing.updatedAt || existing.addedAt || 0);
+    if (localT >= remoteT) map.set(e.anilistId, e);
+  }
+  return [...map.values()].sort(
+    (a, b) => +new Date(b.updatedAt || b.addedAt) - +new Date(a.updatedAt || a.addedAt),
+  );
 }
 
 export const useWatchlistStore = create<WatchlistState>((set, get) => ({
@@ -175,23 +230,29 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       try {
         const remote = await fetchWatchlistState();
         if (get().userId !== userId) return; // user changed while this was in flight
+
         if (remote == null) {
-          // No server record yet for this account: seed it from the local
-          // copy (covers "first sign-in after using the app signed out" and
-          // brand-new accounts alike; a no-op if local is also empty).
-          if (local.length > 0) scheduleSync(get);
+          // No server row yet: seed from local if we have anything.
+          if (local.length > 0) await flushSyncNow(get);
+        } else if (remote.length === 0 && local.length > 0) {
+          // Server has an empty row but this device has data — push local up
+          // instead of wiping the user's list (common after a failed first sync).
+          set({ entries: local });
+          await flushSyncNow(get);
+        } else if (remote.length > 0) {
+          // Prefer the richer side when both exist (e.g. offline edits on this device).
+          const merged = mergeWatchlists(local, remote);
+          set({ entries: merged });
+          persistEntries(merged, userId);
+          // If merge kept local-only items, push so other devices see them.
+          if (merged.length !== remote.length) await flushSyncNow(get);
         } else {
-          set({ entries: remote });
-          persistEntries(remote, userId);
+          // both empty
+          set({ entries: [] });
         }
       } catch (err) {
-        // Offline or the server call failed: keep working off the local
-        // copy, no toast on this one — it fires on every sign-in and would
-        // be noisy for a purely transient/offline case.
         console.error("[watchlist] initial sync failed", err);
       }
-      // After local (and optional server) data is shown, refresh airing dates
-      // in the background — previous values stay visible until this completes.
       if (get().userId === userId) void get().refreshNextAirings();
     })();
   },
@@ -465,11 +526,28 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
 
   setOnline: (online) => {
     set({ online });
-    if (online) {
-      // Flush local changes that may have piled up while offline
-      void saveWatchlistState({ data: { entries: get().entries } }).catch((err) => {
-        console.error("[watchlist] reconnect sync failed", err);
-      });
+    if (online && get().userId) {
+      void flushSyncNow(get);
     }
+  },
+
+  flushSync: async () => {
+    await flushSyncNow(get);
+  },
+
+  resetSession: () => {
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+      syncTimer = null;
+    }
+    set({
+      entries: [],
+      hydrated: false,
+      userId: null,
+      activeEntryId: null,
+      selectedIds: [],
+      selectionMode: false,
+      toast: null,
+    });
   },
 }));

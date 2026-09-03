@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { authEnabled, signOut } from "./client";
+import { useWatchlistStore } from "@/store/watchlist-store";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
 
 /**
@@ -76,8 +77,21 @@ export function UserButton() {
           disabled={signingOut}
           onClick={() => {
             setSigningOut(true);
-            // Success navigates away; on failure re-enable so it can be retried.
-            void signOut().catch(() => setSigningOut(false));
+            // Flush watchlist to the server BEFORE clearing the session, otherwise
+            // the last debounced push is lost and the next login loads an empty list.
+            void (async () => {
+              try {
+                await useWatchlistStore.getState().flushSync();
+              } catch {
+                /* still sign out — local copy remains */
+              }
+              useWatchlistStore.getState().resetSession();
+              try {
+                await signOut();
+              } catch {
+                setSigningOut(false);
+              }
+            })();
           }}
           className="cursor-pointer text-sm underline-offset-4 opacity-70 hover:underline disabled:cursor-wait disabled:no-underline"
         >
