@@ -167,11 +167,24 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       displayName: typeof p.displayName === "string" ? p.displayName.trim().slice(0, 48) : undefined,
       bio: typeof p.bio === "string" ? p.bio.trim().slice(0, 280) : undefined,
       avatarUrl:
-        p.avatarUrl === null
-          ? null
-          : typeof p.avatarUrl === "string"
-            ? p.avatarUrl.slice(0, 600_000) // allow modest data-URL avatars
-            : undefined,
+  p.avatarUrl === null
+    ? null
+    : typeof p.avatarUrl === "string"
+      ? (() => {
+          const value = p.avatarUrl.trim();
+
+          // Les avatars doivent être de petites URLs normales.
+          // Refuse les images base64/data URLs : elles peuvent gonfler
+          // le cookie de session Better Auth jusqu'à provoquer un 494.
+          if (value.startsWith("data:")) {
+            throw new Error(
+              "Image de profil invalide : les images intégrées directement ne sont pas supportées.",
+            );
+          }
+
+          return value.slice(0, 2048);
+        })()
+      : undefined,
       isPublic: typeof p.isPublic === "boolean" ? p.isPublic : undefined,
     } satisfies UpdateProfileInput;
   })
