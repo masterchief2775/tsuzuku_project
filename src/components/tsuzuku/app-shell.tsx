@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Clapperboard, Download, Home, Link2, List, Search, Upload } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Clapperboard, Dices, Download, Home, Link2, List, Search, Upload, User } from "lucide-react";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { EntryModal } from "@/components/tsuzuku/entry-modal";
 import { ImportView } from "@/components/tsuzuku/import-view";
 import { ListView } from "@/components/tsuzuku/list-view";
 import { SearchView } from "@/components/tsuzuku/search-view";
 import { SeasonView } from "@/components/tsuzuku/season-view";
+import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { AppToast } from "@/components/tsuzuku/toast";
@@ -28,8 +30,8 @@ export function AppShell() {
   const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
-    if (user) hydrate(user.id);
-  }, [hydrate, user]);
+    if (user?.id) hydrate(user.id);
+  }, [hydrate, user?.id]);
 
   // Persist pending edits when the tab is backgrounded or closed.
   useEffect(() => {
@@ -113,6 +115,7 @@ export function AppShell() {
     { id: "dashboard", label: "Accueil", icon: Home },
     { id: "list", label: "Ma liste", icon: List },
     { id: "season", label: "Saison", icon: Clapperboard },
+    { id: "roulette", label: "Roulette", icon: Dices },
     { id: "search", label: "Rechercher", icon: Search },
   ];
 
@@ -180,6 +183,14 @@ export function AppShell() {
               );
             })}
           </nav>
+          <Link
+            to="/profile"
+            className="rounded-[8px] border border-line bg-raised p-2"
+            aria-label="Mon profil"
+            title="Mon profil"
+          >
+            <User className="size-4" />
+          </Link>
           <ThemePicker />
           <UserButton />
           <button
@@ -225,6 +236,8 @@ export function AppShell() {
           <SearchView inputRef={searchRef} />
         ) : view === "season" ? (
           <SeasonView />
+        ) : view === "roulette" ? (
+          <RouletteView />
         ) : (
           <ListView />
         )}

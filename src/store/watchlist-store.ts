@@ -17,7 +17,7 @@ import {
 } from "@/lib/watchlist";
 import { fetchWatchlistState, saveWatchlistState } from "@/lib/watchlist-sync";
 
-export type ViewId = "dashboard" | "list" | "search" | "season";
+export type ViewId = "dashboard" | "list" | "search" | "season" | "roulette";
 export type LayoutId = "grid" | "list";
 export type SortId = "updated" | "title" | "rating" | "progress";
 

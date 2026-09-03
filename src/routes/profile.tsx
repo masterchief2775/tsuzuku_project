@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Camera, Loader2, Save, Search, Trash2 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
-import { RedirectToSignIn } from "@/lib/auth/gates";
+import { RedirectToSignIn, writeAvatarCache } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { signOut } from "@/lib/auth/client";
 import {
@@ -44,28 +44,40 @@ function MyProfilePage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const p = await getMyProfile();
-      setProfile(p);
-      setDisplayName(p.displayName);
-      setUsername(p.username);
-      setBio(p.bio);
-      setIsPublic(p.isPublic);
-      setAvatarUrl(p.avatarUrl);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
+    if (!user?.id) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+
+    void getMyProfile()
+      .then((p) => {
+        if (cancelled) return;
+        setProfile(p);
+        setDisplayName(p.displayName);
+        setUsername(p.username);
+        setBio(p.bio);
+        setIsPublic(p.isPublic);
+        setAvatarUrl(p.avatarUrl);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[profile] load failed", err);
+        setError(msg || "Impossible de charger le profil");
+        setProfile(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, reloadToken]);
 
   useEffect(() => {
     const q = searchQ.trim();
@@ -125,6 +137,7 @@ function MyProfilePage() {
         },
       });
       setProfile(p);
+      if (user?.id) writeAvatarCache(user.id, p.avatarUrl, p.displayName);
       setOkMsg("Profil enregistré");
       setTimeout(() => setOkMsg(""), 2500);
     } catch (err) {
@@ -167,6 +180,23 @@ function MyProfilePage() {
       </header>
 
       <main className="mx-auto max-w-2xl space-y-8 px-4 py-6 sm:px-7">
+        {error && !loading ? (
+          <div className="rounded-[12px] border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">
+            <p className="font-semibold text-red-300">Erreur de chargement</p>
+            <p className="mt-1 text-dim">{error}</p>
+            <button
+              type="button"
+              className="mt-2 text-sm font-bold text-lime underline-offset-2 hover:underline"
+              onClick={() => {
+                setError("");
+                setReloadToken((n) => n + 1);
+              }}
+            >
+              Réessayer
+            </button>
+          </div>
+        ) : null}
+
         {/* Search others */}
         <section className="rounded-[12px] border border-line bg-raised p-4">
           <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">

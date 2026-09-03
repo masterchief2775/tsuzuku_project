@@ -1,8 +1,10 @@
-import { useState, type ReactNode } from "react";
-import { Navigate } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, Navigate } from "@tanstack/react-router";
 import { authEnabled, signOut } from "./client";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
+import { getMyProfile } from "@/lib/profile";
+import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 
 /**
  * Auth state components — plain wrappers around `useCurrentUserState()`.
@@ -50,32 +52,73 @@ export function RedirectToSignIn({ to = SIGN_IN_PATH }: { to?: string }) {
  * `design-ui` skill). Sign-out is only shown when auth is enabled (the
  * disabled-auth dev user has nothing to sign out of).
  */
+const AVATAR_CACHE_KEY = "tsuzuku-avatar-cache";
+
+function readAvatarCache(userId: string): { url: string | null; name: string | null } | null {
+  try {
+    const raw = localStorage.getItem(AVATAR_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { userId?: string; url?: string | null; name?: string | null };
+    if (parsed.userId !== userId) return null;
+    return { url: parsed.url ?? null, name: parsed.name ?? null };
+  } catch {
+    return null;
+  }
+}
+
+export function writeAvatarCache(userId: string, url: string | null, name: string | null) {
+  try {
+    localStorage.setItem(AVATAR_CACHE_KEY, JSON.stringify({ userId, url, name }));
+  } catch {
+    /* quota */
+  }
+}
+
 export function UserButton() {
   const user = useCurrentUser();
   // Sign-out can take a moment (and can fail when deployed), so the control
   // shows it is working and cannot be fired twice.
   const [signingOut, setSigningOut] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const cached = readAvatarCache(user.id);
+    if (cached) {
+      setAvatarUrl(cached.url);
+      setDisplayName(cached.name);
+    } else if (user.profileImageUrl) {
+      setAvatarUrl(user.profileImageUrl);
+    }
+    let cancelled = false;
+    void getMyProfile()
+      .then((p) => {
+        if (cancelled) return;
+        setAvatarUrl(p.avatarUrl);
+        setDisplayName(p.displayName);
+        writeAvatarCache(user.id, p.avatarUrl, p.displayName);
+      })
+      .catch(() => {
+        /* keep session/cache avatar */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.profileImageUrl]);
+
   if (!user) return null;
-  const label = user.displayName ?? user.primaryEmail ?? "Account";
+  const label = displayName ?? user.displayName ?? user.primaryEmail ?? "Account";
   return (
     <div className="flex items-center gap-2">
       <Link
         to="/profile"
-        className="flex items-center gap-2 rounded-full outline-none hover:opacity-90"
+        className="flex cursor-pointer items-center gap-2 rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-lime"
         title="Mon profil"
+        aria-label="Mon profil"
       >
-        {user.profileImageUrl ? (
-          <img
-            src={user.profileImageUrl}
-            alt=""
-            className="h-8 w-8 rounded-full object-cover"
-          />
-        ) : (
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/20">
-            {label.charAt(0).toUpperCase()}
-          </span>
-        )}
-        <span className="text-sm font-medium">{label}</span>
+        <ProfileAvatar name={label} src={avatarUrl || user.profileImageUrl} size="sm" />
+        <span className="hidden text-sm font-medium sm:inline">{label}</span>
       </Link>
       {authEnabled && (
         <button

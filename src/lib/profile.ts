@@ -28,10 +28,14 @@ function slugifyUsername(raw: string): string {
 }
 
 function defaultUsername(userId: string, name: string | null): string {
-  const base = slugifyUsername(name || "user") || "user";
-  const suffix = userId.replace(/[^a-z0-9]/gi, "").slice(-4).toLowerCase() || "0000";
-  let candidate = `${base}_${suffix}`.slice(0, 24);
-  if (!USERNAME_RE.test(candidate)) candidate = `user_${suffix}`.slice(0, 24);
+  let base = slugifyUsername(name || "user").replace(/[^a-z0-9_]/g, "");
+  if (base.length < 2) base = "user";
+  const suffix = (userId.replace(/[^a-z0-9]/gi, "").slice(-6) || "000000").toLowerCase();
+  // Always "base_suffix" form guaranteed to match USERNAME_RE / DB check
+  let candidate = `${base.slice(0, 16)}_${suffix}`.slice(0, 24).toLowerCase();
+  if (!USERNAME_RE.test(candidate)) {
+    candidate = `user_${suffix}`.slice(0, 24);
+  }
   return candidate;
 }
 
@@ -63,14 +67,25 @@ function mapRow(row: ProfileRow, opts?: { isOwner?: boolean; listCount?: number 
 
 async function ensureProfile(userId: string): Promise<ProfileRow> {
   const sql = await getSql();
-  const existing = await sql<ProfileRow>`
-    select
-      p."user_id", p."username", p."display_name", p."bio", p."avatar_url", p."is_public",
-      u."name", u."email", u."image"
-    from "user_profile" p
-    join "user" u on u."id" = p."user_id"
-    where p."user_id" = ${userId}
-  `;
+  let existing: ProfileRow[];
+  try {
+    existing = await sql<ProfileRow>`
+      select
+        p."user_id", p."username", p."display_name", p."bio", p."avatar_url", p."is_public",
+        u."name", u."email", u."image"
+      from "user_profile" p
+      join "user" u on u."id" = p."user_id"
+      where p."user_id" = ${userId}
+    `;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/user_profile|does not exist|relation/i.test(msg)) {
+      throw new Error(
+        "Table profil absente — applique la migration 0004_profiles.sql puis redéploie.",
+      );
+    }
+    throw err;
+  }
   if (existing[0]) return existing[0];
 
   const users = await sql<{ name: string | null; email: string | null; image: string | null }>`
