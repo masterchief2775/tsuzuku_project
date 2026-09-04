@@ -17,6 +17,11 @@ export type PublicProfile = {
 
 const USERNAME_RE = /^[a-z0-9][a-z0-9_]{2,23}$/;
 
+// Keep in sync with the client-side compression target in routes/profile.tsx.
+// ~60KB comfortably covers a 256px square WebP/JPEG thumbnail while staying
+// far under any realistic cookie/header size limit.
+const AVATAR_DATA_URL_MAX_LENGTH = 60_000;
+
 function slugifyUsername(raw: string): string {
   return raw
     .toLowerCase()
@@ -167,24 +172,39 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       displayName: typeof p.displayName === "string" ? p.displayName.trim().slice(0, 48) : undefined,
       bio: typeof p.bio === "string" ? p.bio.trim().slice(0, 280) : undefined,
       avatarUrl:
-  p.avatarUrl === null
-    ? null
-    : typeof p.avatarUrl === "string"
-      ? (() => {
-          const value = p.avatarUrl.trim();
+        p.avatarUrl === null
+          ? null
+          : typeof p.avatarUrl === "string"
+            ? (() => {
+                const value = p.avatarUrl.trim();
 
-          // Les avatars doivent être de petites URLs normales.
-          // Refuse les images base64/data URLs : elles peuvent gonfler
-          // le cookie de session Better Auth jusqu'à provoquer un 494.
-          if (value.startsWith("data:")) {
-            throw new Error(
-              "Image de profil invalide : les images intégrées directement ne sont pas supportées.",
-            );
-          }
+                // There's no image-hosting backend in this app — the client
+                // always sends a data: URL (see resizeImageToDataUrl in
+                // routes/profile.tsx, which downsizes/compresses the picked
+                // file to ~256px before it ever gets here). A blanket
+                // rejection of data: URLs used to live here to guard against
+                // bloating Better Auth's session cookie cache, but that made
+                // every avatar change fail unconditionally. Keep the guard,
+                // just scoped to what actually matters: a size cap, applied
+                // whether or not cookieCache ever gets re-enabled (see
+                // lib/auth/server.ts).
+                if (value.startsWith("data:")) {
+                  if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(value)) {
+                    throw new Error(
+                      "Image de profil invalide : format non supporté (PNG, JPEG, WebP ou GIF uniquement).",
+                    );
+                  }
+                  if (value.length > AVATAR_DATA_URL_MAX_LENGTH) {
+                    throw new Error(
+                      "Image de profil trop volumineuse même après compression — essaie une photo plus simple.",
+                    );
+                  }
+                  return value;
+                }
 
-          return value.slice(0, 2048);
-        })()
-      : undefined,
+                return value.slice(0, 2048);
+              })()
+            : undefined,
       isPublic: typeof p.isPublic === "boolean" ? p.isPublic : undefined,
     } satisfies UpdateProfileInput;
   })

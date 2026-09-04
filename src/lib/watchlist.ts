@@ -388,10 +388,26 @@ export function canShowRecommendations(entries: WatchlistEntry[]): boolean {
   return signal >= 5;
 }
 
+function aniListDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
 export async function fetchAniList(
   gql: string,
   variables: Record<string, unknown> | undefined,
   signal?: AbortSignal,
+  attempt = 0,
 ): Promise<AniListMedia[]> {
   const res = await fetch("https://graphql.anilist.co", {
     method: "POST",
@@ -399,6 +415,17 @@ export async function fetchAniList(
     body: JSON.stringify({ query: gql, variables: variables || {} }),
     signal,
   });
+  // AniList's public endpoint has a fairly low rate limit; a search-as-you-type
+  // UI can realistically hit it. Back off using the server's own Retry-After
+  // (falling back to a short exponential delay) instead of surfacing a raw
+  // error on the first 429 — up to 2 retries.
+  if (res.status === 429 && attempt < 2) {
+    const retryAfterHeader = res.headers.get("Retry-After");
+    const parsed = retryAfterHeader ? Number(retryAfterHeader) * 1000 : NaN;
+    const waitMs = Number.isFinite(parsed) && parsed > 0 ? parsed : 1200 * (attempt + 1);
+    await aniListDelay(waitMs, signal);
+    return fetchAniList(gql, variables, signal, attempt + 1);
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
@@ -428,13 +455,24 @@ export async function fetchMediaByIds(
   return results;
 }
 
-export async function fetchMediaById(id: number, signal?: AbortSignal): Promise<AniListMedia> {
+export async function fetchMediaById(
+  id: number,
+  signal?: AbortSignal,
+  attempt = 0,
+): Promise<AniListMedia> {
   const res = await fetch("https://graphql.anilist.co", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ query: MEDIA_BY_ID_GQL, variables: { id } }),
     signal,
   });
+  if (res.status === 429 && attempt < 2) {
+    const retryAfterHeader = res.headers.get("Retry-After");
+    const parsed = retryAfterHeader ? Number(retryAfterHeader) * 1000 : NaN;
+    const waitMs = Number.isFinite(parsed) && parsed > 0 ? parsed : 1200 * (attempt + 1);
+    await aniListDelay(waitMs, signal);
+    return fetchMediaById(id, signal, attempt + 1);
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
