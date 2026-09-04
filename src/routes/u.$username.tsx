@@ -3,7 +3,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Check,
+  ExternalLink,
   Loader2,
+  Star,
   UserMinus,
   UserPlus,
   X,
@@ -18,7 +20,11 @@ import {
   sendFriendRequest,
   type FriendshipStatus,
 } from "@/lib/friends";
-import { getProfileByUsername, type PublicProfile } from "@/lib/profile";
+import {
+  getProfileByUsername,
+  getProfileByUsernameAuthed,
+  type PublicProfile,
+} from "@/lib/profile";
 
 export const Route = createFileRoute("/u/$username")({
   component: PublicProfilePage,
@@ -35,29 +41,37 @@ function PublicProfilePage() {
   const [busy, setBusy] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
 
-  const loadRelation = useCallback(async (userId?: string) => {
-    if (!user?.id) {
-      setRelStatus("none");
-      return;
-    }
-    try {
-      const rel = await getFriendshipWith({
-        data: userId ? { userId } : { username },
-      });
-      setRelStatus(rel.status);
-      setRequestId(rel.requestId);
-      setOtherUserId(rel.otherUserId);
-    } catch {
-      setRelStatus("none");
-    }
-  }, [user?.id, username]);
+  const loadRelation = useCallback(
+    async (userId?: string) => {
+      if (!user?.id) {
+        setRelStatus("none");
+        return;
+      }
+      try {
+        const rel = await getFriendshipWith({
+          data: userId ? { userId } : { username },
+        });
+        setRelStatus(rel.status);
+        setRequestId(rel.requestId);
+        setOtherUserId(rel.otherUserId);
+      } catch {
+        setRelStatus("none");
+      }
+    },
+    [user?.id, username],
+  );
 
   useEffect(() => {
     let cancelled = false;
     setProfile(undefined);
     setError("");
     setActionMsg("");
-    void getProfileByUsername({ data: { username } })
+
+    const load = user?.id
+      ? getProfileByUsernameAuthed({ data: { username } })
+      : getProfileByUsername({ data: { username } });
+
+    void load
       .then((p) => {
         if (cancelled) return;
         setProfile(p);
@@ -72,7 +86,7 @@ function PublicProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [username, loadRelation]);
+  }, [username, loadRelation, user?.id]);
 
   async function doAction(fn: () => Promise<unknown>, msg: string) {
     setBusy(true);
@@ -109,21 +123,21 @@ function PublicProfilePage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-7">
+      <main className="mx-auto max-w-2xl space-y-6 px-4 py-10 sm:px-7">
         {profile === undefined ? (
           <div className="flex justify-center py-16 text-dim">
             <Loader2 className="size-6 animate-spin" />
           </div>
         ) : null}
 
-        {error ? <p className="mb-4 text-center text-sm text-red-400">{error}</p> : null}
-        {actionMsg ? <p className="mb-4 text-center text-sm text-lime">{actionMsg}</p> : null}
+        {error ? <p className="text-center text-sm text-red-400">{error}</p> : null}
+        {actionMsg ? <p className="text-center text-sm text-lime">{actionMsg}</p> : null}
 
         {profile === null && !error ? (
           <div className="py-16 text-center">
             <p className="font-serif text-xl font-medium">Profil introuvable</p>
             <p className="mt-2 text-sm text-dim">
-              Ce pseudo n&apos;existe pas, ou le profil est privé.
+              Ce pseudo n&apos;existe pas, ou le profil est privé / réservé aux amis.
             </p>
             <Link to="/profile" className="mt-4 inline-block text-sm font-semibold text-lime">
               Chercher un autre profil
@@ -132,153 +146,235 @@ function PublicProfilePage() {
         ) : null}
 
         {profile ? (
-          <div className="rounded-[14px] border border-line bg-raised p-6 text-center sm:p-8">
-            <div className="flex justify-center">
-              <ProfileAvatar name={profile.displayName} src={profile.avatarUrl} size="xl" />
-            </div>
-            <h1 className="font-serif mt-4 text-2xl font-semibold">{profile.displayName}</h1>
-            <p className="text-sm text-dim">@{profile.username}</p>
-            {profile.bio ? (
-              <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-dim">{profile.bio}</p>
-            ) : null}
-            {typeof profile.listCount === "number" ? (
-              <p className="mt-3 text-xs text-dim">
-                {profile.listCount} titre{profile.listCount !== 1 ? "s" : ""} dans la watchlist
-              </p>
-            ) : null}
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              {isSelf ? (
-                <Link
-                  to="/profile"
-                  className="rounded-[9px] border border-line px-4 py-2 text-sm font-semibold"
-                >
-                  Modifier mon profil
-                </Link>
+          <>
+            <div className="rounded-[14px] border border-line bg-raised p-6 text-center sm:p-8">
+              <div className="flex justify-center">
+                <ProfileAvatar name={profile.displayName} src={profile.avatarUrl} size="xl" />
+              </div>
+              <h1 className="font-serif mt-4 text-2xl font-semibold">{profile.displayName}</h1>
+              <p className="text-sm text-dim">@{profile.username}</p>
+              {profile.bio ? (
+                <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-dim">
+                  {profile.bio}
+                </p>
+              ) : null}
+              {typeof profile.listCount === "number" ? (
+                <p className="mt-3 text-xs text-dim">
+                  {profile.listCount} titre{profile.listCount !== 1 ? "s" : ""} dans la watchlist
+                </p>
               ) : null}
 
-              {!isSelf && user ? (
-                <>
-                  {relStatus === "none" || relStatus === "rejected" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void doAction(
-                          () =>
-                            sendFriendRequest({
-                              data: { userId: profile.userId },
-                            }),
-                          "Demande d’ami envoyée",
-                        )
-                      }
-                      className="inline-flex items-center gap-2 rounded-[9px] bg-lime px-4 py-2 text-sm font-bold text-bg disabled:opacity-50"
+              {(profile.anilistUrl || profile.malUrl) && (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {profile.anilistUrl ? (
+                    <a
+                      href={profile.anilistUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-xs font-semibold text-dim hover:text-ink"
                     >
-                      <UserPlus className="size-4" />
-                      Ajouter en ami
-                    </button>
+                      <ExternalLink className="size-3" />
+                      AniList
+                    </a>
                   ) : null}
-
-                  {relStatus === "pending_out" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void doAction(
-                          () =>
-                            removeFriendship({
-                              data: requestId
-                                ? { requestId }
-                                : { userId: otherUserId || profile.userId },
-                            }),
-                          "Demande annulée",
-                        )
-                      }
-                      className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim disabled:opacity-50"
+                  {profile.malUrl ? (
+                    <a
+                      href={profile.malUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-xs font-semibold text-dim hover:text-ink"
                     >
-                      <X className="size-4" />
-                      Annuler la demande
-                    </button>
+                      <ExternalLink className="size-3" />
+                      MAL
+                    </a>
                   ) : null}
+                </div>
+              )}
 
-                  {relStatus === "pending_in" ? (
-                    <>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                {isSelf ? (
+                  <Link
+                    to="/profile"
+                    className="rounded-[9px] border border-line px-4 py-2 text-sm font-semibold"
+                  >
+                    Modifier mon profil
+                  </Link>
+                ) : null}
+
+                {!isSelf && user ? (
+                  <>
+                    {relStatus === "none" || relStatus === "rejected" ? (
                       <button
                         type="button"
                         disabled={busy}
                         onClick={() =>
                           void doAction(
                             () =>
-                              acceptFriendRequest({
-                                data: { requestId: requestId! },
+                              sendFriendRequest({
+                                data: { userId: profile.userId },
                               }),
-                            "Vous êtes maintenant amis",
+                            "Demande d’ami envoyée",
                           )
                         }
                         className="inline-flex items-center gap-2 rounded-[9px] bg-lime px-4 py-2 text-sm font-bold text-bg disabled:opacity-50"
                       >
-                        <Check className="size-4" />
-                        Accepter
+                        <UserPlus className="size-4" />
+                        Ajouter en ami
                       </button>
+                    ) : null}
+
+                    {relStatus === "pending_out" ? (
                       <button
                         type="button"
                         disabled={busy}
                         onClick={() =>
                           void doAction(
                             () =>
-                              rejectFriendRequest({
-                                data: { requestId: requestId! },
+                              removeFriendship({
+                                data: requestId
+                                  ? { requestId }
+                                  : { userId: otherUserId || profile.userId },
                               }),
-                            "Demande refusée",
+                            "Demande annulée",
                           )
                         }
                         className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim disabled:opacity-50"
                       >
                         <X className="size-4" />
-                        Refuser
+                        Annuler la demande
                       </button>
-                    </>
-                  ) : null}
+                    ) : null}
 
-                  {relStatus === "friends" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        if (!window.confirm(`Retirer ${profile.displayName} de tes amis ?`)) return;
-                        void doAction(
-                          () =>
-                            removeFriendship({
-                              data: { userId: profile.userId },
-                            }),
-                          "Ami retiré",
-                        );
-                      }}
-                      className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50"
-                    >
-                      <UserMinus className="size-4" />
-                      Retirer des amis
-                    </button>
-                  ) : null}
-                </>
-              ) : null}
+                    {relStatus === "pending_in" ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            void doAction(
+                              () =>
+                                acceptFriendRequest({
+                                  data: { requestId: requestId! },
+                                }),
+                              "Vous êtes maintenant amis",
+                            )
+                          }
+                          className="inline-flex items-center gap-2 rounded-[9px] bg-lime px-4 py-2 text-sm font-bold text-bg disabled:opacity-50"
+                        >
+                          <Check className="size-4" />
+                          Accepter
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            void doAction(
+                              () =>
+                                rejectFriendRequest({
+                                  data: { requestId: requestId! },
+                                }),
+                              "Demande refusée",
+                            )
+                          }
+                          className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim disabled:opacity-50"
+                        >
+                          <X className="size-4" />
+                          Refuser
+                        </button>
+                      </>
+                    ) : null}
 
-              {!user && !isSelf ? (
-                <Link
-                  to="/login"
-                  className="rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim"
-                >
-                  Connecte-toi pour ajouter en ami
-                </Link>
+                    {relStatus === "friends" ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          if (!window.confirm(`Retirer ${profile.displayName} de tes amis ?`))
+                            return;
+                          void doAction(
+                            () =>
+                              removeFriendship({
+                                data: { userId: profile.userId },
+                              }),
+                            "Ami retiré",
+                          );
+                        }}
+                        className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50"
+                      >
+                        <UserMinus className="size-4" />
+                        Retirer des amis
+                      </button>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {!user && !isSelf ? (
+                  <Link
+                    to="/login"
+                    className="rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim"
+                  >
+                    Connecte-toi pour ajouter en ami
+                  </Link>
+                ) : null}
+              </div>
+
+              {relStatus === "friends" ? (
+                <p className="mt-4 text-xs font-semibold text-lime">Vous êtes amis</p>
               ) : null}
             </div>
 
-            {relStatus === "friends" ? (
-              <p className="mt-4 text-xs font-semibold text-lime">Vous êtes amis</p>
+            {profile.showStats && profile.stats ? (
+              <section className="rounded-[14px] border border-line bg-raised p-5">
+                <h2 className="font-serif mb-3 text-base font-medium">Statistiques</h2>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs sm:grid-cols-6">
+                  <Stat label="Total" value={profile.stats.total} />
+                  <Stat label="En cours" value={profile.stats.watching} />
+                  <Stat label="Terminés" value={profile.stats.completed} />
+                  <Stat label="À voir" value={profile.stats.planToWatch} />
+                  <Stat label="Note moy." value={profile.stats.avgRating ?? "—"} />
+                  <Stat label="Épisodes" value={profile.stats.episodesWatched} />
+                </div>
+              </section>
             ) : null}
-          </div>
+
+            {profile.showFavorites && profile.favorites.length > 0 ? (
+              <section className="rounded-[14px] border border-line bg-raised p-5">
+                <h2 className="font-serif mb-3 inline-flex items-center gap-2 text-base font-medium">
+                  <Star className="size-4 text-lime" />
+                  Favoris
+                </h2>
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  {profile.favorites.map((f) => (
+                    <li key={f.anilistId} className="text-center">
+                      <div className="mx-auto aspect-[2/3] w-full max-w-[100px] overflow-hidden rounded-[10px] border border-line bg-bg">
+                        {f.image ? (
+                          <img
+                            src={f.image}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : null}
+                      </div>
+                      <p className="mt-1.5 line-clamp-2 text-[11.5px] font-semibold leading-snug">
+                        {f.title}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </>
         ) : null}
       </main>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-[10px] border border-line bg-bg p-2.5">
+      <div className="text-base font-bold text-ink">{value}</div>
+      <div className="text-dim">{label}</div>
     </div>
   );
 }

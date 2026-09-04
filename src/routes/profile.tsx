@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Camera, KeyRound, Loader2, Save, Search, Trash2, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  ExternalLink,
+  KeyRound,
+  Loader2,
+  Save,
+  Search,
+  Star,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { RedirectToSignIn, writeAvatarCache } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -10,6 +22,8 @@ import {
   getMyProfile,
   searchProfiles,
   updateMyProfile,
+  type FavoriteAnime,
+  type ProfileVisibility,
   type PublicProfile,
 } from "@/lib/profile";
 import { useWatchlistStore } from "@/store/watchlist-store";
@@ -23,6 +37,7 @@ function MyProfilePage() {
   const { user, isPending } = useCurrentUserState();
   const flushSync = useWatchlistStore((s) => s.flushSync);
   const resetSession = useWatchlistStore((s) => s.resetSession);
+  const entries = useWatchlistStore((s) => s.entries);
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +48,12 @@ function MyProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
+  const [visibility, setVisibility] = useState<ProfileVisibility>("public");
+  const [showStats, setShowStats] = useState(true);
+  const [showFavorites, setShowFavorites] = useState(true);
+  const [favorites, setFavorites] = useState<FavoriteAnime[]>([]);
+  const [anilistUrl, setAnilistUrl] = useState("");
+  const [malUrl, setMalUrl] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [searchQ, setSearchQ] = useState("");
@@ -67,7 +87,12 @@ function MyProfilePage() {
         setDisplayName(p.displayName);
         setUsername(p.username);
         setBio(p.bio);
-        setIsPublic(p.isPublic);
+        setVisibility(p.visibility || (p.isPublic ? "public" : "private"));
+        setShowStats(p.showStats !== false);
+        setShowFavorites(p.showFavorites !== false);
+        setFavorites(p.favorites || []);
+        setAnilistUrl(p.anilistUrl || "");
+        setMalUrl(p.malUrl || "");
         setAvatarUrl(p.avatarUrl);
       })
       .catch((err) => {
@@ -140,7 +165,12 @@ function MyProfilePage() {
           displayName,
           bio,
           avatarUrl,
-          isPublic,
+          visibility,
+          showStats,
+          showFavorites,
+          favorites,
+          anilistUrl: anilistUrl.trim() || null,
+          malUrl: malUrl.trim() || null,
         },
       });
       setProfile(p);
@@ -366,30 +396,160 @@ function MyProfilePage() {
                     className="w-full resize-y rounded-[9px] border border-line bg-bg px-3 py-2.5 text-sm outline-none focus:border-lime"
                   />
                 </Field>
-                <label className="flex items-center justify-between gap-3 rounded-[10px] border border-line bg-bg/40 px-4 py-3">
-                  <span className="text-sm font-semibold">Profil public</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={isPublic}
-                    onClick={() => setIsPublic((v) => !v)}
-                    className={cn(
-                      "relative h-7 w-12 rounded-full transition-colors",
-                      isPublic ? "bg-lime" : "bg-line",
-                    )}
+                <Field label="Visibilité du profil">
+                  <select
+                    value={visibility}
+                    onChange={(e) => setVisibility(e.target.value as ProfileVisibility)}
+                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2.5 text-sm outline-none focus:border-lime"
                   >
-                    <span
-                      className={cn(
-                        "absolute top-0.5 left-0.5 size-6 rounded-full bg-bg transition-transform",
-                        isPublic && "translate-x-5",
-                      )}
-                    />
-                  </button>
-                </label>
+                    <option value="public">Public — visible par tous</option>
+                    <option value="friends">Amis seulement</option>
+                    <option value="private">Privé — toi uniquement</option>
+                  </select>
+                </Field>
                 <p className="text-[11.5px] text-dim">
-                  Un profil privé n’apparaît pas dans la recherche et n’est pas consultable via
-                  le lien.
+                  Seuls les profils publics apparaissent dans la recherche.
                 </p>
+              </div>
+
+              {profile?.stats ? (
+                <div className="rounded-[10px] border border-line bg-bg/40 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold">Stats</span>
+                    <label className="flex items-center gap-2 text-xs text-dim">
+                      <input
+                        type="checkbox"
+                        checked={showStats}
+                        onChange={(e) => setShowStats(e.target.checked)}
+                      />
+                      Afficher sur le profil
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs sm:grid-cols-6">
+                    <div className="rounded-lg bg-raised p-2">
+                      <div className="font-bold">{profile.stats.total}</div>
+                      <div className="text-dim">Total</div>
+                    </div>
+                    <div className="rounded-lg bg-raised p-2">
+                      <div className="font-bold">{profile.stats.watching}</div>
+                      <div className="text-dim">En cours</div>
+                    </div>
+                    <div className="rounded-lg bg-raised p-2">
+                      <div className="font-bold">{profile.stats.completed}</div>
+                      <div className="text-dim">Terminés</div>
+                    </div>
+                    <div className="rounded-lg bg-raised p-2">
+                      <div className="font-bold">{profile.stats.planToWatch}</div>
+                      <div className="text-dim">À voir</div>
+                    </div>
+                    <div className="rounded-lg bg-raised p-2">
+                      <div className="font-bold">{profile.stats.avgRating ?? "—"}</div>
+                      <div className="text-dim">Note moy.</div>
+                    </div>
+                    <div className="rounded-lg bg-raised p-2">
+                      <div className="font-bold">{profile.stats.episodesWatched}</div>
+                      <div className="text-dim">Épisodes</div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-[10px] border border-line bg-bg/40 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
+                    <Star className="size-4 text-lime" />
+                    Top 5 favoris
+                  </span>
+                  <label className="flex items-center gap-2 text-xs text-dim">
+                    <input
+                      type="checkbox"
+                      checked={showFavorites}
+                      onChange={(e) => setShowFavorites(e.target.checked)}
+                    />
+                    Afficher
+                  </label>
+                </div>
+                <p className="mb-2 text-[11.5px] text-dim">
+                  Choisis jusqu&apos;à 5 titres depuis ta watchlist.
+                </p>
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {favorites.map((f) => (
+                    <span
+                      key={f.anilistId}
+                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-line bg-raised py-1 pr-1.5 pl-1 text-[11.5px]"
+                    >
+                      {f.image ? (
+                        <img src={f.image} alt="" className="size-5 rounded object-cover" />
+                      ) : null}
+                      <span className="max-w-[120px] truncate">{f.title}</span>
+                      <button
+                        type="button"
+                        className="text-dim hover:text-crimson"
+                        onClick={() =>
+                          setFavorites((prev) => prev.filter((x) => x.anilistId !== f.anilistId))
+                        }
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                {favorites.length < 5 ? (
+                  <select
+                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none"
+                    value=""
+                    onChange={(e) => {
+                      const id = Number(e.target.value);
+                      if (!id) return;
+                      const entry = entries.find((x) => x.anilistId === id);
+                      if (!entry) return;
+                      if (favorites.some((f) => f.anilistId === id)) return;
+                      setFavorites((prev) => [
+                        ...prev,
+                        {
+                          anilistId: entry.anilistId,
+                          title: entry.title,
+                          image: entry.image,
+                        },
+                      ]);
+                    }}
+                  >
+                    <option value="">+ Ajouter depuis ma liste…</option>
+                    {entries
+                      .filter((e) => !favorites.some((f) => f.anilistId === e.anilistId))
+                      .slice()
+                      .sort((a, b) => a.title.localeCompare(b.title, "fr"))
+                      .slice(0, 200)
+                      .map((e) => (
+                        <option key={e.id} value={e.anilistId}>
+                          {e.title}
+                        </option>
+                      ))}
+                  </select>
+                ) : null}
+              </div>
+
+              <div className="space-y-3 rounded-[10px] border border-line bg-bg/40 p-3">
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
+                  <ExternalLink className="size-4 text-lime" />
+                  Liens externes
+                </span>
+                <Field label="AniList">
+                  <input
+                    value={anilistUrl}
+                    onChange={(e) => setAnilistUrl(e.target.value)}
+                    placeholder="https://anilist.co/user/…"
+                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime"
+                  />
+                </Field>
+                <Field label="MyAnimeList">
+                  <input
+                    value={malUrl}
+                    onChange={(e) => setMalUrl(e.target.value)}
+                    placeholder="https://myanimelist.net/profile/…"
+                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime"
+                  />
+                </Field>
               </div>
 
               {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
