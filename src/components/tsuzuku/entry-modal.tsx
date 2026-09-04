@@ -1,7 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Minus, Plus, RefreshCw, Star, Trash2, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Minus, Plus, RefreshCw, Star, Trash2, UserPlus, X } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
+import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { cn } from "@/lib/utils";
+import { listFriends, type FriendProfile } from "@/lib/friends";
 import { kindLabel, mediaKind, STATUSES, statusMeta } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
 
@@ -18,13 +21,32 @@ export function EntryModal() {
   const entry = entries.find((e) => e.id === activeEntryId) ?? null;
   const [confirming, setConfirming] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
-  const [personDraft, setPersonDraft] = useState("");
+  const [friends, setFriends] = useState<FriendProfile[]>([]);
+  const [friendsLoaded, setFriendsLoaded] = useState(false);
+  const [friendPickerOpen, setFriendPickerOpen] = useState(false);
 
   useEffect(() => {
     setConfirming(false);
     setTagDraft("");
-    setPersonDraft("");
+    setFriendPickerOpen(false);
   }, [activeEntryId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listFriends()
+      .then((list) => {
+        if (!cancelled) {
+          setFriends(list);
+          setFriendsLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFriendsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!entry) return null;
 
@@ -37,6 +59,14 @@ export function EntryModal() {
       : String(entry.totalEpisodes ?? "?");
   const withPeople = entry.withPeople || [];
 
+  const friendById = new Map(friends.map((f) => [f.userId, f]));
+  const selectedFriends = withPeople
+    .map((id) => friendById.get(id))
+    .filter(Boolean) as FriendProfile[];
+  // Legacy free-text names (not matching a known friend id)
+  const legacyNames = withPeople.filter((id) => !friendById.has(id));
+  const availableFriends = friends.filter((f) => !withPeople.includes(f.userId));
+
   function addTag() {
     const t = tagDraft.trim();
     if (!t || entry!.tags.includes(t)) return;
@@ -44,14 +74,18 @@ export function EntryModal() {
     setTagDraft("");
   }
 
-  function addPerson() {
-    const name = personDraft.trim();
-    if (!name) return;
+  function toggleFriend(userId: string) {
     const people = entry!.withPeople || [];
-    // case-insensitive dedupe
-    if (people.some((p) => p.toLowerCase() === name.toLowerCase())) return;
-    updateEntry(entry!.id, { withPeople: [...people, name] });
-    setPersonDraft("");
+    if (people.includes(userId)) {
+      updateEntry(entry!.id, { withPeople: people.filter((x) => x !== userId) });
+    } else {
+      updateEntry(entry!.id, { withPeople: [...people, userId] });
+    }
+  }
+
+  function removePerson(value: string) {
+    const people = entry!.withPeople || [];
+    updateEntry(entry!.id, { withPeople: people.filter((x) => x !== value) });
   }
 
   return (
@@ -232,55 +266,88 @@ export function EntryModal() {
           </div>
         </Field>
 
-        <Field label="Vu avec">
-          <p className="mb-2 text-[11.5px] text-dim">
-            Les personnes avec qui tu regardes cet anime.
-          </p>
+        <Field label="Vu avec (amis)">
           <div className="flex flex-wrap items-center gap-1.5">
-            {withPeople.map((p) => (
+            {selectedFriends.map((f) => (
               <span
-                key={p}
-                className="flex items-center gap-1 rounded-full border border-lime/40 bg-lime/10 px-2.5 py-1 text-[11.5px] font-medium text-lime"
+                key={f.userId}
+                className="flex items-center gap-1.5 rounded-full border border-line bg-bg py-0.5 pr-1.5 pl-0.5 text-[11.5px] text-dim"
               >
-                {p}
+                <ProfileAvatar name={f.displayName} src={f.avatarUrl} size="xs" />
+                <span className="max-w-[100px] truncate">{f.displayName}</span>
                 <button
                   type="button"
-                  aria-label={`Retirer ${p}`}
-                  onClick={() =>
-                    updateEntry(entry.id, {
-                      withPeople: withPeople.filter((x) => x !== p),
-                    })
-                  }
+                  className="rounded-full p-0.5 hover:text-crimson"
+                  aria-label={`Retirer ${f.displayName}`}
+                  onClick={() => removePerson(f.userId)}
                 >
                   <X className="size-3" />
                 </button>
               </span>
             ))}
-            <input
-              value={personDraft}
-              onChange={(ev) => setPersonDraft(ev.target.value)}
-              onKeyDown={(ev) => {
-                if (ev.key === "Enter") {
-                  ev.preventDefault();
-                  addPerson();
-                }
-              }}
-              placeholder="+ prénom ou pseudo"
-              list="tsuzuku-people-suggestions"
-              className="rounded-full border border-dashed border-line bg-bg px-3 py-1 text-[11.5px] outline-none"
-            />
-            <datalist id="tsuzuku-people-suggestions">
-              {[
-                ...new Set(
-                  entries.flatMap((e) => e.withPeople || []).filter((n) => n && !withPeople.includes(n)),
-                ),
-              ]
-                .sort((a, b) => a.localeCompare(b, "fr"))
-                .map((n) => (
-                  <option key={n} value={n} />
-                ))}
-            </datalist>
+            {legacyNames.map((name) => (
+              <span
+                key={name}
+                className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11.5px] text-amber-200"
+                title="Ancien nom libre — retire-le ou remplace-le par un ami"
+              >
+                {name}
+                <button
+                  type="button"
+                  className="hover:text-crimson"
+                  aria-label={`Retirer ${name}`}
+                  onClick={() => removePerson(name)}
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={() => setFriendPickerOpen((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-full border border-dashed border-line bg-bg px-2.5 py-1 text-[11.5px] font-semibold text-dim hover:border-lime/50 hover:text-ink"
+            >
+              <UserPlus className="size-3" />
+              Ajouter un ami
+            </button>
           </div>
+          {friendPickerOpen ? (
+            <div className="mt-2 max-h-40 overflow-y-auto rounded-[10px] border border-line bg-bg p-2">
+              {!friendsLoaded ? (
+                <p className="px-1 py-2 text-xs text-dim">Chargement des amis…</p>
+              ) : friends.length === 0 ? (
+                <p className="px-1 py-2 text-xs text-dim">
+                  Aucun ami pour l&apos;instant.{" "}
+                  <Link to="/friends" className="font-semibold text-lime">
+                    Gérer les amis
+                  </Link>
+                </p>
+              ) : availableFriends.length === 0 ? (
+                <p className="px-1 py-2 text-xs text-dim">Tous tes amis sont déjà listés.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {availableFriends.map((f) => (
+                    <li key={f.userId}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleFriend(f.userId);
+                          setFriendPickerOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-sm hover:bg-raised"
+                      >
+                        <ProfileAvatar name={f.displayName} src={f.avatarUrl} size="sm" />
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="font-medium">{f.displayName}</span>
+                          <span className="ml-1 text-xs text-dim">@{f.username}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
         </Field>
 
         <button

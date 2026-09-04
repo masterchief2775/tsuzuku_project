@@ -54,7 +54,7 @@ export function EntryCard({
           ) : null}
           {entry.withPeople && entry.withPeople.length > 0 ? (
             <div className="mt-1 truncate text-[10.5px] text-dim">
-              avec {entry.withPeople.join(", ")}
+              avec {entry.withPeople.length} ami{entry.withPeople.length > 1 ? "s" : ""}
             </div>
           ) : null}
           {pct != null ? (

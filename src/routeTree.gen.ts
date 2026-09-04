@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
@@ -19,6 +20,11 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FriendsRoute = FriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -49,6 +55,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/friends': typeof FriendsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/share/$token': typeof ShareTokenRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/friends': typeof FriendsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/share/$token': typeof ShareTokenRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/friends': typeof FriendsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/share/$token': typeof ShareTokenRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/friends'
     | '/login'
     | '/profile'
     | '/share/$token'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/friends'
     | '/login'
     | '/profile'
     | '/share/$token'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/friends'
     | '/login'
     | '/profile'
     | '/share/$token'
@@ -101,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FriendsRoute: typeof FriendsRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   ShareTokenRoute: typeof ShareTokenRoute
@@ -115,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/friends': {
+      id: '/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof FriendsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -157,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FriendsRoute: FriendsRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   ShareTokenRoute: ShareTokenRoute,

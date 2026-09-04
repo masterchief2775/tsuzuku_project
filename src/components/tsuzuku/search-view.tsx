@@ -38,7 +38,6 @@ export function SearchView({ inputRef }: { inputRef: RefObject<HTMLInputElement 
   const requestId = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const composingRef = useRef(false);
 
   useEffect(() => {
     loadDefault();
@@ -96,10 +95,6 @@ export function SearchView({ inputRef }: { inputRef: RefObject<HTMLInputElement 
 
   function onQueryChange(value: string) {
     setQuery(value);
-    // Mid-composition (typing romaji that IME will convert to kana/kanji):
-    // keep the input responsive but don't fire a search on every unfinished
-    // keystroke — wait for compositionend, handled below.
-    if (composingRef.current) return;
     const q = value.trim();
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (q.length === 0) {
@@ -131,13 +126,6 @@ export function SearchView({ inputRef }: { inputRef: RefObject<HTMLInputElement 
           ref={inputRef}
           value={query}
           onChange={(ev) => onQueryChange(ev.target.value)}
-          onCompositionStart={() => {
-            composingRef.current = true;
-          }}
-          onCompositionEnd={(ev) => {
-            composingRef.current = false;
-            onQueryChange((ev.target as HTMLInputElement).value);
-          }}
           placeholder="Titre japonais, anglais ou romaji…"
           className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
           aria-label="Rechercher un anime"

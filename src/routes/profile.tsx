@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Camera, Loader2, Save, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Camera, KeyRound, Loader2, Save, Search, Trash2, Users } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { RedirectToSignIn, writeAvatarCache } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { signOut } from "@/lib/auth/client";
+import { authClient, signOut } from "@/lib/auth/client";
 import {
   deleteMyAccount,
   getMyProfile,
@@ -45,6 +45,13 @@ function MyProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [reloadToken, setReloadToken] = useState(0);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwdBusy, setPwdBusy] = useState(false);
+  const [pwdMsg, setPwdMsg] = useState("");
+  const [pwdErr, setPwdErr] = useState("");
 
   useEffect(() => {
     if (!user?.id) return;
@@ -104,74 +111,22 @@ function MyProfilePage() {
   }
   if (!user) return <RedirectToSignIn />;
 
-  // Keep in sync with AVATAR_DATA_URL_MAX_LENGTH in lib/profile.ts.
-  const AVATAR_DATA_URL_MAX_LENGTH = 60_000;
-
-  const resizeImageToDataUrl = (file: File, maxSize: number, quality: number) =>
-    new Promise<string>((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        try {
-          // Cover-crop to a square so avatars aren't squished.
-          const side = Math.min(img.width, img.height);
-          const sx = (img.width - side) / 2;
-          const sy = (img.height - side) / 2;
-
-          const canvas = document.createElement("canvas");
-          canvas.width = maxSize;
-          canvas.height = maxSize;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Canvas indisponible.");
-          ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
-
-          // WebP is smallest; fall back to JPEG on browsers that silently
-          // ignore the requested type (toDataURL then returns a PNG).
-          let dataUrl = canvas.toDataURL("image/webp", quality);
-          if (!dataUrl.startsWith("data:image/webp")) {
-            dataUrl = canvas.toDataURL("image/jpeg", quality);
-          }
-          resolve(dataUrl);
-        } catch (err) {
-          reject(err instanceof Error ? err : new Error("Traitement de l'image impossible."));
-        } finally {
-          URL.revokeObjectURL(objectUrl);
-        }
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error("Image illisible."));
-      };
-      img.src = objectUrl;
-    });
-
-  const onPickAvatar = async (file: File | null) => {
+  const onPickAvatar = (file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       setError("Choisis une image (JPEG, PNG, WebP…).");
       return;
     }
-    if (file.size > 8_000_000) {
-      setError("Image trop lourde (max ~8 Mo).");
+    if (file.size > 400_000) {
+      setError("Image trop lourde (max ~400 Ko). Compresse-la un peu.");
       return;
     }
-    setError("");
-    try {
-      // 256px is plenty for every place the avatar is shown; try that
-      // first, then degrade quality/size once more for busy source photos
-      // that don't compress as well.
-      let dataUrl = await resizeImageToDataUrl(file, 256, 0.82);
-      if (dataUrl.length > AVATAR_DATA_URL_MAX_LENGTH) {
-        dataUrl = await resizeImageToDataUrl(file, 160, 0.7);
-      }
-      if (dataUrl.length > AVATAR_DATA_URL_MAX_LENGTH) {
-        setError("Cette image compresse mal — essaie une photo plus simple ou plus petite.");
-        return;
-      }
-      setAvatarUrl(dataUrl);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de traiter cette image.");
-    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : null;
+      setAvatarUrl(result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const save = async () => {
@@ -196,6 +151,38 @@ function MyProfilePage() {
       setError((err as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const changePassword = async () => {
+    setPwdMsg("");
+    setPwdErr("");
+    if (newPassword.length < 8) {
+      setPwdErr("Le nouveau mot de passe doit faire au moins 8 caractères.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwdErr("La confirmation ne correspond pas.");
+      return;
+    }
+    setPwdBusy(true);
+    try {
+      const res = await authClient.changePassword({
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: true,
+      });
+      if (res.error) {
+        throw new Error(res.error.message || "Impossible de changer le mot de passe");
+      }
+      setPwdMsg("Mot de passe mis à jour.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setPwdErr(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPwdBusy(false);
     }
   };
 
@@ -228,6 +215,13 @@ function MyProfilePage() {
             <h1 className="font-serif text-lg font-semibold">Mon profil</h1>
             <p className="truncate text-xs text-dim">@{username || "…"}</p>
           </div>
+          <Link
+            to="/friends"
+            className="inline-flex items-center gap-1.5 rounded-[9px] border border-line bg-raised px-3 py-2 text-xs font-semibold text-dim hover:text-ink"
+          >
+            <Users className="size-4" />
+            Amis
+          </Link>
         </div>
       </header>
 
@@ -311,7 +305,7 @@ function MyProfilePage() {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={(e) => void onPickAvatar(e.target.files?.[0] ?? null)}
+                  onChange={(e) => onPickAvatar(e.target.files?.[0] ?? null)}
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="text-sm text-dim">
@@ -420,6 +414,68 @@ function MyProfilePage() {
                   Voir mon profil public
                 </Link>
               ) : null}
+            </section>
+
+            <section className="rounded-[12px] border border-line bg-raised p-5">
+              <h2 className="font-serif mb-1 flex items-center gap-2 text-base font-medium">
+                <KeyRound className="size-4 text-lime" />
+                Mot de passe
+              </h2>
+              <p className="mb-3 text-xs text-dim">
+                Disponible si tu t&apos;es inscrit avec e-mail / mot de passe.
+              </p>
+              {pwdErr ? <p className="mb-2 text-sm text-red-400">{pwdErr}</p> : null}
+              {pwdMsg ? <p className="mb-2 text-sm text-lime">{pwdMsg}</p> : null}
+              <div className="space-y-3">
+                <Field label="Mot de passe actuel">
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none"
+                  />
+                </Field>
+                <Field label="Nouveau mot de passe">
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none"
+                  />
+                </Field>
+                <Field label="Confirmer">
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none"
+                  />
+                </Field>
+                <button
+                  type="button"
+                  disabled={pwdBusy || !currentPassword || !newPassword}
+                  onClick={() => void changePassword()}
+                  className="rounded-[9px] border border-line px-4 py-2 text-sm font-semibold disabled:opacity-40"
+                >
+                  {pwdBusy ? "Mise à jour…" : "Changer le mot de passe"}
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-[12px] border border-line bg-raised p-4">
+              <Link
+                to="/friends"
+                className="flex items-center justify-between gap-3 rounded-[10px] px-2 py-2 hover:bg-bg"
+              >
+                <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                  <Users className="size-4 text-lime" />
+                  Gérer mes amis
+                </span>
+                <span className="text-xs text-dim">Demandes · liste</span>
+              </Link>
             </section>
 
             {/* Danger zone */}

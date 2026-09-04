@@ -8,17 +8,19 @@ export function ProfileAvatar({
 }: {
   name: string;
   src?: string | null;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   const dims =
-    size === "sm"
-      ? "size-8 text-xs"
-      : size === "lg"
-        ? "size-16 text-xl"
-        : size === "xl"
-          ? "size-24 text-3xl"
-          : "size-10 text-sm";
+    size === "xs"
+      ? "size-5 text-[9px]"
+      : size === "sm"
+        ? "size-8 text-xs"
+        : size === "lg"
+          ? "size-16 text-xl"
+          : size === "xl"
+            ? "size-24 text-3xl"
+            : "size-10 text-sm";
   const letter = (name || "?").charAt(0).toUpperCase();
 
   if (src) {

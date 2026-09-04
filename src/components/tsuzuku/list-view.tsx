@@ -317,7 +317,7 @@ export function ListView() {
               </FilterPill>
             ))}
           </FacetRow>
-          <FacetRow label="Vu avec" empty="Ajoute des personnes sur une fiche pour filtrer ici">
+          <FacetRow label="Vu avec (amis)" empty="Ajoute des amis sur une fiche pour filtrer ici">
             {facets.people.map((person) => (
               <FilterPill
                 key={person}

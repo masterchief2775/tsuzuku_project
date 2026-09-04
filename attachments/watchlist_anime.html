@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tsuzuku — Watchlist Anime</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://graphql.anilist.co">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14161F;
+    --bg-raised: #1B1E2B;
+    --ink: #ECEAE6;
+    --ink-dim: #9B9CAE;
+    --line: #2A2D3D;
+    --lime: #C8FF4D;
+    --crimson: #E6394B;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Manrope', 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  .serif { font-family: 'Fraunces', Georgia, serif; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 28px; border-bottom: 1px solid var(--line); flex-wrap: wrap; gap: 14px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 38px; height: 38px; border-radius: 8px; background: var(--lime);
+    color: #14161F; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 600;
+  }
+  .brand-name { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .brand-sub { font-size: 12px; color: var(--ink-dim); }
+  nav { display: flex; gap: 4px; background: var(--bg-raised); padding: 4px; border-radius: 10px; }
+  nav button {
+    display: flex; align-items: center; gap: 6px; background: none; border: none; color: var(--ink-dim);
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  nav button.active { background: var(--ink); color: var(--bg); }
+
+  main { padding: 24px 28px; max-width: 1100px; margin: 0 auto; }
+
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 32px; }
+  .stat-card { background: var(--bg-raised); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 10px; padding: 14px; }
+  .stat-num { font-size: 28px; }
+  .stat-label { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+
+  .section { margin-bottom: 28px; }
+  .section h3 { font-weight: 500; font-size: 17px; margin: 0 0 12px; }
+  .rail { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; }
+  .rail .card { min-width: 150px; flex-shrink: 0; }
+
+  .empty, .error-msg { color: var(--ink-dim); padding: 20px; display: flex; gap: 8px; align-items: center; }
+  .error-msg { color: var(--crimson); }
+
+  .empty-state { text-align: center; padding: 80px 20px; }
+  .empty-state.small { padding: 48px 20px; }
+  .empty-glyph { font-size: 48px; color: var(--line); margin-bottom: 8px; }
+  .empty-state h2 { font-weight: 500; margin: 4px 0; }
+  .empty-state p { color: var(--ink-dim); margin: 0 0 20px; font-size: 14px; }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--lime); color: #14161F;
+    border: none; padding: 11px 18px; border-radius: 9px; font-weight: 700; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  .btn-primary.small { padding: 7px 12px; font-size: 12px; width: 100%; justify-content: center; margin-top: 10px; }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-added {
+    display: flex; align-items: center; gap: 6px; justify-content: center; width: 100%; margin-top: 10px;
+    background: none; border: 1px solid var(--line); color: var(--ink-dim); padding: 7px 12px; border-radius: 9px; font-size: 12px;
+  }
+  .btn-danger {
+    display: flex; align-items: center; gap: 8px; justify-content: center; width: 100%; margin-top: 18px;
+    background: none; border: 1px solid var(--crimson); color: var(--crimson); padding: 10px; border-radius: 9px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn-danger:hover { background: rgba(230,57,75,0.1); }
+  .icon-btn { background: var(--bg-raised); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 8px; cursor: pointer; }
+
+  .search-bar {
+    display: flex; align-items: center; gap: 10px; background: var(--bg-raised); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; color: var(--ink-dim);
+  }
+  .search-bar input { flex: 1; background: none; border: none; outline: none; color: var(--ink); font-size: 14px; font-family: inherit; }
+  .search-bar .cache-hint { font-size: 10.5px; color: var(--ink-dim); opacity: .7; }
+  .search-section-label { font-size: 12px; color: var(--ink-dim); font-weight: 600; margin: 0 0 12px; }
+  .search-grid, .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+  .search-card, .card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; text-align: left; padding: 0; }
+  .search-card img, .card img { width: 100%; height: 210px; object-fit: cover; display: block; background: var(--bg); }
+  .search-card-body, .card-body { padding: 10px 12px 12px; }
+  .search-card-title, .card-title { font-weight: 700; font-size: 13px; line-height: 1.3; margin-bottom: 6px; min-height: 34px; }
+  .search-card-title mark, .card-title mark { background: var(--lime); color: #14161F; border-radius: 3px; padding: 0 2px; }
+  .search-card-meta { font-size: 11.5px; color: var(--ink-dim); margin-bottom: 8px; }
+
+  .genre-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+  .genre-pill { font-size: 10.5px; background: var(--bg); border: 1px solid var(--line); color: var(--ink-dim); padding: 2px 8px; border-radius: 20px; }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+  .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-pills button {
+    background: var(--bg-raised); border: 1px solid var(--line); color: var(--ink-dim); font-size: 12.5px;
+    padding: 7px 13px; border-radius: 20px; cursor: pointer; font-weight: 600; font-family: inherit;
+  }
+  .filter-pills button.active { background: var(--accent, var(--lime)); border-color: transparent; color: #14161F; }
+  .toolbar-right { display: flex; gap: 8px; align-items: center; }
+  .toolbar-right select { background: var(--bg-raised); border: 1px solid var(--line); color: var(--ink); padding: 8px 10px; border-radius: 8px; font-size: 12.5px; font-family: inherit; }
+
+  .card-image { position: relative; }
+  .status-chip { position: absolute; top: 8px; left: 8px; background: rgba(20,22,31,0.85); color: var(--accent); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+  .status-chip.inline { position: static; background: var(--bg); }
+  .card-progress-row { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-dim); }
+  .rating { display: flex; align-items: center; gap: 3px; color: var(--lime); }
+  .progress-track { height: 4px; background: var(--line); border-radius: 4px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); }
+
+  .rows { display: flex; flex-direction: column; gap: 6px; }
+  .row {
+    display: grid; grid-template-columns: 40px 1fr auto auto auto; align-items: center; gap: 14px;
+    background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; cursor: pointer; text-align: left;
+  }
+  .row img { width: 32px; height: 40px; object-fit: cover; border-radius: 4px; }
+  .row-title { font-weight: 600; font-size: 13.5px; }
+  .row-progress { font-size: 12px; color: var(--ink-dim); }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 60;
+  }
+  .toast.show { opacity: 1; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(10,10,14,0.7); display: none; align-items: center; justify-content: center;
+    z-index: 50; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--bg-raised); border: 1px solid var(--line); border-radius: 16px; padding: 24px;
+    max-width: 480px; width: 100%; max-height: 88vh; overflow-y: auto; position: relative;
+  }
+  .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--ink-dim); cursor: pointer; font-size: 18px; }
+  .modal-header { display: flex; gap: 14px; margin-bottom: 20px; }
+  .modal-header img { width: 80px; height: 110px; object-fit: cover; border-radius: 8px; }
+  .modal-header h2 { font-size: 19px; font-weight: 600; margin: 0 0 4px; padding-right: 24px; }
+  .modal-meta { font-size: 12px; color: var(--ink-dim); margin-bottom: 8px; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11.5px; color: var(--ink-dim); font-weight: 600; margin-bottom: 7px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .status-select { display: flex; flex-wrap: wrap; gap: 6px; }
+  .status-select button { background: var(--bg); border: 1px solid var(--line); color: var(--ink-dim); font-size: 11.5px; padding: 6px 10px; border-radius: 20px; cursor: pointer; font-weight: 600; font-family: inherit; transition: background .12s, color .12s; }
+  .status-select button.active { background: var(--accent); border-color: transparent; color: #14161F; }
+
+  .episode-stepper { display: flex; align-items: center; gap: 8px; }
+  .episode-stepper button { width: 30px; height: 30px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); color: var(--ink); cursor: pointer; font-size: 16px; }
+  .episode-stepper input { width: 50px; background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 6px; text-align: center; font-family: inherit; }
+  .ep-total { color: var(--ink-dim); font-size: 12px; }
+
+  .rating-picker { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+  .rating-picker button { background: none; border: none; color: var(--line); cursor: pointer; padding: 2px; font-size: 16px; }
+  .rating-picker button.filled { color: var(--lime); }
+  .rating-num { margin-left: 6px; font-size: 12px; color: var(--ink-dim); }
+
+  .field textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-radius: 8px;
+    padding: 10px; font-family: inherit; font-size: 13px; resize: vertical;
+  }
+  .tags-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tag { display: flex; align-items: center; gap: 5px; background: var(--bg); border: 1px solid var(--line); color: var(--ink-dim); font-size: 11.5px; padding: 4px 9px; border-radius: 20px; }
+  .tag .x { cursor: pointer; }
+  .tags-row input { background: var(--bg); border: 1px dashed var(--line); color: var(--ink); border-radius: 20px; padding: 4px 12px; font-size: 11.5px; outline: none; font-family: inherit; }
+
+  .spin { display: inline-block; animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .skeleton-card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .skeleton-img { height: 210px; background: linear-gradient(100deg, var(--bg-raised) 30%, var(--line) 50%, var(--bg-raised) 70%); background-size: 200% 100%; animation: shimmer 1.3s ease-in-out infinite; }
+  .skeleton-lines { padding: 10px 12px 12px; }
+  .skeleton-line { height: 10px; border-radius: 4px; background: var(--line); margin-bottom: 8px; }
+  .skeleton-line.short { width: 55%; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .field-row { grid-template-columns: 1fr; }
+    header, main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand-mark serif">尋</span>
+    <div>
+      <div class="brand-name serif">Tsuzuku</div>
+      <div class="brand-sub">ta watchlist, en continu</div>
+    </div>
+  </div>
+  <nav>
+    <button data-view="dashboard" class="active">🏠 Accueil</button>
+    <button data-view="list">☰ Ma liste</button>
+    <button data-view="search">🔍 Rechercher</button>
+  </nav>
+</header>
+
+<main id="main"></main>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STATUSES = [
+  { key: "Plan to Watch", label: "À regarder", color: "#8C8FE0" },
+  { key: "Watching", label: "En cours", color: "#C8FF4D" },
+  { key: "Completed", label: "Terminé", color: "#4DE0A0" },
+  { key: "On Hold", label: "En pause", color: "#E0B84D" },
+  { key: "Dropped", label: "Abandonné", color: "#E6394B" },
+];
+const statusMeta = (key) => STATUSES.find(s => s.key === key) || STATUSES[0];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const STORAGE_KEY = "tsuzuku-watchlist";
+const SEARCH_DEBOUNCE_MS = 180;   // short: feels instant while typing, still spares the API
+const TRENDING_KEY = "__trending__";
+const CACHE_LIMIT = 100;
+
+let state = {
+  entries: JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"),
+  view: "dashboard",
+  layout: "grid",
+  statusFilter: "Tous",
+  sortBy: "updated",
+  query: "",
+  searchResults: [],
+  searching: false,
+  searchError: "",
+  activeEntryId: null,
+};
+let searchDebounceTimer = null;
+let searchRequestId = 0;          // guards against out-of-order responses
+let searchAbortController = null; // cancels the previous in-flight request
+
+// ---- Small LRU-ish cache: identical queries never hit the network twice --
+const searchCache = new Map();
+function cacheGet(key) {
+  if (!searchCache.has(key)) return undefined;
+  const v = searchCache.get(key);
+  searchCache.delete(key);
+  searchCache.set(key, v); // bump to most-recently-used
+  return v;
+}
+function cacheSet(key, value) {
+  searchCache.delete(key);
+  searchCache.set(key, value);
+  if (searchCache.size > CACHE_LIMIT) searchCache.delete(searchCache.keys().next().value);
+}
+
+function persist() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries));
+}
+
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+const MEDIA_FIELDS = `
+  id
+  title { romaji english native }
+  coverImage { large color }
+  episodes
+  genres
+  seasonYear
+  studios(isMain: true) { nodes { name } }
+  averageScore
+`;
+const SEARCH_GQL = `query ($search: String) { Page(perPage: 12) { media(search: $search, type: ANIME, sort: SEARCH_MATCH) { ${MEDIA_FIELDS} } } }`;
+const TRENDING_GQL = `query { Page(perPage: 12) { media(type: ANIME, sort: TRENDING_DESC) { ${MEDIA_FIELDS} } } }`;
+
+async function fetchAniList(gql, variables, signal) {
+  const res = await fetch("https://graphql.anilist.co", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({ query: gql, variables: variables || {} }),
+    signal,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
+  }
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors.map(e => e.message).join(", "));
+  return json?.data?.Page?.media || [];
+}
+const searchAniListQuery = (q, signal) => fetchAniList(SEARCH_GQL, { search: q }, signal);
+const fetchTrending = (signal) => fetchAniList(TRENDING_GQL, {}, signal);
+
+function addEntry(media) {
+  if (state.entries.some(e => e.anilistId === media.id)) {
+    showToast("Déjà dans ta watchlist");
+    return;
+  }
+  const entry = {
+    id: uid(),
+    anilistId: media.id,
+    title: media.title.romaji || media.title.english || media.title.native,
+    image: media.coverImage && media.coverImage.large,
+    totalEpisodes: media.episodes || null,
+    genres: media.genres || [],
+    year: media.seasonYear,
+    studio: (media.studios && media.studios.nodes && media.studios.nodes[0] && media.studios.nodes[0].name) || "",
+    status: "Plan to Watch",
+    progress: 0,
+    rating: null,
+    comment: "",
+    tags: [],
+    addedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  state.entries.unshift(entry);
+  persist();
+  showToast("« " + entry.title + " » ajouté");
+  render();
+  updateSearchResultsArea(); // flips the card in the still-open results grid to "Ajouté"
+}
+
+// Central place that changes an entry: refreshes the main view AND the modal
+// (if that entry is the one currently open) so every menu stays reactive.
+function updateEntry(id, changes) {
+  state.entries = state.entries.map(e => e.id === id ? Object.assign({}, e, changes, { updatedAt: new Date().toISOString() }) : e);
+  persist();
+  render();
+  if (state.activeEntryId === id) renderModal();
+}
+
+function removeEntry(id) {
+  state.entries = state.entries.filter(e => e.id !== id);
+  state.activeEntryId = null;
+  persist();
+  showToast("Retiré de la watchlist");
+  render();
+  renderModal();
+}
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function highlight(text, query) {
+  const q = (query || "").trim();
+  if (!q) return esc(text);
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return esc(text);
+  return esc(text.slice(0, idx)) + "<mark>" + esc(text.slice(idx, idx + q.length)) + "</mark>" + esc(text.slice(idx + q.length));
+}
+
+function cardHtml(e, compact) {
+  const meta = statusMeta(e.status);
+  const pct = e.totalEpisodes ? Math.min(100, Math.round((e.progress / e.totalEpisodes) * 100)) : null;
+  return `
+    <button class="card ${compact ? "compact" : ""}" style="--accent:${meta.color}" data-open="${e.id}">
+      <div class="card-image">
+        ${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy">` : ""}
+        <span class="status-chip">${esc(meta.label)}</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${esc(e.title)}</div>
+        <div class="card-progress-row">
+          <span>${e.progress}${e.totalEpisodes ? "/" + e.totalEpisodes : ""} ép.</span>
+          ${e.rating != null ? `<span class="rating">★ ${e.rating}</span>` : ""}
+        </div>
+        ${pct != null ? `<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>` : ""}
+      </div>
+    </button>`;
+}
+
+function rowHtml(e) {
+  const meta = statusMeta(e.status);
+  return `
+    <button class="row" style="--accent:${meta.color}" data-open="${e.id}">
+      ${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy">` : "<span></span>"}
+      <div class="row-title">${esc(e.title)}</div>
+      <span class="status-chip inline">${esc(meta.label)}</span>
+      <span class="row-progress">${e.progress}${e.totalEpisodes ? "/" + e.totalEpisodes : ""} ép.</span>
+      ${e.rating != null ? `<span class="rating">★ ${e.rating}</span>` : "<span></span>"}
+    </button>`;
+}
+
+function renderDashboard() {
+  if (state.entries.length === 0) {
+    return `
+      <div class="empty-state">
+        <div class="empty-glyph serif">見</div>
+        <h2 class="serif">Ta watchlist est vide</h2>
+        <p>Cherche un titre et commence à construire ta liste.</p>
+        <button class="btn-primary" data-goto="search">🔍 Chercher un anime</button>
+      </div>`;
+  }
+  const counts = { total: state.entries.length };
+  STATUSES.forEach(s => counts[s.key] = state.entries.filter(e => e.status === s.key).length);
+  const watching = state.entries.filter(e => e.status === "Watching").slice(0, 4);
+  const recent = [...state.entries].sort((a,b) => new Date(b.addedAt) - new Date(a.addedAt)).slice(0, 4);
+
+  return `
+    <div class="stats">
+      ${STATUSES.map(s => `
+        <div class="stat-card" style="--accent:${s.color}">
+          <div class="stat-num serif">${counts[s.key]}</div>
+          <div class="stat-label">${esc(s.label)}</div>
+        </div>`).join("")}
+    </div>
+    ${watching.length ? `
+    <section class="section">
+      <h3 class="serif">En cours</h3>
+      <div class="rail">${watching.map(e => cardHtml(e, true)).join("")}</div>
+    </section>` : ""}
+    <section class="section">
+      <h3 class="serif">Ajouts récents</h3>
+      <div class="rail">${recent.map(e => cardHtml(e, true)).join("")}</div>
+    </section>`;
+}
+
+// ---- Search view -------------------------------------------------------
+// Design for reactivity + performance:
+//  1. The <input> is built ONCE per visit to the tab. Every keystroke only
+//     touches #search-results-area, so the field never loses focus.
+//  2. Identical queries are served instantly from an in-memory cache
+//     (no network round-trip at all on a repeat search).
+//  3. A new keystroke aborts the previous in-flight request (AbortController)
+//     instead of just discarding it, so we don't waste bandwidth on
+//     responses nobody will see.
+//  4. Stale-while-revalidate: the previous results stay on screen (only a
+//     small spinner appears) while a new query is loading, so the grid
+//     never flashes empty between keystrokes.
+//  5. An empty search box shows AniList's current trending anime instead of
+//     a blank state, so there's always something to react to immediately.
+
+function skeletonGrid(n) {
+  return `<div class="search-grid">${Array.from({ length: n || 6 }).map(() => `
+    <div class="skeleton-card">
+      <div class="skeleton-img"></div>
+      <div class="skeleton-lines">
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line short"></div>
+      </div>
+    </div>`).join("")}</div>`;
+}
+
+function resultsGrid(results, query) {
+  return `<div class="search-grid">${results.map(m => {
+    const title = m.title.romaji || m.title.english || m.title.native;
+    const added = state.entries.some(e => e.anilistId === m.id);
+    return `
+      <div class="search-card">
+        <img src="${esc(m.coverImage && m.coverImage.large)}" alt="" loading="lazy">
+        <div class="search-card-body">
+          <div class="search-card-title">${highlight(title, query)}</div>
+          <div class="search-card-meta">${m.seasonYear || "—"} · ${m.episodes ? m.episodes + " ép." : "ép. inconnu"}${m.averageScore ? " · " + (m.averageScore/10).toFixed(1) + "★" : ""}</div>
+          <div class="genre-row">${(m.genres || []).slice(0,3).map(g => `<span class="genre-pill">${esc(g)}</span>`).join("")}</div>
+          ${added
+            ? `<button class="btn-added" disabled>✓ Ajouté</button>`
+            : `<button class="btn-primary small" data-add="${m.id}">+ Ajouter</button>`}
+        </div>
+      </div>`;
+  }).join("")}</div>`;
+}
+
+function renderSearchResultsArea() {
+  if (state.searchError) return `<div class="error-msg">${esc(state.searchError)}</div>`;
+
+  const q = state.query.trim();
+
+  if (q.length === 0) {
+    if (state.searchResults.length === 0 && state.searching) return skeletonGrid();
+    if (state.searchResults.length === 0) return `<div class="empty">Commence à écrire pour chercher un anime.</div>`;
+    return `<div class="search-section-label">Tendances du moment</div>${resultsGrid(state.searchResults, "")}`;
+  }
+
+  if (state.searchResults.length === 0 && state.searching) return skeletonGrid();
+  if (state.searchResults.length === 0) return `<div class="empty">Aucun résultat pour « ${esc(state.query)} ».</div>`;
+  return resultsGrid(state.searchResults, q);
+}
+
+function updateSearchResultsArea() {
+  const spinner = document.getElementById("search-spinner");
+  if (spinner) spinner.style.visibility = state.searching ? "visible" : "hidden";
+  const area = document.getElementById("search-results-area");
+  if (area) area.innerHTML = renderSearchResultsArea();
+  area && area.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+    const m = state.searchResults.find(x => String(x.id) === b.dataset.add);
+    if (m) addEntry(m);
+  });
+}
+
+function renderSearch() {
+  return `
+    <div class="search-bar">
+      🔍
+      <input id="search-input" placeholder="Titre japonais, anglais ou romaji…" value="${esc(state.query)}">
+      <span id="search-spinner" class="spin" style="visibility:${state.searching ? "visible" : "hidden"}">⟳</span>
+    </div>
+    <div id="search-results-area">${renderSearchResultsArea()}</div>`;
+}
+
+function ensureSearchDefaultContent() {
+  if (state.query.trim().length > 0) return;
+  const cached = cacheGet(TRENDING_KEY);
+  if (cached) {
+    state.searchResults = cached;
+    updateSearchResultsArea();
+    return;
+  }
+  loadTrending();
+}
+
+async function loadTrending() {
+  if (searchAbortController) searchAbortController.abort();
+  const controller = new AbortController();
+  searchAbortController = controller;
+  const myRequestId = ++searchRequestId;
+  state.searching = true;
+  updateSearchResultsArea();
+  try {
+    const results = await fetchTrending(controller.signal);
+    if (myRequestId !== searchRequestId) return;
+    state.searchResults = results;
+    cacheSet(TRENDING_KEY, results);
+  } catch (err) {
+    if (err.name === "AbortError" || myRequestId !== searchRequestId) return;
+    state.searchError = "Impossible de charger les tendances : " + err.message;
+  } finally {
+    if (myRequestId === searchRequestId) { state.searching = false; updateSearchResultsArea(); }
+  }
+}
+
+async function runSearch(q) {
+  if (searchAbortController) searchAbortController.abort();
+  const controller = new AbortController();
+  searchAbortController = controller;
+  const myRequestId = ++searchRequestId;
+  state.searching = true;
+  state.searchError = "";
+  updateSearchResultsArea(); // previous grid stays visible, only the spinner turns on
+  try {
+    const results = await searchAniListQuery(q, controller.signal);
+    if (myRequestId !== searchRequestId) return; // superseded by a newer keystroke
+    state.searchResults = results;
+    cacheSet(q.toLowerCase(), results);
+  } catch (err) {
+    if (err.name === "AbortError") return; // cancelled on purpose, not a real error
+    if (myRequestId !== searchRequestId) return;
+    state.searchError = "La recherche a échoué : " + err.message;
+  } finally {
+    if (myRequestId === searchRequestId) { state.searching = false; updateSearchResultsArea(); }
+  }
+}
+
+function renderList() {
+  let list = [...state.entries];
+  if (state.statusFilter !== "Tous") list = list.filter(e => e.status === state.statusFilter);
+  list.sort((a, b) => {
+    if (state.sortBy === "updated") return new Date(b.updatedAt) - new Date(a.updatedAt);
+    if (state.sortBy === "title") return a.title.localeCompare(b.title);
+    if (state.sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
+    if (state.sortBy === "progress") {
+      const pa = a.totalEpisodes ? a.progress / a.totalEpisodes : 0;
+      const pb = b.totalEpisodes ? b.progress / b.totalEpisodes : 0;
+      return pb - pa;
+    }
+    return 0;
+  });
+
+  const body = list.length === 0
+    ? `<div class="empty-state small"><p>Rien ici pour l'instant.</p><button class="btn-primary" data-goto="search">🔍 Chercher un anime</button></div>`
+    : state.layout === "grid"
+      ? `<div class="grid">${list.map(e => cardHtml(e, false)).join("")}</div>`
+      : `<div class="rows">${list.map(e => rowHtml(e)).join("")}</div>`;
+
+  return `
+    <div class="toolbar">
+      <div class="filter-pills">
+        <button data-filter="Tous" class="${state.statusFilter === "Tous" ? "active" : ""}">Tous</button>
+        ${STATUSES.map(s => `<button data-filter="${s.key}" style="--accent:${s.color}" class="${state.statusFilter === s.key ? "active" : ""}">${esc(s.label)}</button>`).join("")}
+      </div>
+      <div class="toolbar-right">
+        <select id="sort-select">
+          <option value="updated" ${state.sortBy === "updated" ? "selected" : ""}>Mis à jour récemment</option>
+          <option value="title" ${state.sortBy === "title" ? "selected" : ""}>Titre (A–Z)</option>
+          <option value="rating" ${state.sortBy === "rating" ? "selected" : ""}>Note</option>
+          <option value="progress" ${state.sortBy === "progress" ? "selected" : ""}>Progression</option>
+        </select>
+        <button class="icon-btn" id="layout-toggle">${state.layout === "grid" ? "☰" : "▦"}</button>
+      </div>
+    </div>
+    ${body}`;
+}
+
+function renderModal() {
+  const e = state.entries.find(x => x.id === state.activeEntryId);
+  const backdrop = document.getElementById("modal-backdrop");
+  const modal = document.getElementById("modal");
+  if (!e) { backdrop.classList.remove("open"); modal.innerHTML = ""; return; }
+  backdrop.classList.add("open");
+  const meta = statusMeta(e.status);
+  modal.style.setProperty("--accent", meta.color);
+  modal.innerHTML = `
+    <button class="modal-close" id="modal-close">✕</button>
+    <div class="modal-header">
+      ${e.image ? `<img src="${esc(e.image)}" alt="">` : ""}
+      <div>
+        <h2 class="serif">${esc(e.title)}</h2>
+        <div class="modal-meta">${e.year || "—"}${e.studio ? " · " + esc(e.studio) : ""}</div>
+        <div class="genre-row">${e.genres.slice(0,4).map(g => `<span class="genre-pill">${esc(g)}</span>`).join("")}</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Statut</label>
+      <div class="status-select">
+        ${STATUSES.map(s => `<button data-status="${s.key}" style="--accent:${s.color}" class="${e.status === s.key ? "active" : ""}">${esc(s.label)}</button>`).join("")}
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Progression (épisodes)</label>
+        <div class="episode-stepper">
+          <button id="ep-minus">−</button>
+          <input id="ep-input" type="number" min="0" value="${e.progress}">
+          <span class="ep-total">/ ${e.totalEpisodes || "?"}</span>
+          <button id="ep-plus">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Note</label>
+        <div class="rating-picker" id="rating-picker">
+          ${Array.from({length:10}, (_,i) => i+1).map(n => `<button data-rate="${n}" class="${e.rating >= n ? "filled" : ""}">★</button>`).join("")}
+          <span class="rating-num">${e.rating != null ? e.rating + "/10" : "—"}</span>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Avis personnel</label>
+      <textarea id="comment-input" rows="3" placeholder="Tes impressions, à chaud ou à froid…">${esc(e.comment)}</textarea>
+    </div>
+    <div class="field">
+      <label>Tags</label>
+      <div class="tags-row" id="tags-row">
+        ${e.tags.map(t => `<span class="tag">🏷 ${esc(t)} <span class="x" data-untag="${esc(t)}">✕</span></span>`).join("")}
+        <input id="tag-input" placeholder="+ ajouter un tag">
+      </div>
+    </div>
+    <button class="btn-danger" id="remove-entry">🗑 Retirer de la watchlist</button>
+  `;
+
+  document.getElementById("modal-close").onclick = () => { state.activeEntryId = null; renderModal(); };
+  modal.querySelectorAll("[data-status]").forEach(b => b.onclick = () => updateEntry(e.id, { status: b.dataset.status }));
+  document.getElementById("ep-minus").onclick = () => updateEntry(e.id, { progress: Math.max(0, e.progress - 1) });
+  document.getElementById("ep-plus").onclick = () => updateEntry(e.id, { progress: e.progress + 1 });
+  document.getElementById("ep-input").onchange = (ev) => updateEntry(e.id, { progress: Math.max(0, Number(ev.target.value) || 0) });
+  modal.querySelectorAll("[data-rate]").forEach(b => b.onclick = () => {
+    const n = Number(b.dataset.rate);
+    updateEntry(e.id, { rating: e.rating === n ? null : n });
+  });
+  document.getElementById("comment-input").onchange = (ev) => updateEntry(e.id, { comment: ev.target.value });
+  modal.querySelectorAll("[data-untag]").forEach(b => b.onclick = () => updateEntry(e.id, { tags: e.tags.filter(t => t !== b.dataset.untag) }));
+  const tagInput = document.getElementById("tag-input");
+  tagInput.onkeydown = (ev) => {
+    if (ev.key === "Enter") {
+      const t = tagInput.value.trim();
+      if (t && !e.tags.includes(t)) updateEntry(e.id, { tags: [...e.tags, t] });
+    }
+  };
+  document.getElementById("remove-entry").onclick = () => removeEntry(e.id);
+}
+
+function render() {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.view === state.view));
+  const main = document.getElementById("main");
+  if (state.view === "dashboard") main.innerHTML = renderDashboard();
+  else if (state.view === "search") main.innerHTML = renderSearch();
+  else main.innerHTML = renderList();
+
+  main.querySelectorAll("[data-goto]").forEach(b => b.onclick = () => { state.view = b.dataset.goto; render(); });
+  main.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { state.activeEntryId = b.dataset.open; renderModal(); });
+  main.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+    const m = state.searchResults.find(x => String(x.id) === b.dataset.add);
+    if (m) addEntry(m);
+  });
+  main.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { state.statusFilter = b.dataset.filter; render(); });
+
+  const sortSelect = document.getElementById("sort-select");
+  if (sortSelect) sortSelect.onchange = (ev) => { state.sortBy = ev.target.value; render(); };
+  const layoutToggle = document.getElementById("layout-toggle");
+  if (layoutToggle) layoutToggle.onclick = () => { state.layout = state.layout === "grid" ? "list" : "grid"; render(); };
+
+  const searchInput = document.getElementById("search-input");
+  if (searchInput) {
+    searchInput.focus();
+    const pos = searchInput.value.length;
+    searchInput.setSelectionRange(pos, pos);
+    searchInput.oninput = (ev) => {
+      state.query = ev.target.value;
+      const q = state.query.trim();
+      clearTimeout(searchDebounceTimer);
+
+      if (q.length === 0) {
+        state.searchError = "";
+        ensureSearchDefaultContent();
+        return;
+      }
+
+      const cached = cacheGet(q.toLowerCase());
+      if (cached) {
+        // Exact repeat query: serve instantly, zero network latency.
+        if (searchAbortController) searchAbortController.abort();
+        searchRequestId++; // invalidate any in-flight request
+        state.searchResults = cached;
+        state.searchError = "";
+        state.searching = false;
+        updateSearchResultsArea();
+        return;
+      }
+
+      searchDebounceTimer = setTimeout(() => runSearch(q), SEARCH_DEBOUNCE_MS);
+    };
+    ensureSearchDefaultContent();
+  }
+}
+
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  if (state.view === "search" && b.dataset.view !== "search" && searchAbortController) {
+    searchAbortController.abort(); // leaving the tab: no point finishing that request
+  }
+  state.view = b.dataset.view;
+  render();
+});
+document.getElementById("modal-backdrop").onclick = (ev) => {
+  if (ev.target.id === "modal-backdrop") { state.activeEntryId = null; renderModal(); }
+};
+
+render();
+</script>
+</body>
+</html>

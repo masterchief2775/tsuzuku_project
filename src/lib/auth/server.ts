@@ -208,11 +208,7 @@ export const auth = betterAuth({
   // (incl. the client's `/get-session`) skip the DB — this shrinks the "loading"
   // window and reduces auth flicker. See the `auth` skill for the full
   // flicker-prevention guidance (gate on `isPending`; SSR the session).
-session: {
-  cookieCache: {
-    enabled: false,
-  },
-},
+  session: { cookieCache: { enabled: true, maxAge: 300 } },
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
   ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
