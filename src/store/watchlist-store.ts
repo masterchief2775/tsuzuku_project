@@ -324,9 +324,12 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     const { entries, showToast } = get();
     let autoCompletedTitle: string | null = null;
     let becameWatching = false;
+    let completedEntry: WatchlistEntry | null = null;
+    let ratedEntry: WatchlistEntry | null = null;
     const next = entries.map((e) => {
       if (e.id !== id) return e;
       const prevStatus = e.status;
+      const prevRating = e.rating;
       const merged: WatchlistEntry = {
         ...e,
         ...changes,
@@ -336,6 +339,16 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       if (shouldAutoComplete(merged.status, merged.progress, merged.totalEpisodes)) {
         merged.status = "Completed";
         autoCompletedTitle = merged.title;
+      }
+      if (merged.status === "Completed" && prevStatus !== "Completed") {
+        completedEntry = merged;
+      }
+      if (
+        typeof merged.rating === "number" &&
+        merged.rating > 0 &&
+        merged.rating !== prevRating
+      ) {
+        ratedEntry = merged;
       }
       if (merged.status === "Watching" && prevStatus !== "Watching") {
         becameWatching = true;
@@ -348,6 +361,34 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       showToast({ message: `« ${autoCompletedTitle} » marqué comme terminé` });
     }
     if (becameWatching) void get().refreshNextAirings();
+    if (completedEntry) {
+      void import("@/lib/activity")
+        .then(({ publishWatchActivity }) =>
+          publishWatchActivity({
+            data: {
+              kind: "completed",
+              title: completedEntry!.title,
+              anilistId: completedEntry!.anilistId,
+              image: completedEntry!.image,
+            },
+          }),
+        )
+        .catch(() => undefined);
+    } else if (ratedEntry) {
+      void import("@/lib/activity")
+        .then(({ publishWatchActivity }) =>
+          publishWatchActivity({
+            data: {
+              kind: "rated",
+              title: ratedEntry!.title,
+              anilistId: ratedEntry!.anilistId,
+              image: ratedEntry!.image,
+              rating: ratedEntry!.rating,
+            },
+          }),
+        )
+        .catch(() => undefined);
+    }
   },
 
   bumpProgress: (id, delta) => {

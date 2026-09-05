@@ -1,5 +1,5 @@
 import { getSql } from "@/lib/db";
-import { isBlockedBetween } from "@/lib/blocks";
+import { isBlockedBetween } from "@/lib/blocks.server";
 
 export type ActivityKind =
   | "completed"
@@ -25,7 +25,6 @@ async function friendIdsOf(userId: string): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
-/** Server-only. Import only from server handlers via dynamic import(). */
 export async function fanOutToFriends(input: {
   actorId: string;
   kind: ActivityKind;
@@ -37,14 +36,9 @@ export async function fanOutToFriends(input: {
 }): Promise<void> {
   try {
     const sql = await getSql();
-    let recipients: string[];
-    if (input.onlyRecipientId) {
-      recipients = [input.onlyRecipientId];
-    } else {
-      recipients = await friendIdsOf(input.actorId);
-    }
-    if (recipients.length === 0) return;
-
+    const recipients = input.onlyRecipientId
+      ? [input.onlyRecipientId]
+      : await friendIdsOf(input.actorId);
     for (const recipientId of recipients) {
       if (recipientId === input.actorId) continue;
       if (await isBlockedBetween(input.actorId, recipientId)) continue;
@@ -54,14 +48,9 @@ export async function fanOutToFriends(input: {
           "id", "recipient_id", "actor_id", "kind",
           "title", "anilist_id", "image", "rating"
         ) values (
-          ${id},
-          ${recipientId},
-          ${input.actorId},
-          ${input.kind},
-          ${input.title ?? null},
-          ${input.anilistId ?? null},
-          ${input.image ?? null},
-          ${input.rating ?? null}
+          ${id}, ${recipientId}, ${input.actorId}, ${input.kind},
+          ${input.title ?? null}, ${input.anilistId ?? null},
+          ${input.image ?? null}, ${input.rating ?? null}
         )
       `;
     }

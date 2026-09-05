@@ -136,34 +136,26 @@ export const listFriendActivity = createServerFn({ method: "GET" })
 
 export const getActivityBadge = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(
-    async ({
-      context,
-    }): Promise<{ unreadActivity: number; pendingFriendRequests: number }> => {
-      const sql = await getSql();
-      let unreadActivity = 0;
-      let pendingFriendRequests = 0;
-      try {
-        const a = await sql<{ n: string }>`
-          select count(*)::text as n from "friend_activity"
-          where "recipient_id" = ${context.userId} and "read_at" is null
-        `;
-        unreadActivity = Number(a[0]?.n || 0);
-      } catch {
-        /* table missing */
-      }
-      try {
-        const f = await sql<{ n: string }>`
-          select count(*)::text as n from "friendship"
-          where "addressee_id" = ${context.userId} and "status" = 'pending'
-        `;
-        pendingFriendRequests = Number(f[0]?.n || 0);
-      } catch {
-        /* ignore */
-      }
-      return { unreadActivity, pendingFriendRequests };
-    },
-  );
+  .handler(async ({ context }) => {
+    const sql = await getSql();
+    let unreadActivity = 0;
+    let pendingFriendRequests = 0;
+    try {
+      const a = await sql<{ n: string }>`
+        select count(*)::text as n from "friend_activity"
+        where "recipient_id" = ${context.userId} and "read_at" is null
+      `;
+      unreadActivity = Number(a[0]?.n || 0);
+    } catch { /* */ }
+    try {
+      const f = await sql<{ n: string }>`
+        select count(*)::text as n from "friendship"
+        where "addressee_id" = ${context.userId} and "status" = 'pending'
+      `;
+      pendingFriendRequests = Number(f[0]?.n || 0);
+    } catch { /* */ }
+    return { unreadActivity, pendingFriendRequests };
+  });
 
 export const markActivityRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -175,8 +167,6 @@ export const markActivityRead = createServerFn({ method: "POST" })
         set "read_at" = current_timestamp
         where "recipient_id" = ${context.userId} and "read_at" is null
       `;
-    } catch {
-      /* ignore */
-    }
+    } catch { /* */ }
     return { ok: true };
   });

@@ -89,6 +89,28 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
     if (!targetId) throw new Error("Utilisateur introuvable");
     if (targetId === me) throw new Error("Tu ne peux pas t’ajouter toi-même");
 
+    {
+      const { isBlockedBetween } = await import("@/lib/blocks.server");
+      if (await isBlockedBetween(me, targetId)) {
+        throw new Error("Impossible d’envoyer une demande à cet utilisateur");
+      }
+    }
+
+    try {
+      const recent = await sql<{ n: string }>`
+        select count(*)::text as n from "friendship"
+        where "requester_id" = ${me}
+          and "created_at" > (current_timestamp - interval '1 hour')
+      `;
+      if (Number(recent[0]?.n || 0) >= 10) {
+        throw new Error(
+          "Trop de demandes d’ami envoyées cette heure-ci. Réessaie plus tard.",
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("Trop de demandes")) throw err;
+    }
+
     // Existing relation either direction?
     const existing = await sql<FriendshipRow>`
       select * from "friendship"
@@ -108,6 +130,14 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
           set "status" = 'accepted', "updated_at" = current_timestamp
           where "id" = ${row.id}
         `;
+        {
+          const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+          await fanOutToFriends({
+            actorId: me,
+            kind: "friend_accept",
+            onlyRecipientId: row.requester_id,
+          });
+        }
         return { ok: true, requestId: row.id };
       }
       // rejected → allow re-request by flipping roles to pending from me
@@ -120,6 +150,14 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
           "updated_at" = current_timestamp
         where "id" = ${row.id}
       `;
+      {
+        const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+        await fanOutToFriends({
+          actorId: me,
+          kind: "friend_request",
+          onlyRecipientId: targetId,
+        });
+      }
       return { ok: true, requestId: row.id };
     }
 
@@ -128,6 +166,14 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
       insert into "friendship" ("id", "requester_id", "addressee_id", "status")
       values (${id}, ${me}, ${targetId}, 'pending')
     `;
+    {
+      const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+      await fanOutToFriends({
+        actorId: me,
+        kind: "friend_request",
+        onlyRecipientId: targetId,
+      });
+    }
     return { ok: true, requestId: id };
   });
 
@@ -154,6 +200,14 @@ export const acceptFriendRequest = createServerFn({ method: "POST" })
       set "status" = 'accepted', "updated_at" = current_timestamp
       where "id" = ${data.requestId}
     `;
+    {
+      const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+      await fanOutToFriends({
+        actorId: context.userId,
+        kind: "friend_accept",
+        onlyRecipientId: row.requester_id,
+      });
+    }
     return { ok: true };
   });
 

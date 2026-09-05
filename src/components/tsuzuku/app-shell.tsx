@@ -13,10 +13,34 @@ import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { AppToast } from "@/components/tsuzuku/toast";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { getActivityBadge } from "@/lib/activity";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
 
 export function AppShell() {
+  const { user: authUser } = useCurrentUserState();
+  const [badgeCount, setBadgeCount] = useState(0);
+  useEffect(() => {
+    if (!authUser?.id) {
+      setBadgeCount(0);
+      return;
+    }
+    let cancelled = false;
+    const tick = () => {
+      void getActivityBadge()
+        .then((b) => {
+          if (!cancelled) setBadgeCount(b.unreadActivity + b.pendingFriendRequests);
+        })
+        .catch(() => undefined);
+    };
+    tick();
+    const id = window.setInterval(tick, 45_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [authUser?.id]);
+
   const { user, isPending } = useCurrentUserState();
   const view = useWatchlistStore((s) => s.view);
   const hydrated = useWatchlistStore((s) => s.hydrated);
@@ -185,11 +209,16 @@ export function AppShell() {
           </nav>
           <Link
             to="/profile"
-            className="rounded-[8px] border border-line bg-raised p-2"
+            className="relative rounded-[8px] border border-line bg-raised p-2"
             aria-label="Mon profil"
             title="Mon profil"
           >
             <User className="size-4" />
+            {badgeCount > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lime px-1 text-[10px] font-bold text-bg">
+                {badgeCount > 9 ? "9+" : badgeCount}
+              </span>
+            ) : null}
           </Link>
           <ThemePicker />
           <UserButton />

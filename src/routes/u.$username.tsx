@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Loader2,
   Star,
+  Ban,
   UserMinus,
   UserPlus,
   X,
@@ -20,6 +21,7 @@ import {
   sendFriendRequest,
   type FriendshipStatus,
 } from "@/lib/friends";
+import { blockUser, getBlockStatus, unblockUser } from "@/lib/blocks";
 import {
   getProfileByUsername,
   getProfileByUsernameAuthed,
@@ -40,6 +42,7 @@ function PublicProfilePage() {
   const [otherUserId, setOtherUserId] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
+  const [iBlockedThem, setIBlockedThem] = useState(false);
 
   const loadRelation = useCallback(
     async (userId?: string) => {
@@ -54,6 +57,14 @@ function PublicProfilePage() {
         setRelStatus(rel.status);
         setRequestId(rel.requestId);
         setOtherUserId(rel.otherUserId);
+        if (rel.otherUserId) {
+          try {
+            const b = await getBlockStatus({ data: { userId: rel.otherUserId } });
+            setIBlockedThem(b.iBlockedThem);
+          } catch {
+            setIBlockedThem(false);
+          }
+        }
       } catch {
         setRelStatus("none");
       }
@@ -306,6 +317,52 @@ function PublicProfilePage() {
                       </button>
                     ) : null}
                   </>
+                ) : null}
+
+                {user && !isSelf ? (
+                  iBlockedThem ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void doAction(
+                          () =>
+                            unblockUser({ data: { userId: profile.userId } }).then(() => {
+                              setIBlockedThem(false);
+                            }),
+                          "Utilisateur débloqué",
+                        )
+                      }
+                      className="inline-flex items-center gap-2 rounded-[9px] border border-lime/40 bg-lime/10 px-4 py-2 text-sm font-semibold text-lime disabled:opacity-50"
+                    >
+                      Débloquer
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Bloquer ${profile.displayName} ? Il ne pourra plus t’envoyer de demande ni voir ton profil.`,
+                          )
+                        )
+                          return;
+                        void doAction(
+                          () =>
+                            blockUser({ data: { userId: profile.userId } }).then(() => {
+                              setIBlockedThem(true);
+                              setRelStatus("none");
+                            }),
+                          "Utilisateur bloqué",
+                        );
+                      }}
+                      className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50"
+                    >
+                      <Ban className="size-4" />
+                      Bloquer
+                    </button>
+                  )
                 ) : null}
 
                 {!user && !isSelf ? (

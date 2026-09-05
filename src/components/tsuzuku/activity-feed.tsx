@@ -64,7 +64,7 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
       const list = await listFriendActivity({ data: { limit: compact ? 8 : 20 } });
       setItems(list);
     } catch {
-      /* offline / missing table */
+      /* offline */
     } finally {
       setLoading(false);
     }
@@ -80,8 +80,7 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
 
   useEffect(() => {
     if (!user?.id || items.length === 0) return;
-    const hasUnread = items.some((i) => !i.readAt);
-    if (!hasUnread) return;
+    if (!items.some((i) => !i.readAt)) return;
     const t = window.setTimeout(() => {
       void markActivityRead().then(() =>
         setItems((prev) =>
@@ -110,7 +109,6 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
           Amis
         </Link>
       </div>
-
       {loading ? (
         <div className="flex justify-center py-6 text-dim">
           <Loader2 className="size-5 animate-spin" />
@@ -135,11 +133,7 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
                 params={{ username: item.actorUsername }}
                 className="shrink-0"
               >
-                <ProfileAvatar
-                  name={item.actorName}
-                  src={item.actorAvatar}
-                  size="sm"
-                />
+                <ProfileAvatar name={item.actorName} src={item.actorAvatar} size="sm" />
               </Link>
               <div className="min-w-0 flex-1">
                 <p className="text-sm leading-snug text-dim">
@@ -158,11 +152,7 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
                 </div>
               </div>
               {item.image ? (
-                <img
-                  src={item.image}
-                  alt=""
-                  className="h-12 w-9 shrink-0 rounded object-cover"
-                />
+                <img src={item.image} alt="" className="h-12 w-9 shrink-0 rounded object-cover" />
               ) : null}
             </li>
           ))}
