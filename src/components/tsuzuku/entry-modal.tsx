@@ -5,7 +5,6 @@ import { Cover } from "@/components/tsuzuku/cover";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { cn } from "@/lib/utils";
 import { listFriends, type FriendProfile } from "@/lib/friends";
-import { publishWatchActivity } from "@/lib/activity-client";
 import { kindLabel, mediaKind, STATUSES, statusMeta } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
 
@@ -15,19 +14,6 @@ export function EntryModal() {
   const setActiveEntryId = useWatchlistStore((s) => s.setActiveEntryId);
   const updateEntry = useWatchlistStore((s) => s.updateEntry);
 
-  const notifyWatch = (
-    kind: "completed" | "rated",
-    e: NonNullable<typeof entry>,
-    rating?: number | null,
-  ) => {
-    void publishWatchActivity({
-      kind,
-      title: e.title,
-      anilistId: e.anilistId,
-      image: e.image,
-      rating: rating ?? e.rating ?? null,
-    });
-  };
 
   const bumpProgress = useWatchlistStore((s) => s.bumpProgress);
   const setProgress = useWatchlistStore((s) => s.setProgress);
@@ -161,13 +147,7 @@ export function EntryModal() {
               <button
                 key={s.key}
                 type="button"
-                onClick={() => {
-                  const was = entry.status;
-                  updateEntry(entry.id, { status: s.key });
-                  if (s.key === "Completed" && was !== "Completed") {
-                    notifyWatch("completed", entry);
-                  }
-                }}
+                onClick={() => updateEntry(entry.id, { status: s.key })}
                 className={cn(
                   "rounded-full border px-2.5 py-1.5 text-[11.5px] font-semibold",
                   entry.status === s.key
@@ -222,15 +202,7 @@ export function EntryModal() {
                   key={n}
                   type="button"
                   aria-label={`Note ${n} sur 10`}
-                  onClick={() =>
-                    {
-                      const next = entry.rating === n ? null : n;
-                      updateEntry(entry.id, { rating: next });
-                      if (typeof next === "number" && next > 0) {
-                        notifyWatch("rated", entry, next);
-                      }
-                    }
-                  }
+                  onClick={() => updateEntry(entry.id, { rating: entry.rating === n ? null : n })}
                 >
                   <Star
                     className={cn(

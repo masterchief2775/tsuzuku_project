@@ -42,6 +42,19 @@ export async function fanOutToFriends(input: {
     for (const recipientId of recipients) {
       if (recipientId === input.actorId) continue;
       if (await isBlockedBetween(input.actorId, recipientId)) continue;
+      try {
+        const dup = await sql<{ n: string }>`
+          select count(*)::text as n from "friend_activity"
+          where "recipient_id" = ${recipientId}
+            and "actor_id" = ${input.actorId}
+            and "kind" = ${input.kind}
+            and coalesce("title", '') = coalesce(${input.title ?? null}, '')
+            and "created_at" > (current_timestamp - interval '2 minutes')
+        `;
+        if (Number(dup[0]?.n || 0) > 0) continue;
+      } catch {
+        /* ignore */
+      }
       const id = newId();
       await sql`
         insert into "friend_activity" (
