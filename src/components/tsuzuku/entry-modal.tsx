@@ -5,6 +5,7 @@ import { Cover } from "@/components/tsuzuku/cover";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { cn } from "@/lib/utils";
 import { listFriends, type FriendProfile } from "@/lib/friends";
+import { publishWatchActivity } from "@/lib/activity";
 import { kindLabel, mediaKind, STATUSES, statusMeta } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
 
@@ -13,6 +14,24 @@ export function EntryModal() {
   const entries = useWatchlistStore((s) => s.entries);
   const setActiveEntryId = useWatchlistStore((s) => s.setActiveEntryId);
   const updateEntry = useWatchlistStore((s) => s.updateEntry);
+
+  const notifyWatch = (
+    kind: "completed" | "rated",
+    e: typeof entry,
+    rating?: number | null,
+  ) => {
+    if (!e) return;
+    void publishWatchActivity({
+      data: {
+        kind,
+        title: e.title,
+        anilistId: e.anilistId,
+        image: e.image,
+        rating: rating ?? e.rating ?? null,
+      },
+    }).catch(() => undefined);
+  };
+
   const bumpProgress = useWatchlistStore((s) => s.bumpProgress);
   const setProgress = useWatchlistStore((s) => s.setProgress);
   const removeEntry = useWatchlistStore((s) => s.removeEntry);
@@ -145,7 +164,12 @@ export function EntryModal() {
               <button
                 key={s.key}
                 type="button"
-                onClick={() => updateEntry(entry.id, { status: s.key })}
+                onClick={() => {
+                  updateEntry(entry.id, { status: s.key });
+                  if (s.key === "Completed" && entry.status !== "Completed") {
+                    notifyWatch("completed", entry);
+                  }
+                }}
                 className={cn(
                   "rounded-full border px-2.5 py-1.5 text-[11.5px] font-semibold",
                   entry.status === s.key

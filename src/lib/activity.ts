@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 
 export type ActivityKind =
@@ -23,43 +22,9 @@ export type ActivityItem = {
   readAt: string | null;
 };
 
-type ActivityRow = {
-  id: string;
-  actor_id: string;
-  kind: string;
-  title: string | null;
-  anilist_id: number | null;
-  image: string | null;
-  rating: number | null;
-  created_at: string | Date;
-  read_at: string | Date | null;
-  display_name: string | null;
-  username: string | null;
-  avatar_url: string | null;
-  name: string | null;
-  user_image: string | null;
-};
-
 function iso(v: string | Date | null | undefined): string | null {
   if (v == null) return null;
   return typeof v === "string" ? v : v.toISOString();
-}
-
-function mapRow(r: ActivityRow): ActivityItem {
-  return {
-    id: r.id,
-    actorId: r.actor_id,
-    actorName: r.display_name || r.name || r.username || "Ami",
-    actorUsername: r.username || "user",
-    actorAvatar: r.avatar_url || r.user_image || null,
-    kind: r.kind as ActivityKind,
-    title: r.title,
-    anilistId: r.anilist_id,
-    image: r.image,
-    rating: r.rating,
-    createdAt: iso(r.created_at) || new Date().toISOString(),
-    readAt: iso(r.read_at),
-  };
 }
 
 export const publishWatchActivity = createServerFn({ method: "POST" })
@@ -113,9 +78,25 @@ export const listFriendActivity = createServerFn({ method: "GET" })
     return { limit };
   })
   .handler(async ({ context, data }): Promise<ActivityItem[]> => {
+    const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     try {
-      const rows = await sql<ActivityRow>`
+      const rows = await sql<{
+        id: string;
+        actor_id: string;
+        kind: string;
+        title: string | null;
+        anilist_id: number | null;
+        image: string | null;
+        rating: number | null;
+        created_at: string | Date;
+        read_at: string | Date | null;
+        display_name: string | null;
+        username: string | null;
+        avatar_url: string | null;
+        name: string | null;
+        user_image: string | null;
+      }>`
         select
           a."id", a."actor_id", a."kind", a."title", a."anilist_id", a."image",
           a."rating", a."created_at", a."read_at",
@@ -128,7 +109,20 @@ export const listFriendActivity = createServerFn({ method: "GET" })
         order by a."created_at" desc
         limit ${data.limit}
       `;
-      return rows.map(mapRow);
+      return rows.map((r) => ({
+        id: r.id,
+        actorId: r.actor_id,
+        actorName: r.display_name || r.name || r.username || "Ami",
+        actorUsername: r.username || "user",
+        actorAvatar: r.avatar_url || r.user_image || null,
+        kind: r.kind as ActivityKind,
+        title: r.title,
+        anilistId: r.anilist_id,
+        image: r.image,
+        rating: r.rating,
+        createdAt: iso(r.created_at) || new Date().toISOString(),
+        readAt: iso(r.read_at),
+      }));
     } catch {
       return [];
     }
@@ -137,6 +131,7 @@ export const listFriendActivity = createServerFn({ method: "GET" })
 export const getActivityBadge = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
+    const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     let unreadActivity = 0;
     let pendingFriendRequests = 0;
@@ -146,20 +141,25 @@ export const getActivityBadge = createServerFn({ method: "GET" })
         where "recipient_id" = ${context.userId} and "read_at" is null
       `;
       unreadActivity = Number(a[0]?.n || 0);
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     try {
       const f = await sql<{ n: string }>`
         select count(*)::text as n from "friendship"
         where "addressee_id" = ${context.userId} and "status" = 'pending'
       `;
       pendingFriendRequests = Number(f[0]?.n || 0);
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return { unreadActivity, pendingFriendRequests };
   });
 
 export const markActivityRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<{ ok: true }> => {
+    const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     try {
       await sql`
@@ -167,6 +167,8 @@ export const markActivityRead = createServerFn({ method: "POST" })
         set "read_at" = current_timestamp
         where "recipient_id" = ${context.userId} and "read_at" is null
       `;
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return { ok: true };
   });

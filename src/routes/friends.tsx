@@ -30,6 +30,11 @@ import {
   unblockUser,
   type BlockedUser,
 } from "@/lib/blocks";
+import {
+  listFriendActivity,
+  markActivityRead,
+  type ActivityItem,
+} from "@/lib/activity";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +48,7 @@ function FriendsPage() {
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [blocked, setBlocked] = useState<BlockedUser[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -55,15 +61,20 @@ function FriendsPage() {
   const reload = useCallback(async () => {
     setError("");
     try {
-      const [f, req, bl] = await Promise.all([
+      const [f, req, bl, act] = await Promise.all([
         listFriends(),
         listFriendRequests(),
         listBlockedUsers().catch(() => [] as BlockedUser[]),
+        listFriendActivity({ data: { limit: 15 } }).catch(() => [] as ActivityItem[]),
       ]);
       setFriends(f);
       setIncoming(req.incoming);
       setOutgoing(req.outgoing);
       setBlocked(bl);
+      setActivity(act);
+      if (act.some((a) => !a.readAt)) {
+        void markActivityRead().catch(() => undefined);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -325,6 +336,62 @@ function FriendsPage() {
             </ul>
           </section>
         ) : null}
+
+
+        <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
+          <h2 className="font-serif text-base font-medium">Activité récente</h2>
+          {activity.length === 0 ? (
+            <p className="mt-3 text-sm text-dim">
+              Quand un ami termine un titre, le note, ou t’envoie une demande, ça apparaît ici.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {activity.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-start gap-2.5 rounded-[10px] border border-line bg-bg px-3 py-2 text-sm"
+                >
+                  <ProfileAvatar name={a.actorName} src={a.actorAvatar} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-dim">
+                      <Link
+                        to="/u/$username"
+                        params={{ username: a.actorUsername }}
+                        className="font-semibold text-ink hover:text-lime"
+                      >
+                        {a.actorName}
+                      </Link>{" "}
+                      {a.kind === "completed" && (
+                        <>
+                          a terminé <span className="font-semibold text-ink">{a.title}</span>
+                        </>
+                      )}
+                      {a.kind === "rated" && (
+                        <>
+                          a noté <span className="font-semibold text-ink">{a.title}</span>
+                          {a.rating != null ? ` · ${a.rating}/10` : ""}
+                        </>
+                      )}
+                      {a.kind === "friend_request" && <>t’a envoyé une demande d’ami</>}
+                      {a.kind === "friend_accept" && <>a accepté ta demande d’ami</>}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-dim">
+                      {new Date(a.createdAt).toLocaleString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                  {a.image ? (
+                    <img src={a.image} alt="" className="h-11 w-8 rounded object-cover" />
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {/* Friend list */}
         <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
