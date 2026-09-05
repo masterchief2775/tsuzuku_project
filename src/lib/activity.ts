@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { isBlockedBetween } from "@/lib/blocks";
 
 export type ActivityKind =
   | "completed"
@@ -46,10 +45,6 @@ function iso(v: string | Date | null | undefined): string | null {
   return typeof v === "string" ? v : v.toISOString();
 }
 
-function newId() {
-  return `act_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
 function mapRow(r: ActivityRow): ActivityItem {
   return {
     id: r.id,
@@ -65,69 +60,6 @@ function mapRow(r: ActivityRow): ActivityItem {
     createdAt: iso(r.created_at) || new Date().toISOString(),
     readAt: iso(r.read_at),
   };
-}
-
-async function friendIdsOf(userId: string): Promise<string[]> {
-  const sql = await getSql();
-  const rows = await sql<{ id: string }>`
-    select case
-      when f."requester_id" = ${userId} then f."addressee_id"
-      else f."requester_id"
-    end as id
-    from "friendship" f
-    where f."status" = 'accepted'
-      and (f."requester_id" = ${userId} or f."addressee_id" = ${userId})
-  `;
-  return rows.map((r) => r.id);
-}
-
-/**
- * Fan-out an activity to all accepted friends of the actor (excluding blocks).
- * Best-effort: failures are swallowed so the main user action never fails.
- */
-export async function fanOutToFriends(input: {
-  actorId: string;
-  kind: ActivityKind;
-  title?: string | null;
-  anilistId?: number | null;
-  image?: string | null;
-  rating?: number | null;
-  /** If set, only this recipient gets the event (e.g. friend request target). */
-  onlyRecipientId?: string;
-}): Promise<void> {
-  try {
-    const sql = await getSql();
-    let recipients: string[];
-    if (input.onlyRecipientId) {
-      recipients = [input.onlyRecipientId];
-    } else {
-      recipients = await friendIdsOf(input.actorId);
-    }
-    if (recipients.length === 0) return;
-
-    for (const recipientId of recipients) {
-      if (recipientId === input.actorId) continue;
-      if (await isBlockedBetween(input.actorId, recipientId)) continue;
-      const id = newId();
-      await sql`
-        insert into "friend_activity" (
-          "id", "recipient_id", "actor_id", "kind",
-          "title", "anilist_id", "image", "rating"
-        ) values (
-          ${id},
-          ${recipientId},
-          ${input.actorId},
-          ${input.kind},
-          ${input.title ?? null},
-          ${input.anilistId ?? null},
-          ${input.image ?? null},
-          ${input.rating ?? null}
-        )
-      `;
-    }
-  } catch (err) {
-    console.error("[activity] fanOut failed", err);
-  }
 }
 
 export const publishWatchActivity = createServerFn({ method: "POST" })
@@ -159,6 +91,7 @@ export const publishWatchActivity = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
+    const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
     await fanOutToFriends({
       actorId: context.userId,
       kind: data.kind,

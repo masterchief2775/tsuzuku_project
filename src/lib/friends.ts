@@ -3,7 +3,6 @@ import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { mapRow, type ProfileRow, type PublicProfile } from "@/lib/profile";
 import { isBlockedBetween } from "@/lib/blocks";
-import { fanOutToFriends } from "@/lib/activity";
 
 export type FriendshipStatus = "none" | "pending_out" | "pending_in" | "friends" | "rejected";
 
@@ -131,11 +130,14 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
           set "status" = 'accepted', "updated_at" = current_timestamp
           where "id" = ${row.id}
         `;
-        await fanOutToFriends({
-          actorId: me,
-          kind: "friend_accept",
-          onlyRecipientId: row.requester_id,
-        });
+        {
+          const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+          await fanOutToFriends({
+            actorId: me,
+            kind: "friend_accept",
+            onlyRecipientId: row.requester_id,
+          });
+        }
         return { ok: true, requestId: row.id };
       }
       // rejected → allow re-request by flipping roles to pending from me
@@ -148,11 +150,14 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
           "updated_at" = current_timestamp
         where "id" = ${row.id}
       `;
-      await fanOutToFriends({
-        actorId: me,
-        kind: "friend_request",
-        onlyRecipientId: targetId,
-      });
+      {
+        const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+        await fanOutToFriends({
+          actorId: me,
+          kind: "friend_request",
+          onlyRecipientId: targetId,
+        });
+      }
       return { ok: true, requestId: row.id };
     }
 
@@ -161,11 +166,17 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
       insert into "friendship" ("id", "requester_id", "addressee_id", "status")
       values (${id}, ${me}, ${targetId}, 'pending')
     `;
-    await fanOutToFriends({
-      actorId: me,
-      kind: "friend_request",
-      onlyRecipientId: targetId,
-    });
+    {
+      const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+      {
+        const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+        await fanOutToFriends({
+          actorId: me,
+          kind: "friend_request",
+          onlyRecipientId: targetId,
+        });
+      }
+    }
     return { ok: true, requestId: id };
   });
 
@@ -193,11 +204,14 @@ export const acceptFriendRequest = createServerFn({ method: "POST" })
       where "id" = ${data.requestId}
     `;
     // Notify the original requester that their request was accepted
-    await fanOutToFriends({
-      actorId: context.userId,
-      kind: "friend_accept",
-      onlyRecipientId: row.requester_id,
-    });
+    {
+      const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+      await fanOutToFriends({
+        actorId: context.userId,
+        kind: "friend_accept",
+        onlyRecipientId: row.requester_id,
+      });
+    }
     return { ok: true };
   });
 
