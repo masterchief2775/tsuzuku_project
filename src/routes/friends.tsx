@@ -84,6 +84,8 @@ function FriendsPage() {
     if (!user?.id) return;
     setLoading(true);
     void reload();
+    const id = window.setInterval(() => void reload(), 45_000);
+    return () => window.clearInterval(id);
   }, [user?.id, reload]);
 
   useEffect(() => {
