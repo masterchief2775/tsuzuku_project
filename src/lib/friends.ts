@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { mapRow, type ProfileRow, type PublicProfile } from "@/lib/profile";
+import { isBlockedBetween } from "@/lib/blocks";
 
 export type FriendshipStatus = "none" | "pending_out" | "pending_in" | "friends" | "rejected";
 
@@ -88,6 +89,27 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
     }
     if (!targetId) throw new Error("Utilisateur introuvable");
     if (targetId === me) throw new Error("Tu ne peux pas t’ajouter toi-même");
+
+    if (await isBlockedBetween(me, targetId)) {
+      throw new Error("Impossible d’envoyer une demande à cet utilisateur");
+    }
+
+    // Rate limit: max 10 outgoing friend-request actions per rolling hour
+    try {
+      const recent = await sql<{ n: string }>`
+        select count(*)::text as n from "friendship"
+        where "requester_id" = ${me}
+          and "created_at" > (current_timestamp - interval '1 hour')
+      `;
+      if (Number(recent[0]?.n || 0) >= 10) {
+        throw new Error(
+          "Trop de demandes d’ami envoyées cette heure-ci. Réessaie plus tard.",
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("Trop de demandes")) throw err;
+      // ignore if interval syntax fails on some backends — still insert
+    }
 
     // Existing relation either direction?
     const existing = await sql<FriendshipRow>`
