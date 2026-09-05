@@ -5,7 +5,7 @@ import { Cover } from "@/components/tsuzuku/cover";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { cn } from "@/lib/utils";
 import { listFriends, type FriendProfile } from "@/lib/friends";
-import { publishWatchActivity } from "@/lib/activity";
+import { publishWatchActivity } from "@/lib/activity-client";
 import { kindLabel, mediaKind, STATUSES, statusMeta } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
 
@@ -17,19 +17,16 @@ export function EntryModal() {
 
   const notifyWatch = (
     kind: "completed" | "rated",
-    e: typeof entry,
+    e: NonNullable<typeof entry>,
     rating?: number | null,
   ) => {
-    if (!e) return;
     void publishWatchActivity({
-      data: {
-        kind,
-        title: e.title,
-        anilistId: e.anilistId,
-        image: e.image,
-        rating: rating ?? e.rating ?? null,
-      },
-    }).catch(() => undefined);
+      kind,
+      title: e.title,
+      anilistId: e.anilistId,
+      image: e.image,
+      rating: rating ?? e.rating ?? null,
+    });
   };
 
   const bumpProgress = useWatchlistStore((s) => s.bumpProgress);

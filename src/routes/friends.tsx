@@ -31,10 +31,10 @@ import {
   type BlockedUser,
 } from "@/lib/blocks";
 import {
-  listFriendActivity,
+  fetchFriendActivity,
   markActivityRead,
   type ActivityItem,
-} from "@/lib/activity";
+} from "@/lib/activity-client";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 
@@ -65,16 +65,14 @@ function FriendsPage() {
         listFriends(),
         listFriendRequests(),
         listBlockedUsers().catch(() => [] as BlockedUser[]),
-        listFriendActivity({ data: { limit: 15 } }).catch(() => [] as ActivityItem[]),
+        fetchFriendActivity(15),
       ]);
       setFriends(f);
       setIncoming(req.incoming);
       setOutgoing(req.outgoing);
       setBlocked(bl);
       setActivity(act);
-      if (act.some((a) => !a.readAt)) {
-        void markActivityRead().catch(() => undefined);
-      }
+      if (act.some((a) => !a.readAt)) void markActivityRead();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
