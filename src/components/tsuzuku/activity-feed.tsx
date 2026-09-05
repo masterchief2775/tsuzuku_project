@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Bell, Check, Loader2, Star, UserPlus } from "lucide-react";
+import { Bell } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
-  listFriendActivity,
+  fetchFriendActivity,
   markActivityRead,
   type ActivityItem,
-} from "@/lib/activity";
+} from "@/lib/activity-client";
 import { cn } from "@/lib/utils";
 
 function formatWhen(iso: string) {
@@ -47,21 +47,16 @@ function labelFor(item: ActivityItem) {
   }
 }
 
-function KindIcon({ kind }: { kind: ActivityItem["kind"] }) {
-  if (kind === "completed") return <Check className="size-3.5 text-lime" />;
-  if (kind === "rated") return <Star className="size-3.5 text-lime" />;
-  return <UserPlus className="size-3.5 text-lime" />;
-}
-
-export function ActivityFeed({ compact = false }: { compact?: boolean }) {
+/** Dashboard-only activity strip. Uses plain fetch to /api/activity (no createServerFn). */
+export function ActivityFeed({ compact = true }: { compact?: boolean }) {
   const { user } = useCurrentUserState();
   const [items, setItems] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const reload = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const list = await listFriendActivity({ data: { limit: compact ? 8 : 20 } });
+      const list = await fetchFriendActivity(compact ? 8 : 15);
       setItems(list);
     } catch {
       /* offline */
@@ -71,11 +66,12 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
   }, [user?.id, compact]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setItems([]);
+      return;
+    }
     setLoading(true);
     void reload();
-    const t = window.setInterval(() => void reload(), 45_000);
-    return () => window.clearInterval(t);
   }, [user?.id, reload]);
 
   useEffect(() => {
@@ -84,7 +80,9 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
     const t = window.setTimeout(() => {
       void markActivityRead().then(() =>
         setItems((prev) =>
-          prev.map((i) => (i.readAt ? i : { ...i, readAt: new Date().toISOString() })),
+          prev.map((i) =>
+            i.readAt ? i : { ...i, readAt: new Date().toISOString() },
+          ),
         ),
       );
     }, 2500);
@@ -106,17 +104,14 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
           Activité récente
         </h2>
         <Link to="/friends" className="text-xs font-semibold text-dim hover:text-lime">
-          Amis
+          Voir tout
         </Link>
       </div>
-      {loading ? (
-        <div className="flex justify-center py-6 text-dim">
-          <Loader2 className="size-5 animate-spin" />
-        </div>
+      {loading && items.length === 0 ? (
+        <p className="text-sm text-dim">Chargement…</p>
       ) : items.length === 0 ? (
         <p className="text-sm text-dim">
-          Rien pour l’instant. Quand tes amis terminent un titre ou t’envoient une demande, ça
-          apparaîtra ici.
+          Rien pour l’instant. Les actions de tes amis apparaîtront ici.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -146,13 +141,14 @@ export function ActivityFeed({ compact = false }: { compact?: boolean }) {
                   </Link>{" "}
                   {labelFor(item)}
                 </p>
-                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-dim">
-                  <KindIcon kind={item.kind} />
-                  {formatWhen(item.createdAt)}
-                </div>
+                <p className="mt-0.5 text-[11px] text-dim">{formatWhen(item.createdAt)}</p>
               </div>
               {item.image ? (
-                <img src={item.image} alt="" className="h-12 w-9 shrink-0 rounded object-cover" />
+                <img
+                  src={item.image}
+                  alt=""
+                  className="h-11 w-8 shrink-0 rounded object-cover"
+                />
               ) : null}
             </li>
           ))}
