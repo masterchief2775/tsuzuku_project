@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
-import type { PublicProfile } from "@/lib/profile";
+import { mapRow, type ProfileRow, type PublicProfile } from "@/lib/profile";
 
 export type FriendshipStatus = "none" | "pending_out" | "pending_in" | "friends" | "rejected";
 
@@ -27,27 +27,13 @@ type FriendshipRow = {
   updated_at: string | Date;
 };
 
-type ProfileJoinRow = {
-  user_id: string;
-  username: string;
-  display_name: string | null;
-  bio: string;
-  avatar_url: string | null;
-  is_public: boolean;
-  name: string | null;
-  image: string | null;
-};
-
-function mapProfile(row: ProfileJoinRow): PublicProfile {
-  return {
-    userId: row.user_id,
-    username: row.username,
-    displayName: row.display_name || row.name || row.username,
-    bio: row.bio || "",
-    avatarUrl: row.avatar_url || row.image || null,
-    isPublic: row.is_public,
-  };
-}
+// Profile columns joined alongside a friendship row. Was previously its own
+// narrower type mapped by a local, hand-rolled `mapProfile` that silently
+// dropped every field the profile pack added later (visibility, favorites,
+// showStats, showFavorites, anilistUrl, malUrl) — tsc caught the mismatch,
+// but nothing at runtime would have: every friend/request profile handed to
+// the UI had those fields `undefined` instead of their real values. Reusing
+// `ProfileRow`/`mapRow` from lib/profile.ts keeps this in sync automatically.
 
 function newId() {
   return `fr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -69,16 +55,17 @@ async function resolveUserIdByUsername(username: string): Promise<string | null>
 
 async function loadProfile(userId: string): Promise<PublicProfile | null> {
   const sql = await getSql();
-  const rows = await sql<ProfileJoinRow>`
+  const rows = await sql<ProfileRow>`
     select
       p."user_id", p."username", p."display_name", p."bio", p."avatar_url", p."is_public",
-      u."name", u."image"
+      p."visibility", p."show_stats", p."show_favorites", p."favorites", p."anilist_url", p."mal_url",
+      u."name", u."email", u."image"
     from "user_profile" p
     join "user" u on u."id" = p."user_id"
     where p."user_id" = ${userId}
     limit 1
   `;
-  return rows[0] ? mapProfile(rows[0]) : null;
+  return rows[0] ? mapRow(rows[0]) : null;
 }
 
 /** Send a friend request by username or userId. */
@@ -240,13 +227,14 @@ export const listFriends = createServerFn({ method: "GET" })
     const me = context.userId;
     const sql = await getSql();
     const rows = await sql<
-      FriendshipRow & ProfileJoinRow & { other_id: string }
+      FriendshipRow & ProfileRow & { other_id: string }
     >`
       select
         f."id", f."requester_id", f."addressee_id", f."status", f."created_at", f."updated_at",
         case when f."requester_id" = ${me} then f."addressee_id" else f."requester_id" end as other_id,
         p."user_id", p."username", p."display_name", p."bio", p."avatar_url", p."is_public",
-        u."name", u."image"
+        p."visibility", p."show_stats", p."show_favorites", p."favorites", p."anilist_url", p."mal_url",
+        u."name", u."email", u."image"
       from "friendship" f
       join "user_profile" p on p."user_id" = case
         when f."requester_id" = ${me} then f."addressee_id"
@@ -258,7 +246,7 @@ export const listFriends = createServerFn({ method: "GET" })
       order by coalesce(p."display_name", p."username") asc
     `;
     return rows.map((r) => ({
-      ...mapProfile(r),
+      ...mapRow(r),
       friendshipId: r.id,
       since: iso(r.updated_at || r.created_at),
     }));
@@ -270,12 +258,13 @@ export const listFriendRequests = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }> => {
     const me = context.userId;
     const sql = await getSql();
-    const rows = await sql<FriendshipRow & ProfileJoinRow & { other_id: string }>`
+    const rows = await sql<FriendshipRow & ProfileRow & { other_id: string }>`
       select
         f."id", f."requester_id", f."addressee_id", f."status", f."created_at", f."updated_at",
         case when f."requester_id" = ${me} then f."addressee_id" else f."requester_id" end as other_id,
         p."user_id", p."username", p."display_name", p."bio", p."avatar_url", p."is_public",
-        u."name", u."image"
+        p."visibility", p."show_stats", p."show_favorites", p."favorites", p."anilist_url", p."mal_url",
+        u."name", u."email", u."image"
       from "friendship" f
       join "user_profile" p on p."user_id" = case
         when f."requester_id" = ${me} then f."addressee_id"
@@ -295,7 +284,7 @@ export const listFriendRequests = createServerFn({ method: "GET" })
         status: "pending",
         createdAt: iso(r.created_at),
         direction: r.addressee_id === me ? "incoming" : "outgoing",
-        other: mapProfile(r),
+        other: mapRow(r),
       };
       if (item.direction === "incoming") incoming.push(item);
       else outgoing.push(item);
@@ -357,8 +346,7 @@ export const resolveFriendProfiles = createServerFn({ method: "GET" })
   })
   .handler(async ({ data }): Promise<PublicProfile[]> => {
     if (!data.userIds.length) return [];
-    const sql = await getSql();
-    // pg/pglite tagged template doesn't expand arrays easily — query one by one or ANY
+    // pg/pglite tagged template doesn't expand arrays easily — resolve one by one.
     const out: PublicProfile[] = [];
     for (const id of data.userIds) {
       const p = await loadProfile(id);

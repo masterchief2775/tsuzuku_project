@@ -27,7 +27,6 @@ import {
   type PublicProfile,
 } from "@/lib/profile";
 import { useWatchlistStore } from "@/store/watchlist-store";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile")({
   component: MyProfilePage,
@@ -136,22 +135,66 @@ function MyProfilePage() {
   }
   if (!user) return <RedirectToSignIn />;
 
-  const onPickAvatar = (file: File | null) => {
+  // Keep in sync with the server-side cap in lib/profile.ts.
+  const AVATAR_DATA_URL_MAX_LENGTH = 60_000;
+
+  const resizeImageToDataUrl = (file: File, maxSize: number, quality: number) =>
+    new Promise<string>((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const side = Math.min(img.width, img.height);
+          const sx = (img.width - side) / 2;
+          const sy = (img.height - side) / 2;
+          const canvas = document.createElement("canvas");
+          canvas.width = maxSize;
+          canvas.height = maxSize;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas indisponible.");
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+          let dataUrl = canvas.toDataURL("image/webp", quality);
+          if (!dataUrl.startsWith("data:image/webp")) {
+            dataUrl = canvas.toDataURL("image/jpeg", quality);
+          }
+          resolve(dataUrl);
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error("Traitement de l'image impossible."));
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Image illisible."));
+      };
+      img.src = objectUrl;
+    });
+
+  const onPickAvatar = async (file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       setError("Choisis une image (JPEG, PNG, WebP…).");
       return;
     }
-    if (file.size > 400_000) {
-      setError("Image trop lourde (max ~400 Ko). Compresse-la un peu.");
+    if (file.size > 8_000_000) {
+      setError("Image trop lourde (max ~8 Mo).");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : null;
-      setAvatarUrl(result);
-    };
-    reader.readAsDataURL(file);
+    setError("");
+    try {
+      let dataUrl = await resizeImageToDataUrl(file, 256, 0.82);
+      if (dataUrl.length > AVATAR_DATA_URL_MAX_LENGTH) {
+        dataUrl = await resizeImageToDataUrl(file, 160, 0.7);
+      }
+      if (dataUrl.length > AVATAR_DATA_URL_MAX_LENGTH) {
+        setError("Cette image compresse mal — essaie une photo plus simple.");
+        return;
+      }
+      setAvatarUrl(dataUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de traiter cette image.");
+    }
   };
 
   const save = async () => {
@@ -335,7 +378,7 @@ function MyProfilePage() {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={(e) => onPickAvatar(e.target.files?.[0] ?? null)}
+                  onChange={(e) => void onPickAvatar(e.target.files?.[0] ?? null)}
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="text-sm text-dim">

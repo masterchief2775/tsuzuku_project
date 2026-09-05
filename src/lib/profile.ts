@@ -67,7 +67,7 @@ function defaultUsername(userId: string, name: string | null): string {
   return candidate;
 }
 
-type ProfileRow = {
+export type ProfileRow = {
   user_id: string;
   username: string;
   display_name: string | null;
@@ -108,7 +108,7 @@ function normalizeVisibility(row: ProfileRow): ProfileVisibility {
   return row.is_public ? "public" : "private";
 }
 
-function mapRow(
+export function mapRow(
   row: ProfileRow,
   opts?: {
     isOwner?: boolean;
@@ -370,7 +370,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
         p.avatarUrl === null
           ? null
           : typeof p.avatarUrl === "string"
-            ? p.avatarUrl.slice(0, 600_000)
+            ? p.avatarUrl.slice(0, 60_000)
             : undefined,
       isPublic: typeof p.isPublic === "boolean" ? p.isPublic : undefined,
       visibility: visibility as ProfileVisibility | undefined,
