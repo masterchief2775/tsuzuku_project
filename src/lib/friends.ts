@@ -130,14 +130,6 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
           set "status" = 'accepted', "updated_at" = current_timestamp
           where "id" = ${row.id}
         `;
-        {
-          const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
-          await fanOutToFriends({
-            actorId: me,
-            kind: "friend_accept",
-            onlyRecipientId: row.requester_id,
-          });
-        }
         return { ok: true, requestId: row.id };
       }
       // rejected → allow re-request by flipping roles to pending from me
@@ -150,14 +142,6 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
           "updated_at" = current_timestamp
         where "id" = ${row.id}
       `;
-      {
-        const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
-        await fanOutToFriends({
-          actorId: me,
-          kind: "friend_request",
-          onlyRecipientId: targetId,
-        });
-      }
       return { ok: true, requestId: row.id };
     }
 
@@ -166,14 +150,6 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
       insert into "friendship" ("id", "requester_id", "addressee_id", "status")
       values (${id}, ${me}, ${targetId}, 'pending')
     `;
-    {
-      const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
-      await fanOutToFriends({
-        actorId: me,
-        kind: "friend_request",
-        onlyRecipientId: targetId,
-      });
-    }
     return { ok: true, requestId: id };
   });
 
@@ -200,14 +176,6 @@ export const acceptFriendRequest = createServerFn({ method: "POST" })
       set "status" = 'accepted', "updated_at" = current_timestamp
       where "id" = ${data.requestId}
     `;
-    {
-      const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
-      await fanOutToFriends({
-        actorId: context.userId,
-        kind: "friend_accept",
-        onlyRecipientId: row.requester_id,
-      });
-    }
     return { ok: true };
   });
 
