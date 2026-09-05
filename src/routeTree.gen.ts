@@ -17,6 +17,9 @@ import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiActivityRouteImport } from './routes/api/activity'
+import { Route as ApiSharedListsRouteImport } from './routes/api/shared-lists'
+import { Route as ListsRouteImport } from './routes/lists'
+import { Route as ListsListIdRouteImport } from './routes/lists.$listId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +61,21 @@ const ApiActivityRoute = ApiActivityRouteImport.update({
   path: '/api/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSharedListsRoute = ApiSharedListsRouteImport.update({
+  id: '/api/shared-lists',
+  path: '/api/shared-lists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListsRoute = ListsRouteImport.update({
+  id: '/lists',
+  path: '/lists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListsListIdRoute = ListsListIdRouteImport.update({
+  id: '/lists/$listId',
+  path: '/lists/$listId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +86,9 @@ export interface FileRoutesByFullPath {
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/activity': typeof ApiActivityRoute
+  '/api/shared-lists': typeof ApiSharedListsRoute
+  '/lists': typeof ListsRoute
+  '/lists/$listId': typeof ListsListIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +99,9 @@ export interface FileRoutesByTo {
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/activity': typeof ApiActivityRoute
+  '/api/shared-lists': typeof ApiSharedListsRoute
+  '/lists': typeof ListsRoute
+  '/lists/$listId': typeof ListsListIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +113,9 @@ export interface FileRoutesById {
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/activity': typeof ApiActivityRoute
+  '/api/shared-lists': typeof ApiSharedListsRoute
+  '/lists': typeof ListsRoute
+  '/lists/$listId': typeof ListsListIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +128,9 @@ export interface FileRouteTypes {
     | '/u/$username'
     | '/api/auth/$'
     | '/api/activity'
+    | '/api/shared-lists'
+    | '/lists'
+    | '/lists/$listId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +141,9 @@ export interface FileRouteTypes {
     | '/u/$username'
     | '/api/auth/$'
     | '/api/activity'
+    | '/api/shared-lists'
+    | '/lists'
+    | '/lists/$listId'
   id:
     | '__root__'
     | '/'
@@ -121,6 +154,9 @@ export interface FileRouteTypes {
     | '/u/$username'
     | '/api/auth/$'
     | '/api/activity'
+    | '/api/shared-lists'
+    | '/lists'
+    | '/lists/$listId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +168,9 @@ export interface RootRouteChildren {
   UUsernameRoute: typeof UUsernameRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiActivityRoute: typeof ApiActivityRoute
+  ApiSharedListsRoute: typeof ApiSharedListsRoute
+  ListsRoute: typeof ListsRoute
+  ListsListIdRoute: typeof ListsListIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +231,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shared-lists': {
+      id: '/api/shared-lists'
+      path: '/api/shared-lists'
+      fullPath: '/api/shared-lists'
+      preLoaderRoute: typeof ApiSharedListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lists': {
+      id: '/lists'
+      path: '/lists'
+      fullPath: '/lists'
+      preLoaderRoute: typeof ListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lists/$listId': {
+      id: '/lists/$listId'
+      path: '/lists/$listId'
+      fullPath: '/lists/$listId'
+      preLoaderRoute: typeof ListsListIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +264,9 @@ const rootRouteChildren: RootRouteChildren = {
   UUsernameRoute: UUsernameRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiActivityRoute: ApiActivityRoute,
+  ApiSharedListsRoute: ApiSharedListsRoute,
+  ListsRoute: ListsRoute,
+  ListsListIdRoute: ListsListIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
