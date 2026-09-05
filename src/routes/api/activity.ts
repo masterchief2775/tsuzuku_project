@@ -20,8 +20,29 @@ export const Route = createFileRoute("/api/activity")({
         if (userIdOrRes instanceof Response) return userIdOrRes;
         const userId = userIdOrRes;
         const url = new URL(request.url);
-        const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 20));
         const sql = await getSql();
+
+        if (url.searchParams.get("counts") === "1") {
+          let unreadActivity = 0;
+          let pendingFriendRequests = 0;
+          try {
+            const a = await sql<{ n: string }>`
+              select count(*)::text as n from "friend_activity"
+              where "recipient_id" = ${userId} and "read_at" is null
+            `;
+            unreadActivity = Number(a[0]?.n || 0);
+          } catch { /* */ }
+          try {
+            const f = await sql<{ n: string }>`
+              select count(*)::text as n from "friendship"
+              where "addressee_id" = ${userId} and "status" = 'pending'
+            `;
+            pendingFriendRequests = Number(f[0]?.n || 0);
+          } catch { /* */ }
+          return Response.json({ unreadActivity, pendingFriendRequests });
+        }
+
+        const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 20));
         try {
           const rows = await sql<{
             id: string;

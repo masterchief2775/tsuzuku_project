@@ -62,3 +62,24 @@ export async function publishWatchActivity(input: {
     console.warn("[activity] publish error", err);
   }
 }
+
+
+export async function fetchActivityBadge(): Promise<{
+  unreadActivity: number;
+  pendingFriendRequests: number;
+}> {
+  try {
+    const res = await fetch("/api/activity?counts=1", { credentials: "include" });
+    if (!res.ok) return { unreadActivity: 0, pendingFriendRequests: 0 };
+    const data = (await res.json()) as {
+      unreadActivity?: number;
+      pendingFriendRequests?: number;
+    };
+    return {
+      unreadActivity: Number(data.unreadActivity || 0),
+      pendingFriendRequests: Number(data.pendingFriendRequests || 0),
+    };
+  } catch {
+    return { unreadActivity: 0, pendingFriendRequests: 0 };
+  }
+}
