@@ -162,8 +162,9 @@ export function EntryModal() {
                 key={s.key}
                 type="button"
                 onClick={() => {
+                  const was = entry.status;
                   updateEntry(entry.id, { status: s.key });
-                  if (s.key === "Completed" && entry.status !== "Completed") {
+                  if (s.key === "Completed" && was !== "Completed") {
                     notifyWatch("completed", entry);
                   }
                 }}
@@ -222,7 +223,13 @@ export function EntryModal() {
                   type="button"
                   aria-label={`Note ${n} sur 10`}
                   onClick={() =>
-                    updateEntry(entry.id, { rating: entry.rating === n ? null : n })
+                    {
+                      const next = entry.rating === n ? null : n;
+                      updateEntry(entry.id, { rating: next });
+                      if (typeof next === "number" && next > 0) {
+                        notifyWatch("rated", entry, next);
+                      }
+                    }
                   }
                 >
                   <Star

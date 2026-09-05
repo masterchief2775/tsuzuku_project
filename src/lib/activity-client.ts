@@ -14,19 +14,31 @@ export type ActivityItem = {
 };
 
 export async function fetchFriendActivity(limit = 15): Promise<ActivityItem[]> {
-  const res = await fetch(`/api/activity?limit=${limit}`, { credentials: "include" });
-  if (!res.ok) return [];
-  const data = (await res.json()) as { items?: ActivityItem[] };
-  return data.items ?? [];
+  try {
+    const res = await fetch(`/api/activity?limit=${limit}`, { credentials: "include" });
+    if (!res.ok) {
+      console.warn("[activity] GET failed", res.status);
+      return [];
+    }
+    const data = (await res.json()) as { items?: ActivityItem[] };
+    return data.items ?? [];
+  } catch (err) {
+    console.warn("[activity] GET error", err);
+    return [];
+  }
 }
 
 export async function markActivityRead(): Promise<void> {
-  await fetch("/api/activity", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "markRead" }),
-  }).catch(() => undefined);
+  try {
+    await fetch("/api/activity", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "markRead" }),
+    });
+  } catch {
+    /* */
+  }
 }
 
 export async function publishWatchActivity(input: {
@@ -36,10 +48,17 @@ export async function publishWatchActivity(input: {
   image?: string | null;
   rating?: number | null;
 }): Promise<void> {
-  await fetch("/api/activity", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "publish", ...input }),
-  }).catch(() => undefined);
+  try {
+    const res = await fetch("/api/activity", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "publish", ...input }),
+    });
+    if (!res.ok) {
+      console.warn("[activity] publish failed", res.status, await res.text().catch(() => ""));
+    }
+  } catch (err) {
+    console.warn("[activity] publish error", err);
+  }
 }

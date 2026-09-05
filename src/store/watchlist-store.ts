@@ -324,9 +324,12 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     const { entries, showToast } = get();
     let autoCompletedTitle: string | null = null;
     let becameWatching = false;
+    let completedForActivity: WatchlistEntry | null = null;
+    let ratedForActivity: WatchlistEntry | null = null;
     const next = entries.map((e) => {
       if (e.id !== id) return e;
       const prevStatus = e.status;
+      const prevRating = e.rating;
       const merged: WatchlistEntry = {
         ...e,
         ...changes,
@@ -336,6 +339,16 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       if (shouldAutoComplete(merged.status, merged.progress, merged.totalEpisodes)) {
         merged.status = "Completed";
         autoCompletedTitle = merged.title;
+      }
+      if (merged.status === "Completed" && prevStatus !== "Completed") {
+        completedForActivity = merged;
+      }
+      if (
+        typeof merged.rating === "number" &&
+        merged.rating > 0 &&
+        merged.rating !== prevRating
+      ) {
+        ratedForActivity = merged;
       }
       if (merged.status === "Watching" && prevStatus !== "Watching") {
         becameWatching = true;
@@ -348,6 +361,24 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       showToast({ message: `« ${autoCompletedTitle} » marqué comme terminé` });
     }
     if (becameWatching) void get().refreshNextAirings();
+    // Activity via plain fetch (no createServerFn) — safe for client/SSR boundary
+    const act = completedForActivity || ratedForActivity;
+    if (act) {
+      const kind = completedForActivity ? "completed" : "rated";
+      void fetch("/api/activity", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "publish",
+          kind,
+          title: act.title,
+          anilistId: act.anilistId,
+          image: act.image,
+          rating: act.rating ?? null,
+        }),
+      }).catch(() => undefined);
+    }
   },
 
   bumpProgress: (id, delta) => {
