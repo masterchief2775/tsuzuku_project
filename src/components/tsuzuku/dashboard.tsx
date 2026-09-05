@@ -9,6 +9,7 @@ import {
   upcomingThisWeek,
 } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { ActivityFeed } from "@/components/tsuzuku/activity-feed";
 
 export function Dashboard() {
   const entries = useWatchlistStore((s) => s.entries);
@@ -45,6 +46,9 @@ export function Dashboard() {
 
   return (
     <div>
+      <div className="mb-5">
+        <ActivityFeed compact />
+      </div>
       <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
         {STATUSES.map((s) => {
           const n = entries.filter((e) => e.status === s.key).length;
