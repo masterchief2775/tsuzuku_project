@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   ListPlus,
   Loader2,
+  Pencil,
+  Search,
   Trash2,
   UserPlus,
   Users,
@@ -21,9 +23,16 @@ import {
   fetchSharedList,
   removeSharedListItem,
   removeSharedListMember,
+  renameSharedList,
   type SharedListDetail,
   type SharedListSummary,
 } from "@/lib/shared-lists-client";
+import {
+  mediaTitle,
+  searchAniListQuery,
+  SEARCH_DEBOUNCE_MS,
+  type AniListMedia,
+} from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
 
 type ListsSearch = { id?: string };
@@ -197,6 +206,12 @@ function ListDetail({ listId }: { listId: string }) {
   const [busy, setBusy] = useState(false);
   const [pickOpen, setPickOpen] = useState(false);
   const [memberOpen, setMemberOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [searchQ, setSearchQ] = useState("");
+  const [searchHits, setSearchHits] = useState<AniListMedia[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const reload = useCallback(async () => {
     if (!user?.id || !listId) return;
@@ -226,6 +241,28 @@ function ListDetail({ listId }: { listId: string }) {
       .then(setFriends)
       .catch(() => setFriends([]));
   }, [user?.id]);
+
+  useEffect(() => {
+    const q = searchQ.trim();
+    if (q.length < 2) {
+      setSearchHits([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const ac = new AbortController();
+    const t = window.setTimeout(() => {
+      void searchAniListQuery(q, ac.signal)
+        .then((media) => setSearchHits(Array.isArray(media) ? media : []))
+        .catch(() => setSearchHits([]))
+        .finally(() => setSearching(false));
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      ac.abort();
+      window.clearInterval(t);
+      window.clearTimeout(t);
+    };
+  }, [searchQ]);
 
   const memberIds = useMemo(
     () => new Set(detail?.members.map((m) => m.userId) ?? []),
@@ -307,22 +344,82 @@ function ListDetail({ listId }: { listId: string }) {
           ) : null}
         </div>
         {isOwner ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              if (!window.confirm("Supprimer cette liste pour tout le monde ?")) return;
-              void run(async () => {
-                await deleteSharedList(list.id);
-                void navigate({ to: "/lists", search: {} });
-              });
-            }}
-            className="rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson"
-          >
-            Supprimer
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setEditName(list.name);
+                setEditDesc(list.description || "");
+                setEditOpen((v) => !v);
+              }}
+              className="rounded-[8px] border border-line p-2 text-dim hover:text-lime"
+              aria-label="Modifier"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (!window.confirm("Supprimer cette liste pour tout le monde ?")) return;
+                void run(async () => {
+                  await deleteSharedList(list.id);
+                  void navigate({ to: "/lists", search: {} });
+                });
+              }}
+              className="rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson"
+            >
+              Supprimer
+            </button>
+          </div>
         ) : null}
       </div>
+
+      {editOpen && isOwner ? (
+        <form
+          className="mb-5 space-y-2 rounded-[14px] border border-line bg-raised p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(async () => {
+              await renameSharedList(list.id, editName.trim(), editDesc.trim());
+              setEditOpen(false);
+            });
+          }}
+        >
+          <label className="block text-xs font-semibold text-dim">Nom</label>
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            maxLength={80}
+            className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime/50"
+          />
+          <label className="block text-xs font-semibold text-dim">Description</label>
+          <textarea
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            maxLength={300}
+            rows={2}
+            placeholder="Optionnel"
+            className="w-full resize-y rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime/50"
+          />
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={busy || editName.trim().length < 2}
+              className="rounded-[9px] bg-lime px-3 py-1.5 text-xs font-semibold text-bg disabled:opacity-50"
+            >
+              Enregistrer
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditOpen(false)}
+              className="rounded-[9px] border border-line px-3 py-1.5 text-xs font-semibold text-dim"
+            >
+              Annuler
+            </button>
+          </div>
+        </form>
+      ) : null}
 
       {error ? <p className="mb-4 text-sm text-crimson">{error}</p> : null}
 
@@ -400,45 +497,98 @@ function ListDetail({ listId }: { listId: string }) {
             onClick={() => setPickOpen((v) => !v)}
             className="text-xs font-semibold text-lime"
           >
-            {pickOpen ? "Fermer" : "Ajouter depuis ma watchlist"}
+            {pickOpen ? "Fermer l’ajout" : "Ajouter un titre"}
           </button>
         </div>
         {pickOpen ? (
-          <div className="mb-3 max-h-48 overflow-y-auto rounded-[10px] border border-line bg-bg p-2">
-            {addable.length === 0 ? (
-              <p className="px-2 py-1 text-xs text-dim">
-                Rien à ajouter (vide ou déjà dans la liste).
-              </p>
-            ) : (
-              <ul className="space-y-1">
-                {addable.slice(0, 40).map((e) => (
-                  <li key={e.id} className="flex items-center gap-2 px-1 py-1">
-                    {e.image ? (
-                      <img src={e.image} alt="" className="h-9 w-6 rounded object-cover" />
-                    ) : (
-                      <div className="h-9 w-6 rounded bg-line" />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-sm">{e.title}</span>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void run(() =>
-                          addSharedListItem(list.id, {
-                            anilistId: e.anilistId,
-                            title: e.title,
-                            image: e.image,
-                          }),
-                        )
-                      }
-                      className="text-xs font-semibold text-lime"
-                    >
-                      Ajouter
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="mb-4 space-y-3 rounded-[10px] border border-line bg-bg p-3">
+            <div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-dim">
+                <Search className="size-3.5" />
+                Recherche AniList
+              </div>
+              <input
+                value={searchQ}
+                onChange={(e) => setSearchQ(e.target.value)}
+                placeholder="Nom d’un anime…"
+                className="w-full rounded-[9px] border border-line bg-raised px-3 py-2 text-sm outline-none focus:border-lime/50"
+              />
+              {searching ? (
+                <p className="mt-2 text-xs text-dim">Recherche…</p>
+              ) : searchHits.length > 0 ? (
+                <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto">
+                  {searchHits
+                    .filter((m) => !itemAnilistIds.has(m.id))
+                    .map((m) => {
+                      const title = mediaTitle(m);
+                      const image = m.coverImage?.large || null;
+                      return (
+                        <li key={m.id} className="flex items-center gap-2 px-1 py-1">
+                          {image ? (
+                            <img src={image} alt="" className="h-9 w-6 rounded object-cover" />
+                          ) : (
+                            <div className="h-9 w-6 rounded bg-line" />
+                          )}
+                          <span className="min-w-0 flex-1 truncate text-sm">{title}</span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              void run(() =>
+                                addSharedListItem(list.id, {
+                                  anilistId: m.id,
+                                  title,
+                                  image,
+                                }),
+                              )
+                            }
+                            className="text-xs font-semibold text-lime"
+                          >
+                            Ajouter
+                          </button>
+                        </li>
+                      );
+                    })}
+                </ul>
+              ) : searchQ.trim().length >= 2 ? (
+                <p className="mt-2 text-xs text-dim">Aucun résultat.</p>
+              ) : null}
+            </div>
+            <div>
+              <div className="mb-1.5 text-xs font-semibold text-dim">Depuis ma watchlist</div>
+              {addable.length === 0 ? (
+                <p className="text-xs text-dim">Rien à ajouter depuis ta liste.</p>
+              ) : (
+                <ul className="max-h-40 space-y-1 overflow-y-auto">
+                  {addable.slice(0, 40).map((e) => (
+                    <li key={e.id} className="flex items-center gap-2 px-1 py-1">
+                      {e.image ? (
+                        <img src={e.image} alt="" className="h-9 w-6 rounded object-cover" />
+                      ) : (
+                        <div className="h-9 w-6 rounded bg-line" />
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-sm">{e.title}</span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void run(() =>
+                            addSharedListItem(list.id, {
+                              anilistId: e.anilistId,
+                              title: e.title,
+                              image: e.image,
+                            }),
+                          )
+                        }
+                        className="text-xs font-semibold text-lime"
+                      >
+                        Ajouter
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         ) : null}
 
