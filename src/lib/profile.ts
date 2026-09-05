@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { isBlockedBetween } from "@/lib/blocks";
 
 export type ProfileVisibility = "public" | "friends" | "private";
 
@@ -616,10 +615,6 @@ export const getProfileByUsernameAuthed = createServerFn({ method: "GET" })
     const row = rows[0];
     if (!row) return null;
 
-    if (row.user_id !== context.userId && (await isBlockedBetween(context.userId, row.user_id))) {
-      return null;
-    }
-
     const visibility = normalizeVisibility(row);
     const isOwner = row.user_id === context.userId;
     const isFriend = isOwner ? false : await areFriends(context.userId, row.user_id);
@@ -646,15 +641,6 @@ export const searchProfiles = createServerFn({ method: "GET" })
     const sql = await getSql();
     if (!data.q || data.q.length < 2) return [];
     const pattern = `%${data.q.toLowerCase()}%`;
-
-    let viewerId: string | null = null;
-    try {
-      const { getSessionUser } = await import("@/lib/auth/verify.server");
-      const session = await getSessionUser();
-      viewerId = session?.id ?? null;
-    } catch {
-      viewerId = null;
-    }
     let rows: ProfileRow[];
     try {
       rows = await sql<ProfileRow>`
@@ -690,19 +676,7 @@ export const searchProfiles = createServerFn({ method: "GET" })
         limit 20
       `;
     }
-    {
-      let mapped = rows.map((r) => mapRow(r, { isOwner: false }));
-      if (viewerId) {
-        const filtered: PublicProfile[] = [];
-        for (const m of mapped) {
-          if (m.userId === viewerId) continue;
-          if (await isBlockedBetween(viewerId, m.userId)) continue;
-          filtered.push(m);
-        }
-        mapped = filtered;
-      }
-      return mapped;
-    }
+    return rows.map((r) => mapRow(r, { isOwner: false }));
   });
 
 export const deleteMyAccount = createServerFn({ method: "POST" })

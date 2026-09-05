@@ -5,7 +5,6 @@ import {
   Check,
   Loader2,
   Search,
-  Ban,
   UserMinus,
   UserPlus,
   Users,
@@ -24,12 +23,6 @@ import {
   type FriendProfile,
   type FriendRequest,
 } from "@/lib/friends";
-import {
-  blockUser,
-  listBlockedUsers,
-  unblockUser,
-  type BlockedUser,
-} from "@/lib/blocks";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +35,6 @@ function FriendsPage() {
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
-  const [blocked, setBlocked] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -55,15 +47,10 @@ function FriendsPage() {
   const reload = useCallback(async () => {
     setError("");
     try {
-      const [f, req, bl] = await Promise.all([
-        listFriends(),
-        listFriendRequests(),
-        listBlockedUsers().catch(() => [] as BlockedUser[]),
-      ]);
+      const [f, req] = await Promise.all([listFriends(), listFriendRequests()]);
       setFriends(f);
       setIncoming(req.incoming);
       setOutgoing(req.outgoing);
-      setBlocked(bl);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -374,67 +361,6 @@ function FriendsPage() {
                   >
                     <UserMinus className="size-3.5" />
                     Retirer
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busyId === f.userId}
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          `Bloquer ${f.displayName} ? Amis retirés, plus de demandes possibles.`,
-                        )
-                      )
-                        return;
-                      void run(
-                        f.userId,
-                        () => blockUser({ data: { userId: f.userId } }),
-                        "Utilisateur bloqué",
-                      );
-                    }}
-                    className="inline-flex items-center gap-1 rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50"
-                  >
-                    <Ban className="size-3.5" />
-                    Bloquer
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* Blocked users */}
-        <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <h2 className="font-serif flex items-center gap-2 text-base font-medium">
-            <Ban className="size-4 text-dim" />
-            Utilisateurs bloqués
-          </h2>
-          {blocked.length === 0 ? (
-            <p className="mt-3 text-sm text-dim">Personne n’est bloqué pour le moment.</p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {blocked.map((b) => (
-                <li
-                  key={b.userId}
-                  className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
-                >
-                  <ProfileAvatar name={b.displayName} src={b.avatarUrl} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold">{b.displayName}</div>
-                    <div className="text-xs text-dim">@{b.username}</div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={busyId === b.userId}
-                    onClick={() =>
-                      void run(
-                        b.userId,
-                        () => unblockUser({ data: { userId: b.userId } }),
-                        "Utilisateur débloqué",
-                      )
-                    }
-                    className="rounded-[8px] border border-lime/40 bg-lime/10 px-2.5 py-1.5 text-xs font-semibold text-lime disabled:opacity-50"
-                  >
-                    Débloquer
                   </button>
                 </li>
               ))}
