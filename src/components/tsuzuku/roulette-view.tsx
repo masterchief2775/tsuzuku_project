@@ -49,7 +49,7 @@ type RouletteItem = {
 const CARD_W = 120;
 const CARD_GAP = 12;
 const STEP = CARD_W + CARD_GAP;
-const SPIN_MS = 4000;
+const SPIN_MS = 4200;
 
 function shufflePick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
@@ -163,11 +163,11 @@ export function RouletteView() {
     const from = 0;
     el.style.transform = `translate3d(0px, 0, 0)`;
 
-    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
 
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / SPIN_MS);
-      const x = from + (targetPx - from) * easeOutCubic(t);
+      const x = from + (targetPx - from) * easeOutQuint(t);
       el.style.transform = `translate3d(${-x}px, 0, 0)`;
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
@@ -209,7 +209,7 @@ export function RouletteView() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl overflow-x-hidden">
+    <div className="animate-fade-up mx-auto max-w-3xl overflow-x-hidden">
       <div className="mb-6">
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Roulette</h1>
         <p className="mt-1 text-sm text-dim">
@@ -288,11 +288,21 @@ export function RouletteView() {
       {/* Viewport — clipped box so nothing (text or cards) escapes */}
       <div
         ref={viewportRef}
-        className="relative mb-6 h-[200px] w-full max-w-full overflow-hidden rounded-[14px] border border-line bg-raised"
+        className={cn(
+          "relative mb-6 h-[200px] w-full max-w-full overflow-hidden rounded-[14px] border bg-raised transition-[border-color,box-shadow] duration-300",
+          spinning
+            ? "animate-spin-glow border-lime/60 shadow-[0_0_40px_color-mix(in_oklab,var(--color-lime)_20%,transparent)]"
+            : "border-line",
+        )}
         style={{ contain: "paint", isolation: "isolate" }}
       >
         {/* Center marker */}
-        <div className="pointer-events-none absolute top-2 bottom-2 left-1/2 z-20 w-[128px] -translate-x-1/2 rounded-[12px] border-2 border-lime shadow-[0_0_24px_rgba(200,255,77,0.2)]" />
+        <div
+          className={cn(
+            "pointer-events-none absolute top-2 bottom-2 left-1/2 z-20 w-[128px] -translate-x-1/2 rounded-[12px] border-2 border-lime",
+            spinning ? "animate-marker-pulse" : "shadow-[0_0_24px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]",
+          )}
+        />
         <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-12 bg-gradient-to-r from-raised to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-12 bg-gradient-to-l from-raised to-transparent" />
 
@@ -305,7 +315,7 @@ export function RouletteView() {
         ) : (
           <div
             ref={trackRef}
-            className="absolute top-4 left-0 flex"
+            className={cn("absolute top-4 left-0 flex", spinning && "opacity-95")}
             style={{
               gap: CARD_GAP,
               paddingLeft: "calc(50% - 60px)",
@@ -335,8 +345,9 @@ export function RouletteView() {
           disabled={spinning || loadingPool || pool.length === 0}
           onClick={spin}
           className={cn(
-            "inline-flex items-center gap-2 rounded-[10px] bg-lime px-6 py-3 text-sm font-extrabold text-bg",
+            "btn-glow inline-flex items-center gap-2 rounded-[10px] bg-lime px-6 py-3 text-sm font-extrabold text-bg",
             "disabled:cursor-not-allowed disabled:opacity-40",
+            !spinning && pool.length > 0 && "shimmer",
           )}
         >
           <Dices className={cn("size-5", spinning && "animate-spin")} />
@@ -396,6 +407,42 @@ function SourceTab({
   );
 }
 
+function ConfettiBurst() {
+  const bits = useMemo(
+    () =>
+      Array.from({ length: 14 }, (_, i) => ({
+        id: i,
+        dx: `${(i % 2 === 0 ? -1 : 1) * (12 + (i * 9) % 70)}px`,
+        rot: `${120 + i * 37}deg`,
+        color: ["var(--color-lime)", "var(--color-status-completed)", "var(--color-status-plan)", "var(--color-status-hold)"][
+          i % 4
+        ],
+        left: `${20 + ((i * 17) % 60)}%`,
+        delay: `${(i % 7) * 0.04}s`,
+      })),
+    [],
+  );
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden" aria-hidden>
+      {bits.map((b) => (
+        <span
+          key={b.id}
+          className="confetti-bit"
+          style={
+            {
+              left: b.left,
+              background: b.color,
+              animationDelay: b.delay,
+              "--dx": b.dx,
+              "--rot": b.rot,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 function WinnerCard({
   item,
   alreadyInList,
@@ -412,9 +459,10 @@ function WinnerCard({
   const meta = item.entry ? statusMeta(item.entry.status) : null;
   return (
     <div
-      className="mt-8 overflow-hidden rounded-[14px] border border-lime/40 bg-lime/5 p-4 sm:flex sm:gap-4"
+      className="animate-winner-pop relative mt-8 overflow-hidden rounded-[14px] border border-lime/50 bg-lime/5 p-4 shadow-[0_0_48px_color-mix(in_oklab,var(--color-lime)_12%,transparent)] sm:flex sm:gap-4"
       style={meta ? { ["--accent" as string]: meta.color } : undefined}
     >
+      <ConfettiBurst />
       <Cover
         src={item.image}
         title={item.title}

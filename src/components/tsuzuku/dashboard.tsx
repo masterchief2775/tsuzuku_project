@@ -45,7 +45,7 @@ export function Dashboard() {
   const stats = computeStats(entries);
 
   return (
-    <div>
+    <div className="animate-fade-up">
       <div className="mb-5">
         <ActivityFeed compact />
       </div>

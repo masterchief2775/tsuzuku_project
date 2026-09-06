@@ -140,7 +140,7 @@ export function AppShell() {
 
   if (isPending) {
     return (
-      <div className="min-h-dvh bg-bg text-ink">
+      <div className="ambient-bg min-h-dvh text-ink">
         <header className="flex items-center justify-between border-b border-line px-4 py-5 sm:px-7">
           <div className="flex items-center gap-3">
             <span className="size-[38px] animate-pulse rounded-sm bg-raised" />
