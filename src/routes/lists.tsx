@@ -635,6 +635,6 @@ function ListDetail({ listId }: { listId: string }) {
         )}
       </section>
     </div>
-  );
     </div>
+  );
 }
