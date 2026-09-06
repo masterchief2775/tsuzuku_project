@@ -349,8 +349,8 @@ export function RouletteView() {
             className={cn("absolute top-4 left-0 flex", spinning && "opacity-95")}
             style={{
               gap: CARD_GAP,
-              paddingLeft: "50%",
-              transform: "translate3d(-60px, 0, 0)",
+              paddingLeft: "calc(50% - 60px)",
+              transform: "translate3d(0, 0, 0)",
               willChange: "transform",
             }}
           >
