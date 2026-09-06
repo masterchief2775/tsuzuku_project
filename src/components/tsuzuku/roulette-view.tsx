@@ -418,17 +418,15 @@ function ConfettiBurst() {
     const container = containerRef.current;
     if (!container) return;
 
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    if (reduceMotion) return;
-
     const pieces = Array.from(
       container.querySelectorAll<HTMLElement>(".confetti-bit"),
     );
 
-    const animations = pieces.map((piece, i) => {
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    pieces.forEach((piece, i) => {
       const angle = (i / pieces.length) * Math.PI * 2;
       const distance = 90 + ((i * 37) % 100);
 
@@ -437,11 +435,16 @@ function ConfettiBurst() {
       const rotation = ((i * 73) % 360) - 180;
       const delay = (i % 7) * 18;
 
-      piece.style.setProperty("--dx", `${dx}px`);
-      piece.style.setProperty("--dy", `${dy}px`);
-      piece.style.setProperty("--rot", `${rotation}deg`);
+      if (reduceMotion) {
+        piece.style.opacity = "1";
+        piece.style.transform =
+          `translate3d(${dx}px, ${dy}px, 0) ` +
+          `rotate(${rotation}deg) scale(0.75)`;
 
-      return piece.animate(
+        return;
+      }
+
+      piece.animate(
         [
           {
             opacity: 1,
@@ -469,10 +472,6 @@ function ConfettiBurst() {
         },
       );
     });
-
-    return () => {
-      animations.forEach((animation) => animation.cancel());
-    };
   }, []);
 
   return (
