@@ -198,8 +198,8 @@ export function RouletteView() {
     setSpinning(true);
 
     // Stop exactly on the winner card (not at the end of the strip)
+  requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
       const viewport = viewportRef.current;
       const track = trackRef.current;
 
@@ -209,20 +209,33 @@ export function RouletteView() {
 
       if (!winnerCard) return;
 
-      const viewportCenter = viewport.clientWidth / 2;
-      const winnerCenter =
-        winnerCard.offsetLeft + winnerCard.offsetWidth / 2;
+      // Toujours mesurer depuis la position initiale du reel.
+      track.style.transform = "translate3d(0, 0, 0)";
 
+      const viewportRect = viewport.getBoundingClientRect();
+      const winnerRect = winnerCard.getBoundingClientRect();
+
+      const viewportCenter =
+        viewportRect.left + viewportRect.width / 2;
+
+      const winnerCenter =
+        winnerRect.left + winnerRect.width / 2;
+
+      // Distance exacte entre le centre de la carte gagnante
+      // et le centre réel de la roulette.
       const target = winnerCenter - viewportCenter;
 
       animateTo(target, () => {
-          setShowFlash(true);
-          setWinner(pick);
-          setSpinning(false);
-          window.setTimeout(() => setShowFlash(false), 600);
-        });
+        setShowFlash(true);
+        setWinner(pick);
+        setSpinning(false);
+
+        window.setTimeout(() => {
+          setShowFlash(false);
+        }, 600);
       });
     });
+  });
   };
 
   return (
@@ -316,7 +329,7 @@ export function RouletteView() {
         {/* Center marker */}
         <div
           className={cn(
-            "pointer-events-none absolute top-2 bottom-2 left-1/2 z-20 w-[128px] -translate-x-1/2 rounded-[12px] border-2 border-lime",
+            "pointer-events-none absolute top-2 bottom-2 left-1/2 z-20 w-[120px] -translate-x-1/2 rounded-[12px] border-2 border-lime",
             spinning ? "animate-marker-pulse" : "shadow-[0_0_24px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]",
           )}
         />
