@@ -48,7 +48,7 @@ export function AppPrimaryNav({ className }: { className?: string }) {
             : onHome && view === item.id;
 
         const baseClass = cn(
-          "inline-flex shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 py-1.5 text-xs font-semibold transition-colors sm:px-3 sm:text-[13px]",
+          "inline-flex shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 py-1.5 text-xs font-semibold transition-all duration-200 sm:px-3 sm:text-[13px]",
           active ? "bg-lime text-bg shadow-sm" : "text-dim hover:bg-bg hover:text-ink",
         );
 

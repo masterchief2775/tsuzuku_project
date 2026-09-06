@@ -72,6 +72,7 @@ export function RouletteView() {
   const [globalPool, setGlobalPool] = useState<RouletteItem[]>([]);
   const [winner, setWinner] = useState<RouletteItem | null>(null);
   const [reel, setReel] = useState<RouletteItem[]>([]);
+  const [showFlash, setShowFlash] = useState(false);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -201,8 +202,10 @@ export function RouletteView() {
       requestAnimationFrame(() => {
         const target = winnerIndex * STEP;
         animateTo(target, () => {
+          setShowFlash(true);
           setWinner(pick);
           setSpinning(false);
+          window.setTimeout(() => setShowFlash(false), 600);
         });
       });
     });
@@ -305,6 +308,7 @@ export function RouletteView() {
         />
         <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-12 bg-gradient-to-r from-raised to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-12 bg-gradient-to-l from-raised to-transparent" />
+        {showFlash ? <div className="roulette-flash" /> : null}
 
         {reel.length === 0 ? (
           <div className="flex h-full w-full items-center justify-center px-3">
@@ -410,7 +414,7 @@ function SourceTab({
 function ConfettiBurst() {
   const bits = useMemo(
     () =>
-      Array.from({ length: 14 }, (_, i) => ({
+      Array.from({ length: 28 }, (_, i) => ({
         id: i,
         dx: `${(i % 2 === 0 ? -1 : 1) * (12 + (i * 9) % 70)}px`,
         rot: `${120 + i * 37}deg`,

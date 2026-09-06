@@ -1,3 +1,4 @@
+/* VISUAL_BUILD: v2-roulette-fx */
 @import "tailwindcss";
 
 @theme {
@@ -121,9 +122,10 @@ html[data-theme="ocean"] {
   .ambient-bg {
     background-color: var(--color-bg);
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, color-mix(in oklab, var(--color-lime) 18%, transparent), transparent),
-      radial-gradient(ellipse 50% 40% at 100% 50%, color-mix(in oklab, var(--color-status-plan) 10%, transparent), transparent),
-      radial-gradient(ellipse 40% 30% at 0% 80%, color-mix(in oklab, var(--color-lime) 8%, transparent), transparent);
+      radial-gradient(ellipse 100% 60% at 50% -10%, color-mix(in oklab, var(--color-lime) 28%, transparent), transparent 70%),
+      radial-gradient(ellipse 60% 45% at 100% 30%, color-mix(in oklab, var(--color-status-plan) 16%, transparent), transparent 65%),
+      radial-gradient(ellipse 50% 40% at 0% 90%, color-mix(in oklab, var(--color-lime) 12%, transparent), transparent 60%);
+    background-attachment: fixed;
   }
 
   .glass-panel {
@@ -241,24 +243,25 @@ html[data-theme="ocean"] {
 
 @keyframes tsuzuku-confetti-fall {
   0% {
-    transform: translate3d(0, -10px, 0) rotate(0deg);
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
     opacity: 1;
   }
   100% {
-    transform: translate3d(var(--dx, 0px), 120px, 0) rotate(var(--rot, 220deg));
+    transform: translate3d(var(--dx, 0px), 160px, 0) rotate(var(--rot, 220deg)) scale(0.6);
     opacity: 0;
   }
 }
 
 .confetti-bit {
   position: absolute;
-  top: 30%;
+  top: 18%;
   left: 50%;
-  width: 7px;
-  height: 10px;
+  width: 9px;
+  height: 12px;
   border-radius: 2px;
   pointer-events: none;
-  animation: tsuzuku-confetti-fall 0.9s ease-out forwards;
+  animation: tsuzuku-confetti-fall 1.15s ease-out forwards;
+  box-shadow: 0 0 6px color-mix(in oklab, var(--color-lime) 40%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -273,4 +276,17 @@ html[data-theme="ocean"] {
   .hover-lift:hover {
     transform: none;
   }
+}
+
+@keyframes tsuzuku-stage-flash {
+  0% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+.roulette-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--color-lime) 55%, transparent), transparent 70%);
+  animation: tsuzuku-stage-flash 0.55s ease-out forwards;
 }
