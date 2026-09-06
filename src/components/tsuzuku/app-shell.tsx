@@ -16,6 +16,7 @@ import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { AppToast } from "@/components/tsuzuku/toast";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
+import { MessagesView } from "@/components/tsuzuku/messages-view";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { fetchActivityBadge } from "@/lib/activity-client";
@@ -259,6 +260,8 @@ export function AppShell() {
           <FriendsView />
         ) : pathname.startsWith("/lists") ? (
           <ListsView />
+        ) : pathname.startsWith("/messages") ? (
+          <MessagesView />
         ) : view === "dashboard" ? (
           <Dashboard />
         ) : view === "search" ? (

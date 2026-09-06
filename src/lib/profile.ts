@@ -41,6 +41,8 @@ export type PublicProfile = {
   listCount?: number;
   isOwner?: boolean;
   isFriend?: boolean;
+  isOnline?: boolean;
+  lastSeen?: string;
 };
 
 const USERNAME_RE = /^[a-z0-9][a-z0-9_]{2,23}$/;
@@ -137,6 +139,24 @@ export function mapRow(
     isOwner: opts?.isOwner,
     isFriend: opts?.isFriend,
   };
+}
+
+async function getPresence(userId: string): Promise<Pick<PublicProfile, "isOnline" | "lastSeen">> {
+  try {
+    const sql = await getSql();
+    const rows = await sql<{ last_seen: string | Date }>`
+      select "last_seen" from "user_presence" where "user_id" = ${userId} limit 1
+    `;
+    const lastSeen = rows[0]?.last_seen;
+    if (!lastSeen) return { isOnline: false };
+    const value = typeof lastSeen === "string" ? lastSeen : lastSeen.toISOString();
+    return {
+      isOnline: Date.parse(value) > Date.now() - 2 * 60 * 1000,
+      lastSeen: value,
+    };
+  } catch {
+    return { isOnline: false };
+  }
 }
 
 async function ensureProfile(userId: string): Promise<ProfileRow> {
@@ -573,11 +593,14 @@ export const getProfileByUsername = createServerFn({ method: "GET" })
 
     const entries = await loadEntriesRaw(row.user_id);
     const showStats = row.show_stats !== false;
-    return mapRow(row, {
+    return {
+      ...mapRow(row, {
       isOwner: false,
       listCount: entries.length,
       stats: showStats ? computeStats(entries) : null,
-    });
+      }),
+      ...(await getPresence(row.user_id)),
+    };
   });
 
 export const getProfileByUsernameAuthed = createServerFn({ method: "GET" })
@@ -629,12 +652,15 @@ export const getProfileByUsernameAuthed = createServerFn({ method: "GET" })
 
     const entries = await loadEntriesRaw(row.user_id);
     const showStats = row.show_stats !== false;
-    return mapRow(row, {
+    return {
+      ...mapRow(row, {
       isOwner,
       isFriend,
       listCount: entries.length,
       stats: isOwner || showStats ? computeStats(entries) : null,
-    });
+      }),
+      ...(await getPresence(row.user_id)),
+    };
   });
 
 export const searchProfiles = createServerFn({ method: "GET" })

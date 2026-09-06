@@ -5,6 +5,7 @@ import {
   Check,
   ExternalLink,
   Loader2,
+  MessageCircle,
   Star,
   Ban,
   UserMinus,
@@ -27,6 +28,7 @@ import {
   getProfileByUsernameAuthed,
   type PublicProfile,
 } from "@/lib/profile";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/u/$username")({
   component: PublicProfilePage,
@@ -36,6 +38,16 @@ function PublicProfilePage() {
   const { username } = Route.useParams();
   const { user } = useCurrentUserState();
   const [profile, setProfile] = useState<PublicProfile | null | undefined>(undefined);
+    function profilePresenceLabel(profile: PublicProfile): string {
+      if (profile.isOnline) return "En ligne";
+      if (!profile.lastSeen) return "Hors ligne";
+      const minutes = Math.floor(Math.max(0, Date.now() - Date.parse(profile.lastSeen)) / 60_000);
+      if (minutes < 1) return "Vu à l’instant";
+      if (minutes < 60) return `Vu il y a ${minutes} min`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `Vu il y a ${hours} h`;
+      return `Vu il y a ${Math.floor(hours / 24)} j`;
+    }
   const [error, setError] = useState("");
   const [relStatus, setRelStatus] = useState<FriendshipStatus>("none");
   const [requestId, setRequestId] = useState<string | undefined>();
@@ -164,6 +176,10 @@ function PublicProfilePage() {
               </div>
               <h1 className="font-serif mt-4 text-2xl font-semibold">{profile.displayName}</h1>
               <p className="text-sm text-dim">@{profile.username}</p>
+              <p className={cn("mt-2 text-xs font-semibold", profile.isOnline ? "text-emerald-400" : "text-dim")}>
+                <span className={cn("mr-1.5 inline-block size-2 rounded-full", profile.isOnline ? "bg-emerald-400" : "bg-dim/70")} />
+                {profilePresenceLabel(profile)}
+              </p>
               {profile.bio ? (
                 <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-dim">
                   {profile.bio}
@@ -214,6 +230,13 @@ function PublicProfilePage() {
 
                 {!isSelf && user ? (
                   <>
+                    <Link
+                      to="/messages"
+                      className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim hover:border-lime/40 hover:text-ink"
+                    >
+                      <MessageCircle className="size-4" />
+                      Message
+                    </Link>
                     {relStatus === "none" || relStatus === "rejected" ? (
                       <button
                         type="button"

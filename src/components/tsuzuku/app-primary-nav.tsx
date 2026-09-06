@@ -5,6 +5,7 @@ import {
   Home,
   Library,
   List,
+  MessageCircle,
   Search,
   Users,
   type LucideIcon,
@@ -14,13 +15,14 @@ import { cn } from "@/lib/utils";
 
 type NavItem =
   | { kind: "view"; id: ViewId; label: string; short: string; icon: LucideIcon }
-  | { kind: "route"; to: "/friends" | "/lists"; label: string; short: string; icon: LucideIcon };
+  | { kind: "route"; to: "/friends" | "/lists" | "/messages"; label: string; short: string; icon: LucideIcon };
 
 const ITEMS: NavItem[] = [
   { kind: "view", id: "dashboard", label: "Accueil", short: "Home", icon: Home },
   { kind: "view", id: "list", label: "Ma liste", short: "Liste", icon: List },
   { kind: "route", to: "/friends", label: "Amis", short: "Amis", icon: Users },
   { kind: "route", to: "/lists", label: "Listes partagées", short: "Listes", icon: Library },
+  { kind: "route", to: "/messages", label: "Messages", short: "Msg", icon: MessageCircle },
   { kind: "view", id: "season", label: "Saison", short: "Saison", icon: Clapperboard },
   { kind: "view", id: "roulette", label: "Roulette", short: "Dés", icon: Dices },
   { kind: "view", id: "search", label: "Rechercher", short: "Seek", icon: Search },

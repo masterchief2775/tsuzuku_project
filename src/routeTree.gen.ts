@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as ListsRouteImport } from './routes/lists'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ApiActivityRouteImport } from './routes/api/activity'
 import { Route as ApiSharedListsRouteImport } from './routes/api/shared-lists'
@@ -39,6 +40,11 @@ const ListsRoute = ListsRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/friends': typeof FriendsRoute
   '/lists': typeof ListsRouteWithChildren
   '/login': typeof LoginRoute
+  '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/friends': typeof FriendsRoute
   '/lists': typeof ListsRouteWithChildren
   '/login': typeof LoginRoute
+  '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/friends': typeof FriendsRoute
   '/lists': typeof ListsRouteWithChildren
   '/login': typeof LoginRoute
+  '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/friends'
     | '/lists'
     | '/login'
+    | '/messages'
     | '/profile'
     | '/api/activity'
     | '/api/shared-lists'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/friends'
     | '/lists'
     | '/login'
+    | '/messages'
     | '/profile'
     | '/api/activity'
     | '/api/shared-lists'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/friends'
     | '/lists'
     | '/login'
+    | '/messages'
     | '/profile'
     | '/api/activity'
     | '/api/shared-lists'
@@ -164,6 +176,7 @@ export interface RootRouteChildren {
   FriendsRoute: typeof FriendsRoute
   ListsRoute: typeof ListsRouteWithChildren
   LoginRoute: typeof LoginRoute
+  MessagesRoute: typeof MessagesRoute
   ProfileRoute: typeof ProfileRoute
   ApiActivityRoute: typeof ApiActivityRoute
   ApiSharedListsRoute: typeof ApiSharedListsRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -269,6 +289,7 @@ const rootRouteChildren: RootRouteChildren = {
   FriendsRoute: FriendsRoute,
   ListsRoute: ListsRouteWithChildren,
   LoginRoute: LoginRoute,
+  MessagesRoute: MessagesRoute,
   ProfileRoute: ProfileRoute,
   ApiActivityRoute: ApiActivityRoute,
   ApiSharedListsRoute: ApiSharedListsRoute,
