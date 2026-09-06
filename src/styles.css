@@ -343,6 +343,41 @@ html[data-theme="mono"] {
     padding: 0.7rem 1rem;
   }
 
+  .profile-inline-input {
+    display: none;
+  }
+
+  .profile-inline-edit:hover .profile-inline-input,
+  .profile-inline-edit:focus-within .profile-inline-input {
+    display: block;
+  }
+
+  .profile-inline-edit:hover > :first-child,
+  .profile-inline-edit:focus-within > :first-child {
+    display: none;
+  }
+
+  .profile-inline-edit-avatar {
+    cursor: pointer;
+    border-radius: 999px;
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .profile-inline-edit-avatar:hover {
+    opacity: 0.75;
+    transform: scale(1.03);
+  }
+
+  @media (hover: none) {
+    .profile-inline-input {
+      display: block;
+    }
+
+    .profile-inline-edit > :first-child {
+      display: none;
+    }
+  }
+
   .glass-panel {
     background: color-mix(
       in oklab,

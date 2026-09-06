@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Clapperboard, Dices, Download, Home, Link2, List, Search, Upload } from "lucide-react";
+import { Clapperboard, Dices, Download, Home, Link2, List, Search, ShieldCheck, Upload } from "lucide-react";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { FriendsView } from "@/components/tsuzuku/friends-view";
@@ -17,6 +17,8 @@ import { AppToast } from "@/components/tsuzuku/toast";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { MessagesView } from "@/components/tsuzuku/messages-view";
+import { AdminView } from "@/components/tsuzuku/admin-view";
+import { getAdminStatus } from "@/lib/admin";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { heartbeatPresence } from "@/lib/presence";
@@ -37,10 +39,21 @@ export function AppShell() {
   const searchRef = useRef<HTMLInputElement>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (user?.id) hydrate(user.id);
   }, [hydrate, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIsAdmin(false);
+      return;
+    }
+    void getAdminStatus()
+      .then((status) => setIsAdmin(status.isAdmin))
+      .catch(() => setIsAdmin(false));
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -209,8 +222,21 @@ export function AppShell() {
             </button>
           </div>
         </div>
-        <div className="mt-2.5 w-full min-w-0">
-          <AppPrimaryNav />
+        <div className="mt-2.5 flex w-full min-w-0 items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <AppPrimaryNav />
+          </div>
+          {isAdmin ? (
+            <Link
+              to="/admin"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-lime/30 bg-lime/10 px-2.5 py-2 text-xs font-semibold text-lime transition hover:bg-lime/20"
+              title="Administration"
+              aria-label="Administration"
+            >
+              <ShieldCheck className="size-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </Link>
+          ) : null}
         </div>
       </header>
 
@@ -227,6 +253,8 @@ export function AppShell() {
           <ListsView />
         ) : pathname.startsWith("/messages") ? (
           <MessagesView />
+        ) : pathname.startsWith("/admin") ? (
+          <AdminView />
         ) : view === "dashboard" ? (
           <Dashboard />
         ) : view === "search" ? (

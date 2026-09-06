@@ -82,6 +82,7 @@ export function UserButton() {
   const [signingOut, setSigningOut] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -98,6 +99,7 @@ export function UserButton() {
         if (cancelled) return;
         setAvatarUrl(p.avatarUrl);
         setDisplayName(p.displayName);
+        setUsername(p.username);
         writeAvatarCache(user.id, p.avatarUrl, p.displayName);
       })
       .catch(() => {
@@ -112,15 +114,15 @@ export function UserButton() {
   const label = displayName ?? user.displayName ?? user.primaryEmail ?? "Account";
   return (
     <div className="flex items-center gap-2">
-      <Link
-        to="/profile"
+      <a
+        href={username ? `/u/${encodeURIComponent(username)}` : "/profile"}
         className="flex cursor-pointer items-center gap-2 rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-lime"
-        title="Mon profil"
-        aria-label="Mon profil"
+        title="Voir mon profil public"
+        aria-label="Voir mon profil public"
       >
         <ProfileAvatar name={label} src={avatarUrl || user.profileImageUrl} size="sm" />
         <span className="hidden text-sm font-medium sm:inline">{label}</span>
-      </Link>
+      </a>
       {authEnabled && (
         <button
           type="button"

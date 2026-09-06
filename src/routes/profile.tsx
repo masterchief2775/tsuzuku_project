@@ -1,21 +1,32 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  ArrowLeft,
   Camera,
+  Download,
   ExternalLink,
   KeyRound,
+  Link2,
   Loader2,
   Save,
   Search,
+  ShieldCheck,
   Star,
   Trash2,
+  Upload,
   Users,
   X,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
-import { RedirectToSignIn, writeAvatarCache } from "@/lib/auth/gates";
+import { AppFooter } from "@/components/tsuzuku/app-footer";
+import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
+import { BrandMark } from "@/components/tsuzuku/brand-mark";
+import { ImportView } from "@/components/tsuzuku/import-view";
+import { ShareSettings } from "@/components/tsuzuku/share-settings";
+import { ThemePicker } from "@/components/tsuzuku/theme-picker";
+import { AppToast } from "@/components/tsuzuku/toast";
+import { RedirectToSignIn, UserButton, writeAvatarCache } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { getAdminStatus } from "@/lib/admin";
 import { authClient, signOut } from "@/lib/auth/client";
 import {
   deleteMyAccount,
@@ -37,8 +48,10 @@ function MyProfilePage() {
   const flushSync = useWatchlistStore((s) => s.flushSync);
   const resetSession = useWatchlistStore((s) => s.resetSession);
   const entries = useWatchlistStore((s) => s.entries);
+  const exportJson = useWatchlistStore((s) => s.exportJson);
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -61,6 +74,18 @@ function MyProfilePage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIsAdmin(false);
+      return;
+    }
+    void getAdminStatus()
+      .then((status) => setIsAdmin(status.isAdmin))
+      .catch(() => setIsAdmin(false));
+  }, [user?.id]);
   const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -274,15 +299,15 @@ function MyProfilePage() {
   };
 
   return (
-    <div className="min-h-dvh bg-bg text-ink">
-      <header className="border-b border-line px-4 py-4 sm:px-7">
-        <div className="mx-auto flex max-w-2xl items-center gap-3">
-          <Link
-            to="/"
-            className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
-            aria-label="Retour"
-          >
-            <ArrowLeft className="size-4" />
+    <div className="ambient-bg flex min-h-dvh flex-col bg-bg text-ink">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4">
+        <div className="flex w-full items-center gap-3">
+          <Link to="/" className="flex items-center gap-3" aria-label="Accueil">
+            <BrandMark />
+            <div className="hidden min-[400px]:block">
+              <div className="font-serif text-xl font-semibold tracking-tight">Tsuzuku</div>
+              <div className="text-xs text-dim">ta watchlist, en continu</div>
+            </div>
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="font-serif text-lg font-semibold">Mon profil</h1>
@@ -290,15 +315,62 @@ function MyProfilePage() {
           </div>
           <Link
             to="/friends"
-            className="inline-flex items-center gap-1.5 rounded-[9px] border border-line bg-raised px-3 py-2 text-xs font-semibold text-dim hover:text-ink"
+            className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-raised/90 px-3 py-2 text-xs font-semibold text-dim shadow-sm hover:text-ink"
           >
             <Users className="size-4" />
-            Amis
+            <span className="hidden sm:inline">Amis</span>
           </Link>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <ThemePicker />
+            <UserButton />
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Partager la liste"
+              title="Liste publique"
+            >
+              <Link2 className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Importer une liste MAL ou AniList"
+              title="Importer MAL / AniList"
+            >
+              <Upload className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={exportJson}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Exporter la watchlist en JSON"
+              title="Exporter JSON"
+            >
+              <Download className="size-4" />
+            </button>
+          </div>
+        </div>
+        <div className="mt-2.5 flex w-full items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <AppPrimaryNav />
+          </div>
+          {isAdmin ? (
+            <Link
+              to="/admin"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-lime/30 bg-lime/10 px-2.5 py-2 text-xs font-semibold text-lime transition hover:bg-lime/20"
+              title="Administration"
+              aria-label="Administration"
+            >
+              <ShieldCheck className="size-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </Link>
+          ) : null}
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl space-y-8 px-4 py-6 sm:px-7">
+      <main className="mx-auto w-full max-w-2xl flex-1 space-y-8 px-4 py-6 sm:px-7">
         {error && !loading ? (
           <div className="rounded-[12px] border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">
             <p className="font-semibold text-red-300">Erreur de chargement</p>
@@ -734,6 +806,10 @@ function MyProfilePage() {
           </>
         )}
       </main>
+      <AppFooter />
+      <ImportView open={importOpen} onClose={() => setImportOpen(false)} />
+      <ShareSettings open={shareOpen} onClose={() => setShareOpen(false)} />
+      <AppToast />
     </div>
   );
 }

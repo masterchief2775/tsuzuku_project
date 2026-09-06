@@ -1,18 +1,31 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  ArrowLeft,
   Check,
+  Download,
   ExternalLink,
+  Link2,
   Loader2,
   MessageCircle,
   Star,
+  ShieldCheck,
+  Upload,
   Ban,
+  Camera,
+  Save,
   UserMinus,
   UserPlus,
   X,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { AppFooter } from "@/components/tsuzuku/app-footer";
+import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
+import { BrandMark } from "@/components/tsuzuku/brand-mark";
+import { ImportView } from "@/components/tsuzuku/import-view";
+import { ShareSettings } from "@/components/tsuzuku/share-settings";
+import { ThemePicker } from "@/components/tsuzuku/theme-picker";
+import { AppToast } from "@/components/tsuzuku/toast";
+import { getAdminStatus } from "@/lib/admin";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
   acceptFriendRequest,
@@ -26,17 +39,59 @@ import { blockUser, getBlockStatus, unblockUser } from "@/lib/blocks";
 import {
   getProfileByUsername,
   getProfileByUsernameAuthed,
+  updateMyProfile,
   type PublicProfile,
 } from "@/lib/profile";
 import { cn } from "@/lib/utils";
+import { useWatchlistStore } from "@/store/watchlist-store";
+import { UserButton, writeAvatarCache } from "@/lib/auth/gates";
 
 export const Route = createFileRoute("/u/$username")({
   component: PublicProfilePage,
 });
 
+function resizeAvatar(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const side = Math.min(image.width, image.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = 160;
+      canvas.height = 160;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Canvas indisponible."));
+        return;
+      }
+      context.drawImage(
+        image,
+        (image.width - side) / 2,
+        (image.height - side) / 2,
+        side,
+        side,
+        0,
+        0,
+        160,
+        160,
+      );
+      const dataUrl = canvas.toDataURL("image/webp", 0.7);
+      URL.revokeObjectURL(objectUrl);
+      if (dataUrl.length > 60_000) reject(new Error("Image trop lourde après compression."));
+      else resolve(dataUrl);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Image illisible."));
+    };
+    image.src = objectUrl;
+  });
+}
+
 function PublicProfilePage() {
   const { username } = Route.useParams();
   const { user } = useCurrentUserState();
+  const exportJson = useWatchlistStore((s) => s.exportJson);
   const [profile, setProfile] = useState<PublicProfile | null | undefined>(undefined);
     function profilePresenceLabel(profile: PublicProfile): string {
       if (profile.isOnline) return "En ligne";
@@ -55,6 +110,25 @@ function PublicProfilePage() {
   const [busy, setBusy] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
   const [iBlockedThem, setIBlockedThem] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editAvatar, setEditAvatar] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIsAdmin(false);
+      return;
+    }
+    void getAdminStatus()
+      .then((status) => setIsAdmin(status.isAdmin))
+      .catch(() => setIsAdmin(false));
+  }, [user?.id]);
 
   const loadRelation = useCallback(
     async (userId?: string) => {
@@ -98,6 +172,11 @@ function PublicProfilePage() {
       .then((p) => {
         if (cancelled) return;
         setProfile(p);
+        if (p && user?.id === p.userId) {
+          setEditName(p.displayName);
+          setEditBio(p.bio);
+          setEditAvatar(p.avatarUrl);
+        }
         if (p) void loadRelation(p.userId);
       })
       .catch((err) => {
@@ -126,27 +205,114 @@ function PublicProfilePage() {
     }
   }
 
+  async function saveBasicProfile() {
+    if (!profile || !user || editSaving) return;
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const updated = await updateMyProfile({
+        data: {
+          username: profile.username,
+          displayName: editName,
+          bio: editBio,
+          avatarUrl: editAvatar,
+        },
+      });
+      setProfile((current) => current ? { ...current, ...updated } : updated);
+      writeAvatarCache(user.id, updated.avatarUrl, updated.displayName);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Impossible d’enregistrer le profil.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function pickBasicAvatar(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setEditError("Choisis une image.");
+      return;
+    }
+    try {
+      setEditAvatar(await resizeAvatar(file));
+      setEditError("");
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Impossible de traiter cette image.");
+    }
+  }
+
   const isSelf = Boolean(user && profile && user.id === profile.userId);
+  const hasBasicChanges = Boolean(
+    isSelf && profile &&
+      (editName !== profile.displayName || editBio !== profile.bio || editAvatar !== profile.avatarUrl),
+  );
 
   return (
-    <div className="min-h-dvh bg-bg text-ink">
-      <header className="border-b border-line px-4 py-4 sm:px-7">
-        <div className="mx-auto flex max-w-2xl items-center gap-3">
-          <Link
-            to="/"
-            className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
-            aria-label="Accueil"
-          >
-            <ArrowLeft className="size-4" />
+    <div className="ambient-bg flex min-h-dvh flex-col bg-bg text-ink">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4">
+        <div className="flex w-full items-center gap-3">
+          <Link to="/" className="flex items-center gap-3" aria-label="Accueil">
+            <BrandMark />
+            <div className="hidden min-[400px]:block">
+              <div className="font-serif text-xl font-semibold tracking-tight">Tsuzuku</div>
+              <div className="text-xs text-dim">ta watchlist, en continu</div>
+            </div>
           </Link>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="font-serif text-lg font-semibold">Profil</div>
-            <div className="text-xs text-dim">@{username}</div>
+            <div className="truncate text-xs text-dim">@{username}</div>
           </div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <ThemePicker />
+            <UserButton />
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Partager la liste"
+              title="Liste publique"
+            >
+              <Link2 className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Importer une liste MAL ou AniList"
+              title="Importer MAL / AniList"
+            >
+              <Upload className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={exportJson}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Exporter la watchlist en JSON"
+              title="Exporter JSON"
+            >
+              <Download className="size-4" />
+            </button>
+          </div>
+        </div>
+        <div className="mt-2.5 flex w-full items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <AppPrimaryNav />
+          </div>
+          {isAdmin ? (
+            <Link
+              to="/admin"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-lime/30 bg-lime/10 px-2.5 py-2 text-xs font-semibold text-lime transition hover:bg-lime/20"
+              title="Administration"
+              aria-label="Administration"
+            >
+              <ShieldCheck className="size-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </Link>
+          ) : null}
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl space-y-6 px-4 py-10 sm:px-7">
+      <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 py-10 sm:px-7">
         {profile === undefined ? (
           <div className="flex justify-center py-16 text-dim">
             <Loader2 className="size-6 animate-spin" />
@@ -170,20 +336,47 @@ function PublicProfilePage() {
 
         {profile ? (
           <>
-            <div className="rounded-[14px] border border-line bg-raised p-6 text-center sm:p-8">
+            <div className="public-profile-card rounded-[14px] border border-line bg-raised p-6 text-center sm:p-8">
               <div className="flex justify-center">
-                <ProfileAvatar name={profile.displayName} src={profile.avatarUrl} size="xl" />
+                {isSelf ? (
+                  <>
+                    <button type="button" className="profile-inline-edit-avatar" onClick={() => avatarInputRef.current?.click()} aria-label="Changer la photo publique">
+                      <ProfileAvatar name={editName || profile.displayName} src={editAvatar} size="xl" />
+                    </button>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => void pickBasicAvatar(event.target.files?.[0])}
+                    />
+                  </>
+                ) : (
+                  <ProfileAvatar name={profile.displayName} src={profile.avatarUrl} size="xl" />
+                )}
               </div>
-              <h1 className="font-serif mt-4 text-2xl font-semibold">{profile.displayName}</h1>
+              {isSelf ? (
+                <div className="profile-inline-edit mt-4">
+                  <h1 className="font-serif text-2xl font-semibold">{profile.displayName}</h1>
+                  <input value={editName} onChange={(event) => setEditName(event.target.value)} className="ui-input profile-inline-input mx-auto max-w-sm text-center" placeholder="Nom affiché" maxLength={48} />
+                </div>
+              ) : (
+                <h1 className="font-serif mt-4 text-2xl font-semibold">{profile.displayName}</h1>
+              )}
               <p className="text-sm text-dim">@{profile.username}</p>
               <p className={cn("mt-2 text-xs font-semibold", profile.isOnline ? "text-emerald-400" : "text-dim")}>
                 <span className={cn("mr-1.5 inline-block size-2 rounded-full", profile.isOnline ? "bg-emerald-400" : "bg-dim/70")} />
                 {profilePresenceLabel(profile)}
               </p>
-              {profile.bio ? (
-                <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-dim">
-                  {profile.bio}
-                </p>
+              {profile.bio || isSelf ? (
+                isSelf ? (
+                  <div className="profile-inline-edit mx-auto mt-4 max-w-md">
+                    <p className="text-sm leading-relaxed text-dim">{profile.bio || "Ajouter une bio…"}</p>
+                    <textarea value={editBio} onChange={(event) => setEditBio(event.target.value)} className="ui-input profile-inline-input min-h-20 resize-y text-left" placeholder="Bio" maxLength={280} />
+                  </div>
+                ) : (
+                  <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-dim">{profile.bio}</p>
+                )
               ) : null}
               {typeof profile.listCount === "number" ? (
                 <p className="mt-3 text-xs text-dim">
@@ -220,12 +413,14 @@ function PublicProfilePage() {
 
               <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
                 {isSelf ? (
-                  <Link
-                    to="/profile"
-                    className="rounded-[9px] border border-line px-4 py-2 text-sm font-semibold"
-                  >
-                    Modifier mon profil
-                  </Link>
+                  <>
+                    <Link
+                      to="/profile"
+                      className="rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim"
+                    >
+                      Paramètres avancés
+                    </Link>
+                  </>
                 ) : null}
 
                 {!isSelf && user ? (
@@ -446,6 +641,24 @@ function PublicProfilePage() {
           </>
         ) : null}
       </main>
+      {hasBasicChanges ? (
+        <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-line bg-raised px-3 py-2 text-xs font-semibold text-ink shadow-2xl">
+          <span className="hidden text-dim sm:inline">Modifications non enregistrées</span>
+          <button
+            type="button"
+            disabled={editSaving}
+            onClick={() => void saveBasicProfile()}
+            className="inline-flex items-center gap-1.5 rounded-full bg-lime px-3 py-1.5 font-bold text-bg disabled:opacity-60"
+          >
+            <Save className="size-3.5" />
+            {editSaving ? "Sauvegarde…" : "Sauvegarder"}
+          </button>
+        </div>
+      ) : null}
+      <AppFooter publicPage />
+      <ImportView open={importOpen} onClose={() => setImportOpen(false)} />
+      <ShareSettings open={shareOpen} onClose={() => setShareOpen(false)} />
+      <AppToast />
     </div>
   );
 }
