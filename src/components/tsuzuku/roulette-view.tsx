@@ -200,8 +200,22 @@ export function RouletteView() {
     // Stop exactly on the winner card (not at the end of the strip)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const target = winnerIndex * STEP;
-        animateTo(target, () => {
+      const viewport = viewportRef.current;
+      const track = trackRef.current;
+
+      if (!viewport || !track) return;
+
+      const winnerCard = track.children[winnerIndex] as HTMLElement | undefined;
+
+      if (!winnerCard) return;
+
+      const viewportCenter = viewport.clientWidth / 2;
+      const winnerCenter =
+        winnerCard.offsetLeft + winnerCard.offsetWidth / 2;
+
+      const target = winnerCenter - viewportCenter;
+
+      animateTo(target, () => {
           setShowFlash(true);
           setWinner(pick);
           setSpinning(false);
@@ -212,7 +226,7 @@ export function RouletteView() {
   };
 
   return (
-    <div className="animate-fade-up mx-auto max-w-3xl overflow-x-hidden">
+    <div className="animate-fade-up mx-auto max-w-3xl overflow-x-clip">
       <div className="mb-6">
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Roulette</h1>
         <p className="mt-1 text-sm text-dim">
