@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { listFriends, type FriendProfile } from "@/lib/friends";
 import {
@@ -121,16 +122,18 @@ function ListsIndex() {
   }
 
   return (
-    <div className="mx-auto max-w-[720px] px-4 py-8 sm:px-6">
-      <div className="mb-6 flex items-center gap-3">
-        <Link
-          to="/"
-          className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
-          aria-label="Retour"
-        >
-          <ArrowLeft className="size-4" />
-        </Link>
+    <div className="min-h-dvh">
+      <div className="sticky top-0 z-30 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur-sm sm:px-6">
+        <div className="mx-auto max-w-[720px]">
+          <AppPrimaryNav />
+        </div>
+      </div>
+    <div className="mx-auto max-w-[720px] px-4 py-6 sm:px-6">
+      <div className="mb-6">
         <h1 className="font-serif text-xl font-medium">Listes partagées</h1>
+        <p className="mt-1 text-sm text-dim">
+          Crée une liste, invite des amis, ajoutez des titres ensemble.
+        </p>
       </div>
 
       <form
@@ -191,6 +194,7 @@ function ListsIndex() {
           ))}
         </ul>
       )}
+    </div>
     </div>
   );
 }
@@ -327,13 +331,19 @@ function ListDetail({ listId }: { listId: string }) {
   const isOwner = list.myRole === "owner";
 
   return (
-    <div className="mx-auto max-w-[720px] px-4 py-8 sm:px-6">
+    <div className="min-h-dvh">
+      <div className="sticky top-0 z-30 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur-sm sm:px-6">
+        <div className="mx-auto max-w-[720px]">
+          <AppPrimaryNav />
+        </div>
+      </div>
+    <div className="mx-auto max-w-[720px] px-4 py-6 sm:px-6">
       <div className="mb-6 flex items-start gap-3">
         <button
           type="button"
           onClick={() => void navigate({ to: "/lists", search: {} })}
           className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
-          aria-label="Retour"
+          aria-label="Retour aux listes"
         >
           <ArrowLeft className="size-4" />
         </button>
@@ -626,4 +636,5 @@ function ListDetail({ listId }: { listId: string }) {
       </section>
     </div>
   );
+    </div>
 }

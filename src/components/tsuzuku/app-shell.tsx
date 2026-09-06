@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Clapperboard, Dices, Download, Home, Link2, List, Search, Upload, User } from "lucide-react";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
+import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { EntryModal } from "@/components/tsuzuku/entry-modal";
 import { ImportView } from "@/components/tsuzuku/import-view";
 import { ListView } from "@/components/tsuzuku/list-view";
@@ -133,14 +134,6 @@ export function AppShell() {
     }
   }, [view]);
 
-  const nav: { id: ViewId; label: string; icon: typeof Home }[] = [
-    { id: "dashboard", label: "Accueil", icon: Home },
-    { id: "list", label: "Ma liste", icon: List },
-    { id: "season", label: "Saison", icon: Clapperboard },
-    { id: "roulette", label: "Roulette", icon: Dices },
-    { id: "search", label: "Rechercher", icon: Search },
-  ];
-
   if (isPending) {
     return (
       <div className="min-h-dvh bg-bg text-ink">
@@ -174,79 +167,64 @@ export function AppShell() {
           retour du réseau.
         </div>
       ) : null}
-      <header className="flex flex-wrap items-center justify-between gap-3.5 border-b border-line px-4 py-5 sm:px-7">
-        <div className="flex items-center gap-3">
-          <span className="flex size-[38px] items-center justify-center rounded-sm bg-lime font-serif text-xl font-semibold text-bg">
-            尋
-          </span>
-          <div>
-            <div className="font-serif text-xl font-semibold tracking-tight">Tsuzuku</div>
-            <div className="text-xs text-dim">ta watchlist, en continu</div>
+      <header className="sticky top-0 z-30 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur-sm sm:px-7 sm:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+          <Link to="/" className="flex items-center gap-3" onClick={() => setView("dashboard")}>
+            <span className="flex size-[38px] items-center justify-center rounded-sm bg-lime font-serif text-xl font-semibold text-bg">
+              尋
+            </span>
+            <div className="hidden min-[400px]:block">
+              <div className="font-serif text-xl font-semibold tracking-tight">Tsuzuku</div>
+              <div className="text-xs text-dim">ta watchlist, en continu</div>
+            </div>
+          </Link>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Link
+              to="/profile"
+              className="relative rounded-[8px] border border-line bg-raised p-2"
+              aria-label="Mon profil"
+              title="Mon profil"
+            >
+              <User className="size-4" />
+              {badgeCount > 0 ? (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lime px-1 text-[10px] font-bold text-bg">
+                  {badgeCount > 9 ? "9+" : badgeCount}
+                </span>
+              ) : null}
+            </Link>
+            <ThemePicker />
+            <UserButton />
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Partager la liste"
+              title="Liste publique"
+            >
+              <Link2 className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Importer une liste MAL ou AniList"
+              title="Importer MAL / AniList"
+            >
+              <Upload className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={exportJson}
+              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
+              aria-label="Exporter la watchlist en JSON"
+              title="Exporter JSON"
+            >
+              <Download className="size-4" />
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <nav className="flex gap-1 rounded-[10px] bg-raised p-1">
-            {nav.map((item) => {
-              const Icon = item.icon;
-              const active = view === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setView(item.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-sm px-3.5 py-2 text-[13px] font-semibold",
-                    active ? "bg-ink text-bg" : "text-dim",
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-          <Link
-            to="/profile"
-            className="relative rounded-[8px] border border-line bg-raised p-2"
-            aria-label="Mon profil"
-            title="Mon profil"
-          >
-            <User className="size-4" />
-            {badgeCount > 0 ? (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lime px-1 text-[10px] font-bold text-bg">
-                {badgeCount > 9 ? "9+" : badgeCount}
-              </span>
-            ) : null}
-          </Link>
-          <ThemePicker />
-          <UserButton />
-          <button
-            type="button"
-            onClick={() => setShareOpen(true)}
-            className="rounded-sm border border-line bg-raised p-2"
-            aria-label="Partager la liste"
-            title="Liste publique"
-          >
-            <Link2 className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setImportOpen(true)}
-            className="rounded-sm border border-line bg-raised p-2"
-            aria-label="Importer une liste MAL ou AniList"
-            title="Importer MAL / AniList"
-          >
-            <Upload className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={exportJson}
-            className="rounded-sm border border-line bg-raised p-2"
-            aria-label="Exporter la watchlist en JSON"
-            title="Exporter JSON"
-          >
-            <Download className="size-4" />
-          </button>
+        <div className="mt-2.5 w-full min-w-0">
+          <AppPrimaryNav />
         </div>
       </header>
 

@@ -48,11 +48,6 @@ export function Dashboard() {
     <div>
       <div className="mb-5">
         <ActivityFeed compact />
-        <div className="mt-2 text-right">
-          <a href="/lists" className="text-xs font-semibold text-lime hover:underline">
-            Listes partagées →
-          </a>
-        </div>
       </div>
       <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
         {STATUSES.map((s) => {

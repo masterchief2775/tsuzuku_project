@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
@@ -159,14 +160,6 @@ function FriendsPage() {
         </div>
       </header>
 
-      <div className="mb-4">
-        <Link
-          to="/lists"
-          className="inline-flex text-sm font-semibold text-lime hover:underline"
-        >
-          Listes partagées →
-        </Link>
-      </div>
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:px-7">
         {error ? (
           <p className="rounded-[10px] border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
