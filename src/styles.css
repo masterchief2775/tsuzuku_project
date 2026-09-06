@@ -371,9 +371,7 @@ html[data-theme="ocean"] {
         transparent
       );
 
-    transform:
-      translateX(-50%)
-      scale(1);
+    transform: scale(1);
   }
 
   50% {
@@ -384,9 +382,7 @@ html[data-theme="ocean"] {
         transparent
       );
 
-    transform:
-      translateX(-50%)
-      scale(1.015);
+    transform: scale(1.015);
   }
 }
 
