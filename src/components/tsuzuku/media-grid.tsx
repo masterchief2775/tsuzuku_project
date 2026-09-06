@@ -31,25 +31,27 @@ export function MediaGrid({
                 {title}
               </div>
               <div className="mt-1 line-clamp-1 text-[11.5px] text-dim">{searchMetaLine(m)}</div>
-              <button
-                type="button"
-                disabled={added}
-                onClick={() => onAdd(m)}
-                className={`mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-[8px] px-2.5 py-2 text-[12px] font-bold ${
-                  added
-                    ? "cursor-default border border-line bg-bg text-dim"
-                    : "bg-lime text-bg hover:brightness-110"
-                }`}
-              >
-                {added ? (
-                  "Dans la liste"
-                ) : (
-                  <>
-                    <Plus className="size-3.5" />
-                    Ajouter
-                  </>
-                )}
-              </button>
+              <div className="mt-3 border-t border-line/70 pt-3">
+                <button
+                  type="button"
+                  disabled={added}
+                  onClick={() => onAdd(m)}
+                  className={`inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[10px] px-2.5 py-2 text-[12px] font-bold transition ${
+                    added
+                      ? "cursor-default border border-line bg-bg text-dim"
+                      : "bg-lime text-bg shadow-[0_6px_14px_color-mix(in_oklab,var(--color-lime)_18%,transparent)] hover:brightness-105"
+                  }`}
+                >
+                  {added ? (
+                    "Dans la liste"
+                  ) : (
+                    <>
+                      <Plus className="size-3.5" />
+                      Ajouter
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         );

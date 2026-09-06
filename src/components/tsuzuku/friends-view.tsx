@@ -37,6 +37,19 @@ import {
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 
+function presenceLabel(friend: FriendProfile): string {
+  if (friend.isOnline) return "En ligne";
+  if (!friend.lastSeen) return "Hors ligne";
+  const elapsed = Math.max(0, Date.now() - Date.parse(friend.lastSeen));
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return "Vu à l’instant";
+  if (minutes < 60) return `Vu il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Vu il y a ${hours} h`;
+  const days = Math.floor(hours / 24);
+  return `Vu il y a ${days} j`;
+}
+
 export function FriendsView() {
   const { user, isPending } = useCurrentUserState();
   const [friends, setFriends] = useState<FriendProfile[]>([]);
@@ -385,8 +398,16 @@ export function FriendsView() {
                   key={f.userId}
                   className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
                 >
-                  <Link to="/u/$username" params={{ username: f.username }} className="shrink-0">
+                  <Link to="/u/$username" params={{ username: f.username }} className="relative shrink-0">
                     <ProfileAvatar name={f.displayName} src={f.avatarUrl} size="sm" />
+                    <span
+                      className={cn(
+                        "absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-bg",
+                        f.isOnline ? "bg-emerald-400" : "bg-dim/70",
+                      )}
+                      title={f.isOnline ? "En ligne" : "Hors ligne"}
+                      aria-label={f.isOnline ? "En ligne" : "Hors ligne"}
+                    />
                   </Link>
                   <div className="min-w-0 flex-1">
                     <Link
@@ -396,7 +417,12 @@ export function FriendsView() {
                     >
                       {f.displayName}
                     </Link>
-                    <div className="text-xs text-dim">@{f.username}</div>
+                    <div className="flex items-center gap-1.5 text-xs text-dim">
+                      <span>@{f.username}</span>
+                      <span className={f.isOnline ? "text-emerald-400" : "text-dim/80"}>
+                        · {presenceLabel(f)}
+                      </span>
+                    </div>
                   </div>
                   <button
                     type="button"

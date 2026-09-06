@@ -35,7 +35,7 @@ export function AppPrimaryNav({ className }: { className?: string }) {
   return (
     <nav
       className={cn(
-        "flex max-w-full gap-1 overflow-x-auto rounded-[10px] bg-raised p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "ui-panel flex max-w-full gap-1 overflow-x-auto p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
       aria-label="Navigation principale"
@@ -48,8 +48,10 @@ export function AppPrimaryNav({ className }: { className?: string }) {
             : onHome && view === item.id;
 
         const baseClass = cn(
-          "inline-flex shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 py-1.5 text-xs font-semibold transition-all duration-200 sm:px-3 sm:text-[13px]",
-          active ? "bg-lime text-bg shadow-sm" : "text-dim hover:bg-bg hover:text-ink",
+          "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-xs font-semibold transition-all duration-200 sm:px-3 sm:text-[13px]",
+          active
+            ? "bg-lime text-bg shadow-[0_8px_18px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]"
+            : "text-dim hover:bg-bg hover:text-ink",
         );
 
         if (item.kind === "route") {

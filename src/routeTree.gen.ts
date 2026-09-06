@@ -11,14 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FriendsRouteImport } from './routes/friends'
+import { Route as ListsRouteImport } from './routes/lists'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ApiActivityRouteImport } from './routes/api/activity'
+import { Route as ApiSharedListsRouteImport } from './routes/api/shared-lists'
+import { Route as ListsListIdRouteImport } from './routes/lists.$listId'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
-import { Route as ApiActivityRouteImport } from './routes/api/activity'
-import { Route as ApiSharedListsRouteImport } from './routes/api/shared-lists'
-import { Route as ListsRouteImport } from './routes/lists'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -30,6 +31,11 @@ const FriendsRoute = FriendsRouteImport.update({
   path: '/friends',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ListsRoute = ListsRouteImport.update({
+  id: '/lists',
+  path: '/lists',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -39,6 +45,21 @@ const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiActivityRoute = ApiActivityRouteImport.update({
+  id: '/api/activity',
+  path: '/api/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSharedListsRoute = ApiSharedListsRouteImport.update({
+  id: '/api/shared-lists',
+  path: '/api/shared-lists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListsListIdRoute = ListsListIdRouteImport.update({
+  id: '/$listId',
+  path: '/$listId',
+  getParentRoute: () => ListsRoute,
 } as any)
 const ShareTokenRoute = ShareTokenRouteImport.update({
   id: '/share/$token',
@@ -55,109 +76,100 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiActivityRoute = ApiActivityRouteImport.update({
-  id: '/api/activity',
-  path: '/api/activity',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiSharedListsRoute = ApiSharedListsRouteImport.update({
-  id: '/api/shared-lists',
-  path: '/api/shared-lists',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ListsRoute = ListsRouteImport.update({
-  id: '/lists',
-  path: '/lists',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/friends': typeof FriendsRoute
+  '/lists': typeof ListsRouteWithChildren
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/api/activity': typeof ApiActivityRoute
+  '/api/shared-lists': typeof ApiSharedListsRoute
+  '/lists/$listId': typeof ListsListIdRoute
   '/share/$token': typeof ShareTokenRoute
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/activity': typeof ApiActivityRoute
-  '/api/shared-lists': typeof ApiSharedListsRoute
-  '/lists': typeof ListsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/friends': typeof FriendsRoute
+  '/lists': typeof ListsRouteWithChildren
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/api/activity': typeof ApiActivityRoute
+  '/api/shared-lists': typeof ApiSharedListsRoute
+  '/lists/$listId': typeof ListsListIdRoute
   '/share/$token': typeof ShareTokenRoute
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/activity': typeof ApiActivityRoute
-  '/api/shared-lists': typeof ApiSharedListsRoute
-  '/lists': typeof ListsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/friends': typeof FriendsRoute
+  '/lists': typeof ListsRouteWithChildren
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/api/activity': typeof ApiActivityRoute
+  '/api/shared-lists': typeof ApiSharedListsRoute
+  '/lists/$listId': typeof ListsListIdRoute
   '/share/$token': typeof ShareTokenRoute
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/activity': typeof ApiActivityRoute
-  '/api/shared-lists': typeof ApiSharedListsRoute
-  '/lists': typeof ListsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/friends'
+    | '/lists'
     | '/login'
     | '/profile'
+    | '/api/activity'
+    | '/api/shared-lists'
+    | '/lists/$listId'
     | '/share/$token'
     | '/u/$username'
     | '/api/auth/$'
-    | '/api/activity'
-    | '/api/shared-lists'
-    | '/lists'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/friends'
+    | '/lists'
     | '/login'
     | '/profile'
+    | '/api/activity'
+    | '/api/shared-lists'
+    | '/lists/$listId'
     | '/share/$token'
     | '/u/$username'
     | '/api/auth/$'
-    | '/api/activity'
-    | '/api/shared-lists'
-    | '/lists'
   id:
     | '__root__'
     | '/'
     | '/friends'
+    | '/lists'
     | '/login'
     | '/profile'
+    | '/api/activity'
+    | '/api/shared-lists'
+    | '/lists/$listId'
     | '/share/$token'
     | '/u/$username'
     | '/api/auth/$'
-    | '/api/activity'
-    | '/api/shared-lists'
-    | '/lists'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FriendsRoute: typeof FriendsRoute
+  ListsRoute: typeof ListsRouteWithChildren
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
+  ApiActivityRoute: typeof ApiActivityRoute
+  ApiSharedListsRoute: typeof ApiSharedListsRoute
   ShareTokenRoute: typeof ShareTokenRoute
   UUsernameRoute: typeof UUsernameRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiActivityRoute: typeof ApiActivityRoute
-  ApiSharedListsRoute: typeof ApiSharedListsRoute
-  ListsRoute: typeof ListsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -176,6 +188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FriendsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lists': {
+      id: '/lists'
+      path: '/lists'
+      fullPath: '/lists'
+      preLoaderRoute: typeof ListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -189,6 +208,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/activity': {
+      id: '/api/activity'
+      path: '/api/activity'
+      fullPath: '/api/activity'
+      preLoaderRoute: typeof ApiActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shared-lists': {
+      id: '/api/shared-lists'
+      path: '/api/shared-lists'
+      fullPath: '/api/shared-lists'
+      preLoaderRoute: typeof ApiSharedListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lists/$listId': {
+      id: '/lists/$listId'
+      path: '/$listId'
+      fullPath: '/lists/$listId'
+      preLoaderRoute: typeof ListsListIdRouteImport
+      parentRoute: typeof ListsRoute
     }
     '/share/$token': {
       id: '/share/$token'
@@ -211,41 +251,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/activity': {
-      id: '/api/activity'
-      path: '/api/activity'
-      fullPath: '/api/activity'
-      preLoaderRoute: typeof ApiActivityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/shared-lists': {
-      id: '/api/shared-lists'
-      path: '/api/shared-lists'
-      fullPath: '/api/shared-lists'
-      preLoaderRoute: typeof ApiSharedListsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lists': {
-      id: '/lists'
-      path: '/lists'
-      fullPath: '/lists'
-      preLoaderRoute: typeof ListsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
+
+interface ListsRouteChildren {
+  ListsListIdRoute: typeof ListsListIdRoute
+}
+
+const ListsRouteChildren: ListsRouteChildren = {
+  ListsListIdRoute: ListsListIdRoute,
+}
+
+const ListsRouteWithChildren = ListsRoute._addFileChildren(ListsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FriendsRoute: FriendsRoute,
+  ListsRoute: ListsRouteWithChildren,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
+  ApiActivityRoute: ApiActivityRoute,
+  ApiSharedListsRoute: ApiSharedListsRoute,
   ShareTokenRoute: ShareTokenRoute,
   UUsernameRoute: UUsernameRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  ApiActivityRoute: ApiActivityRoute,
-  ApiSharedListsRoute: ApiSharedListsRoute,
-  ListsRoute: ListsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

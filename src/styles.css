@@ -70,6 +70,96 @@ html[data-theme="ocean"] {
   --color-status-dropped: #f56565;
 }
 
+html[data-theme="void"] {
+  --color-bg: #070b12;
+  --color-raised: #111827;
+  --color-ink: #ecf2ff;
+  --color-dim: #8a90b1;
+  --color-line: #1d2940;
+  --color-lime: #a78bfa;
+  --color-crimson: #fb7185;
+  --color-status-plan: #a78bfa;
+  --color-status-watching: #c4b5fd;
+  --color-status-completed: #5eead4;
+  --color-status-hold: #fbbf24;
+  --color-status-dropped: #fb7185;
+}
+
+html[data-theme="ember"] {
+  --color-bg: #170d0b;
+  --color-raised: #2a1b12;
+  --color-ink: #fff1ea;
+  --color-dim: #d9a28a;
+  --color-line: #4a2b1d;
+  --color-lime: #ff8a65;
+  --color-crimson: #ff5c7a;
+  --color-status-plan: #f9a66c;
+  --color-status-watching: #ff8a65;
+  --color-status-completed: #fbbf24;
+  --color-status-hold: #ffd166;
+  --color-status-dropped: #ff5c7a;
+}
+
+html[data-theme="neon"] {
+  --color-bg: #070b16;
+  --color-raised: #0e1c2f;
+  --color-ink: #ebf7ff;
+  --color-dim: #99b6d8;
+  --color-line: #233f68;
+  --color-lime: #a3ff12;
+  --color-crimson: #ff4bd6;
+  --color-status-plan: #7df9ff;
+  --color-status-watching: #a3ff12;
+  --color-status-completed: #3bf0dd;
+  --color-status-hold: #ffcc33;
+  --color-status-dropped: #ff4bd6;
+}
+
+html[data-theme="aurora"] {
+  --color-bg: #071d22;
+  --color-raised: #0d3030;
+  --color-ink: #e4fffb;
+  --color-dim: #80b8b5;
+  --color-line: #17484a;
+  --color-lime: #62e6c5;
+  --color-crimson: #ff6b8a;
+  --color-status-plan: #8fa7ff;
+  --color-status-watching: #62e6c5;
+  --color-status-completed: #b4f06f;
+  --color-status-hold: #ffd166;
+  --color-status-dropped: #ff6b8a;
+}
+
+html[data-theme="manga"] {
+  --color-bg: #fff8ed;
+  --color-raised: #fffef9;
+  --color-ink: #241b2f;
+  --color-dim: #796d7e;
+  --color-line: #eadbc7;
+  --color-lime: #ff5d73;
+  --color-crimson: #d93656;
+  --color-status-plan: #8271d9;
+  --color-status-watching: #ff5d73;
+  --color-status-completed: #319b78;
+  --color-status-hold: #d58b26;
+  --color-status-dropped: #d93656;
+}
+
+html[data-theme="mono"] {
+  --color-bg: #101010;
+  --color-raised: #1d1d1d;
+  --color-ink: #f5f5f5;
+  --color-dim: #a1a1a1;
+  --color-line: #353535;
+  --color-lime: #f5f5f5;
+  --color-crimson: #ff6b6b;
+  --color-status-plan: #bdbdbd;
+  --color-status-watching: #f5f5f5;
+  --color-status-completed: #a8e6cf;
+  --color-status-hold: #ffd166;
+  --color-status-dropped: #ff6b6b;
+}
+
 @layer base {
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -78,11 +168,19 @@ html[data-theme="ocean"] {
 
   html,
   body {
-    background: var(--color-bg);
+    background:
+      radial-gradient(circle at top, color-mix(in oklab, var(--color-lime) 8%, transparent), transparent 28%),
+      var(--color-bg);
     color: var(--color-ink);
     min-height: 100%;
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-lime) 35%, transparent);
+    color: var(--color-ink);
   }
 
   input,
@@ -90,6 +188,18 @@ html[data-theme="ocean"] {
   select {
     font-family: inherit;
     color: inherit;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    transition:
+      border-color 180ms ease,
+      background-color 180ms ease,
+      box-shadow 180ms ease,
+      opacity 180ms ease,
+      transform 180ms ease;
   }
 
   /* Equalize interactive surfaces */
@@ -131,6 +241,62 @@ html[data-theme="ocean"] {
         transparent 65%
       );
     background-attachment: fixed;
+  }
+
+  .ui-panel {
+    background: color-mix(in oklab, var(--color-raised) 92%, transparent);
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    box-shadow:
+      0 12px 30px color-mix(in oklab, var(--color-bg) 42%, transparent),
+      inset 0 1px 0 color-mix(in oklab, var(--color-ink) 4%, transparent);
+  }
+
+  .ui-input {
+    width: 100%;
+    border: 1px solid var(--color-line);
+    background: color-mix(in oklab, var(--color-bg) 86%, transparent);
+    border-radius: 12px;
+    padding: 0.8rem 0.9rem;
+    font-size: 0.94rem;
+    outline: none;
+    color: var(--color-ink);
+  }
+
+  .ui-input:focus {
+    border-color: color-mix(in oklab, var(--color-lime) 48%, var(--color-line));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-lime) 12%, transparent);
+  }
+
+  .ui-button-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid color-mix(in oklab, var(--color-lime) 30%, var(--color-line));
+    background: var(--color-lime);
+    color: var(--color-bg);
+    font-weight: 800;
+    padding: 0.8rem 1rem;
+    box-shadow: 0 8px 18px color-mix(in oklab, var(--color-lime) 20%, transparent);
+  }
+
+  .ui-button-primary:hover {
+    filter: brightness(1.04);
+  }
+
+  .ui-button-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid var(--color-line);
+    background: color-mix(in oklab, var(--color-bg) 86%, transparent);
+    border-radius: 12px;
+    color: var(--color-ink);
+    padding: 0.7rem 1rem;
   }
 
   .glass-panel {

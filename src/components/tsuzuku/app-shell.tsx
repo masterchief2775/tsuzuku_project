@@ -14,9 +14,12 @@ import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { AppToast } from "@/components/tsuzuku/toast";
+import { BrandMark } from "@/components/tsuzuku/brand-mark";
+import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { fetchActivityBadge } from "@/lib/activity-client";
+import { heartbeatPresence } from "@/lib/presence";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
 
@@ -59,6 +62,21 @@ export function AppShell() {
   useEffect(() => {
     if (user?.id) hydrate(user.id);
   }, [hydrate, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const beat = () => void heartbeatPresence().catch(() => undefined);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") beat();
+    };
+    beat();
+    const id = window.setInterval(beat, 60_000);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user?.id]);
 
   // Persist pending edits when the tab is backgrounded or closed.
   useEffect(() => {
@@ -164,19 +182,17 @@ export function AppShell() {
   if (!user) return <RedirectToSignIn />;
 
   return (
-    <div className="ambient-bg min-h-dvh bg-bg text-ink">
+    <div className="ambient-bg flex min-h-dvh flex-col bg-bg text-ink">
       {!online ? (
         <div className="bg-amber-500/15 px-4 py-2 text-center text-[12.5px] font-semibold text-amber-200">
           Mode hors-ligne — ta liste locale reste utilisable ; les changements se synchroniseront au
           retour du réseau.
         </div>
       ) : null}
-      <header className="sticky top-0 z-30 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur-sm sm:px-7 sm:py-4">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           <Link to="/" className="flex items-center gap-3" onClick={() => setView("dashboard")}>
-            <span className="flex size-[38px] items-center justify-center rounded-sm bg-lime font-serif text-xl font-semibold text-bg">
-              尋
-            </span>
+            <BrandMark />
             <div className="hidden min-[400px]:block">
               <div className="font-serif text-xl font-semibold tracking-tight">Tsuzuku</div>
               <div className="text-xs text-dim">ta watchlist, en continu</div>
@@ -185,7 +201,7 @@ export function AppShell() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
               to="/profile"
-              className="relative rounded-[8px] border border-line bg-raised p-2"
+              className="relative rounded-[10px] border border-line bg-raised/90 p-2.5 shadow-sm transition hover:border-lime/40 hover:text-ink"
               aria-label="Mon profil"
               title="Mon profil"
             >
@@ -232,7 +248,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1100px] px-4 py-6 sm:px-7">
+      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-7">
         {!hydrated ? (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -255,6 +271,8 @@ export function AppShell() {
           <ListView />
         )}
       </main>
+
+      <AppFooter />
 
       <EntryModal />
       <ImportView open={importOpen} onClose={() => setImportOpen(false)} />

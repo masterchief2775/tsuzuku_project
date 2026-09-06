@@ -33,7 +33,7 @@ export const Route = createRootRoute({
         <HeadContent />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("tsuzuku-theme");if(t==="light"||t==="sakura"||t==="ocean"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("tsuzuku-theme");var raw=localStorage.getItem("tsuzuku-secret-themes")||"[]";var unlocked={};try{var arr=JSON.parse(raw);for(var i=0;i<arr.length;i++)unlocked[arr[i]]=true;}catch(e){}if(localStorage.getItem("tsuzuku-secret-theme")==="true")unlocked.void=true;var valid={dark:1,light:1,sakura:1,ocean:1,void:1,ember:1,neon:1,aurora:1,manga:1,mono:1};if((t==="void"||t==="ember"||t==="neon"||t==="aurora"||t==="manga"||t==="mono")&&!unlocked[t])t="dark";if(valid[t])document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark");}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`,
           }}
         />
       </head>

@@ -1,5 +1,15 @@
 {
   "css.lint.unknownAtRules": "ignore",
   "scss.lint.unknownAtRules": "ignore",
-  "less.lint.unknownAtRules": "ignore"
+  "less.lint.unknownAtRules": "ignore",
+  "chat.tools.terminal.autoApprove": {
+    "/^cd \"d:/Projet AnimeList/tsuzuku-v2-ui-fix/tsuzuku-watchlist-sync\"; bash \\./startup\\.sh$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^cd \"d:/Projet AnimeList/tsuzuku-v2-ui-fix/tsuzuku-watchlist-sync\"; node --test src/lib/theme\\.test\\.ts$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
 }

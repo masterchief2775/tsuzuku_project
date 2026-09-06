@@ -298,7 +298,7 @@ export function RouletteView() {
       </div>
 
       <div className="mb-5 flex flex-wrap gap-3 rounded-lg border border-line bg-raised p-4">
-        <label className="flex min-w-40 flex-1 flex-col gap-1 text-[11.5px] font-semibold text-dim">
+        <label className="flex min-w-0 basis-full flex-1 flex-col gap-1 text-[11.5px] font-semibold text-dim sm:min-w-40 sm:basis-auto">
           Genre
 
           <select
@@ -318,7 +318,7 @@ export function RouletteView() {
         </label>
 
         {source === "list" ? (
-          <label className="flex min-w-40 flex-1 flex-col gap-1 text-[11.5px] font-semibold text-dim">
+          <label className="flex min-w-0 basis-full flex-1 flex-col gap-1 text-[11.5px] font-semibold text-dim sm:min-w-40 sm:basis-auto">
             Statut
 
             <select
@@ -340,7 +340,7 @@ export function RouletteView() {
             </select>
           </label>
         ) : (
-          <div className="flex min-w-40 flex-1 flex-col justify-end gap-1 text-[11.5px] text-dim">
+          <div className="flex min-w-0 basis-full flex-1 flex-col justify-end gap-1 text-[11.5px] text-dim sm:min-w-40 sm:basis-auto">
             <span className="font-semibold">Source</span>
 
             <span className="rounded-[9px] border border-line bg-bg px-3 py-2 text-sm text-ink">

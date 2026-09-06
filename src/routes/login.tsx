@@ -3,6 +3,8 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { ArrowRight, Eye, EyeOff, Loader2, LogIn, UserPlus } from "lucide-react";
 import { authClient, authEnabled, GROK_PROVIDERS, signIn } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { BrandMark } from "@/components/tsuzuku/brand-mark";
+import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
@@ -94,26 +96,27 @@ function LoginPage() {
 
   if (!authEnabled) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-bg px-4 text-ink">
-        <div className="w-full max-w-md rounded-[18px] border border-line bg-raised p-7 text-center shadow-sm">
-          <div className="mx-auto mb-5 flex size-12 items-center justify-center rounded-sm bg-lime font-serif text-2xl font-semibold text-bg">尋</div>
+      <main className="flex min-h-dvh flex-col items-center bg-bg px-4 text-ink">
+        <div className="ui-panel w-full max-w-md p-7 text-center">
+          <BrandMark className="mx-auto" />
           <h1 className="font-serif text-3xl font-semibold">Tsuzuku</h1>
           <p className="mt-2 text-sm text-dim">La connexion est désactivée.</p>
         </div>
+        <AppFooter />
       </main>
     );
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-bg px-4 py-8 text-ink">
-      <div className="w-full max-w-md">
+    <main className="flex min-h-dvh flex-col items-center bg-bg px-4 py-8 text-ink">
+      <div className="my-auto w-full max-w-md">
         <div className="mb-7 text-center">
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-sm bg-lime font-serif text-2xl font-semibold text-bg">尋</div>
+          <BrandMark className="mx-auto" />
           <h1 className="font-serif text-3xl font-semibold tracking-tight">Tsuzuku</h1>
           <p className="mt-2 text-sm text-dim">Ta watchlist, en continu.</p>
         </div>
 
-        <section className="rounded-[18px] border border-line bg-raised p-5 shadow-sm sm:p-7">
+        <section className="ui-panel p-5 sm:p-7">
           <div className="mb-5 grid grid-cols-2 rounded-[10px] bg-bg p-1">
             <button
               type="button"
@@ -138,7 +141,7 @@ function LoginPage() {
                 type="button"
                 disabled={busy}
                 onClick={() => void handleProvider(provider.providerId)}
-                className="flex w-full items-center justify-between rounded-[10px] border border-line bg-bg px-4 py-3 text-sm font-semibold transition hover:border-ink/30 hover:bg-ink/5 disabled:cursor-wait disabled:opacity-60"
+                className="flex w-full items-center justify-between rounded-[12px] border border-line bg-bg px-4 py-3 text-sm font-semibold transition hover:border-lime/40 hover:bg-ink/5 disabled:cursor-wait disabled:opacity-60"
               >
                 <span>Continuer avec {provider.label}</span>
                 <ArrowRight className="size-4" />
@@ -187,7 +190,7 @@ function LoginPage() {
                   onChange={(ev) => setPassword(ev.target.value)}
                   type={showPassword ? "text" : "password"}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  className="w-full rounded-[10px] border border-line bg-bg px-3.5 py-3 pr-11 text-sm outline-none transition focus:border-ink/40"
+                  className="ui-input pr-11"
                   placeholder="••••••••"
                   required
                 />
@@ -227,7 +230,7 @@ function LoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-ink px-4 py-3 text-sm font-semibold text-bg transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+              className="ui-button-primary disabled:cursor-wait disabled:opacity-60"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : mode === "login" ? <LogIn className="size-4" /> : <UserPlus className="size-4" />}
               {mode === "login" ? "Se connecter" : "Créer mon compte"}
@@ -246,6 +249,7 @@ function LoginPage() {
           </p>
         </section>
       </div>
+      <AppFooter />
     </main>
   );
 }

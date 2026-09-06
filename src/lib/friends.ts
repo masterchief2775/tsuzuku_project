@@ -8,6 +8,8 @@ export type FriendshipStatus = "none" | "pending_out" | "pending_in" | "friends"
 export type FriendProfile = PublicProfile & {
   friendshipId?: string;
   since?: string;
+  isOnline: boolean;
+  lastSeen?: string;
 };
 
 export type FriendRequest = {
@@ -299,10 +301,37 @@ export const listFriends = createServerFn({ method: "GET" })
         and (f."requester_id" = ${me} or f."addressee_id" = ${me})
       order by coalesce(p."display_name", p."username") asc
     `;
+    const onlineIds = new Set<string>();
+    try {
+      const presenceRows = await sql<{ user_id: string; last_seen: string | Date }>`
+        select "user_id", "last_seen" from "user_presence"
+      `;
+      const lastSeenByUser = new Map(
+        presenceRows.map((presence) => [
+          presence.user_id,
+          typeof presence.last_seen === "string"
+            ? presence.last_seen
+            : presence.last_seen.toISOString(),
+        ]),
+      );
+      for (const [userId, lastSeen] of lastSeenByUser) {
+        if (Date.parse(lastSeen) > Date.now() - 2 * 60 * 1000) onlineIds.add(userId);
+      }
+      return rows.map((r) => ({
+        ...mapRow(r),
+        friendshipId: r.id,
+        since: iso(r.updated_at || r.created_at),
+        isOnline: onlineIds.has(r.other_id),
+        lastSeen: lastSeenByUser.get(r.other_id),
+      }));
+    } catch {
+      // Presence is optional until migration 0010 has been applied.
+    }
     return rows.map((r) => ({
       ...mapRow(r),
       friendshipId: r.id,
       since: iso(r.updated_at || r.created_at),
+      isOnline: onlineIds.has(r.other_id),
     }));
   });
 

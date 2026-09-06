@@ -230,20 +230,22 @@ function ResultsGrid({
                   </span>
                 ))}
               </div>
-              {added ? (
-                <div className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-[8px] border border-line py-2 text-[12px] text-dim">
-                  Dans la liste
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-[8px] bg-lime py-2 text-[12px] font-bold text-bg hover:brightness-110"
-                  onClick={() => onAdd(m)}
-                >
-                  <Plus className="size-3.5" />
-                  Ajouter
-                </button>
-              )}
+              <div className="mt-3 border-t border-line/70 pt-3">
+                {added ? (
+                  <div className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[10px] border border-line bg-bg text-[12px] text-dim">
+                    Dans la liste
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-lime py-2 text-[12px] font-bold text-bg shadow-[0_6px_14px_color-mix(in_oklab,var(--color-lime)_18%,transparent)] transition hover:brightness-105"
+                    onClick={() => onAdd(m)}
+                  >
+                    <Plus className="size-3.5" />
+                    Ajouter
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         );

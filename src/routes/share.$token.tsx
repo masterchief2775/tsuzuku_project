@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { BrandMark } from "@/components/tsuzuku/brand-mark";
+import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { Cover } from "@/components/tsuzuku/cover";
 import { fetchPublicShare, type PublicShareEntry } from "@/lib/share";
 import { STATUSES, progressText } from "@/lib/watchlist";
@@ -40,19 +42,17 @@ function PublicSharePage() {
   }, [token]);
 
   return (
-    <div className="min-h-dvh bg-bg text-ink">
+    <div className="flex min-h-dvh flex-col bg-bg text-ink">
       <header className="border-b border-line px-4 py-5 sm:px-7">
         <div className="mx-auto flex max-w-[1100px] items-center gap-3">
-          <span className="flex size-[38px] items-center justify-center rounded-sm bg-lime font-serif text-xl font-semibold text-bg">
-            尋
-          </span>
+          <BrandMark />
           <div>
             <div className="font-serif text-xl font-semibold">Tsuzuku</div>
             <div className="text-xs text-dim">Liste partagée · lecture seule</div>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-[1100px] px-4 py-6 sm:px-7">
+      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-7">
         {loading ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -105,6 +105,7 @@ function PublicSharePage() {
           </>
         ) : null}
       </main>
+      <AppFooter publicPage />
     </div>
   );
 }
