@@ -424,36 +424,13 @@ html[data-theme="ocean"] {
   }
 }
 
-@keyframes tsuzuku-confetti-fall {
-  0% {
-    opacity: 1;
-    transform:
-      translate3d(0, 0, 0)
-      rotate(0deg)
-      scale(1);
-  }
 
-  15% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-    transform:
-      translate3d(
-        var(--dx, 0px),
-        var(--dy, 160px),
-        0
-      )
-      rotate(var(--rot, 220deg))
-      scale(0.45);
-  }
-}
 .confetti-bit {
   position: absolute;
   top: 18%;
   left: 50%;
 
+  display: block;
   width: 8px;
   height: 12px;
 
@@ -462,12 +439,7 @@ html[data-theme="ocean"] {
 
   background: var(--color-lime);
 
-  animation:
-    tsuzuku-confetti-fall
-    1.15s
-    cubic-bezier(0.16, 1, 0.3, 1)
-    var(--delay, 0ms)
-    forwards;
+  opacity: 0;
 
   box-shadow:
     0 0 8px color-mix(
@@ -528,7 +500,6 @@ html[data-theme="ocean"] {
   .animate-marker-pulse,
   .animate-spin-glow,
   .shimmer::after,
-  .confetti-bit,
   .roulette-flash {
     animation: none !important;
   }

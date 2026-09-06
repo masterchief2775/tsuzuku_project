@@ -412,39 +412,79 @@ function SourceTab({
 }
 
 function ConfettiBurst() {
-  const pieces = Array.from({ length: 28 }, (_, i) => {
-    const angle = (i / 28) * Math.PI * 2;
-    const distance = 90 + ((i * 37) % 100);
-    const dx = Math.cos(angle) * distance;
-    const dy = Math.sin(angle) * distance - 30;
-    const rotation = ((i * 73) % 360) - 180;
-    const delay = (i % 7) * 18;
+  const containerRef = useRef<HTMLDivElement>(null);
 
-    return {
-      dx,
-      dy,
-      rotation,
-      delay,
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (reduceMotion) return;
+
+    const pieces = Array.from(
+      container.querySelectorAll<HTMLElement>(".confetti-bit"),
+    );
+
+    const animations = pieces.map((piece, i) => {
+      const angle = (i / pieces.length) * Math.PI * 2;
+      const distance = 90 + ((i * 37) % 100);
+
+      const dx = Math.cos(angle) * distance;
+      const dy = Math.sin(angle) * distance - 30;
+      const rotation = ((i * 73) % 360) - 180;
+      const delay = (i % 7) * 18;
+
+      piece.style.setProperty("--dx", `${dx}px`);
+      piece.style.setProperty("--dy", `${dy}px`);
+      piece.style.setProperty("--rot", `${rotation}deg`);
+
+      return piece.animate(
+        [
+          {
+            opacity: 1,
+            transform:
+              "translate3d(0, 0, 0) rotate(0deg) scale(1)",
+          },
+          {
+            opacity: 1,
+            transform:
+              `translate3d(${dx * 0.45}px, ${dy * 0.45}px, 0) ` +
+              `rotate(${rotation * 0.45}deg) scale(1.05)`,
+          },
+          {
+            opacity: 0,
+            transform:
+              `translate3d(${dx}px, ${dy}px, 0) ` +
+              `rotate(${rotation}deg) scale(0.45)`,
+          },
+        ],
+        {
+          duration: 1150,
+          delay,
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+          fill: "forwards",
+        },
+      );
+    });
+
+    return () => {
+      animations.forEach((animation) => animation.cancel());
     };
-  });
+  }, []);
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-30 overflow-hidden"
+      ref={containerRef}
+      className="pointer-events-none absolute inset-0 z-30 overflow-visible"
       aria-hidden="true"
     >
-      {pieces.map((piece, i) => (
+      {Array.from({ length: 28 }, (_, i) => (
         <span
           key={i}
           className="confetti-bit"
-          style={
-            {
-              "--dx": `${piece.dx}px`,
-              "--dy": `${piece.dy}px`,
-              "--rot": `${piece.rotation}deg`,
-              "--delay": `${piece.delay}ms`,
-            } as React.CSSProperties
-          }
         />
       ))}
     </div>
