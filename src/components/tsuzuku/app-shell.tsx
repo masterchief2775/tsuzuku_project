@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { Clapperboard, Dices, Download, Home, Link2, List, Search, Upload, User } from "lucide-react";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
+import { FriendsView } from "@/components/tsuzuku/friends-view";
+import { ListsView } from "@/components/tsuzuku/lists-view";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { EntryModal } from "@/components/tsuzuku/entry-modal";
 import { ImportView } from "@/components/tsuzuku/import-view";
 import { ListView } from "@/components/tsuzuku/list-view";
@@ -20,6 +22,8 @@ import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
 
 export function AppShell() {
   const { user: authUser } = useCurrentUserState();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
   const [badgeCount, setBadgeCount] = useState(0);
   useEffect(() => {
     if (!authUser?.id) {
@@ -235,6 +239,10 @@ export function AppShell() {
               <div key={i} className="h-[76px] animate-pulse rounded-[10px] border border-line bg-raised" />
             ))}
           </div>
+        ) : pathname.startsWith("/friends") ? (
+          <FriendsView />
+        ) : pathname.startsWith("/lists") ? (
+          <ListsView />
         ) : view === "dashboard" ? (
           <Dashboard />
         ) : view === "search" ? (
