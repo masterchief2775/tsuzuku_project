@@ -433,40 +433,46 @@ html[data-theme="ocean"] {
       scale(1);
   }
 
+  15% {
+    opacity: 1;
+  }
+
   100% {
     opacity: 0;
     transform:
       translate3d(
         var(--dx, 0px),
-        160px,
+        var(--dy, 160px),
         0
       )
       rotate(var(--rot, 220deg))
-      scale(0.55);
+      scale(0.45);
   }
 }
-
 .confetti-bit {
   position: absolute;
   top: 18%;
   left: 50%;
 
-  width: 9px;
+  width: 8px;
   height: 12px;
 
   border-radius: 2px;
   pointer-events: none;
 
+  background: var(--color-lime);
+
   animation:
     tsuzuku-confetti-fall
     1.15s
     cubic-bezier(0.16, 1, 0.3, 1)
+    var(--delay, 0ms)
     forwards;
 
   box-shadow:
-    0 0 7px color-mix(
+    0 0 8px color-mix(
       in oklab,
-      var(--color-lime) 48%,
+      var(--color-lime) 55%,
       transparent
     );
 }
