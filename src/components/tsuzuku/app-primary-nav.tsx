@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
+import { useUnreadMessageCount } from "@/components/tsuzuku/messages-view";
 import { cn } from "@/lib/utils";
 
 type NavItem =
@@ -37,6 +38,7 @@ export function AppPrimaryNav({ className }: { className?: string }) {
   const setView = useWatchlistStore((s) => s.setView);
   const [mobileOpen, setMobileOpen] = useState(false);
   const onHome = pathname === "/" || pathname === "";
+  const unreadMessages = useUnreadMessageCount();
 
   return (
     <nav
@@ -88,13 +90,24 @@ export function AppPrimaryNav({ className }: { className?: string }) {
             <Link
               key={item.to}
               to={item.to}
-              className={baseClass}
+              className={cn(baseClass, "relative")}
               title={item.label}
               onClick={() => setMobileOpen(false)}
             >
               <Icon className="size-3.5 shrink-0 sm:size-4" />
               <span className="hidden sm:inline">{item.label}</span>
               <span className="sm:hidden">{item.short}</span>
+              {item.to === "/messages" && unreadMessages > 0 ? (
+                <span
+                  className={cn(
+                    "flex size-4 items-center justify-center rounded-full text-[9px] font-bold",
+                    active ? "bg-bg text-lime" : "bg-crimson text-white",
+                  )}
+                  aria-label={`${unreadMessages} message${unreadMessages > 1 ? "s" : ""} non lu${unreadMessages > 1 ? "s" : ""}`}
+                >
+                  {unreadMessages > 9 ? "9+" : unreadMessages}
+                </span>
+              ) : null}
             </Link>
           );
         }

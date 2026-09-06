@@ -446,6 +446,7 @@ function PublicProfilePage() {
                   <>
                     <Link
                       to="/messages"
+                      search={{ to: profile.userId }}
                       className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim hover:border-lime/40 hover:text-ink"
                     >
                       <MessageCircle className="size-4" />
