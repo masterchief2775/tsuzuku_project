@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate } from "@tanstack/react-router";
+import { LogOut } from "lucide-react";
 import { authEnabled, signOut } from "./client";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
@@ -142,9 +143,14 @@ export function UserButton() {
               }
             })();
           }}
-          className="cursor-pointer text-sm underline-offset-4 opacity-70 hover:underline disabled:cursor-wait disabled:no-underline"
+            className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-raised/90 px-2.5 py-2 text-dim shadow-sm transition hover:border-crimson/40 hover:text-crimson disabled:cursor-wait disabled:opacity-60"
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
         >
-          {signingOut ? "Signing out…" : "Sign out"}
+            <LogOut className="size-4" />
+            <span className="hidden text-xs font-semibold sm:inline">
+              {signingOut ? "Déconnexion…" : "Déconnexion"}
+            </span>
         </button>
       )}
     </div>

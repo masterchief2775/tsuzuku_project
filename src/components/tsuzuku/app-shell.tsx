@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Clapperboard, Dices, Download, Home, Link2, List, Search, Upload, User } from "lucide-react";
+import { Clapperboard, Dices, Download, Home, Link2, List, Search, Upload } from "lucide-react";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { FriendsView } from "@/components/tsuzuku/friends-view";
@@ -19,34 +19,12 @@ import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { MessagesView } from "@/components/tsuzuku/messages-view";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { fetchActivityBadge } from "@/lib/activity-client";
 import { heartbeatPresence } from "@/lib/presence";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
 
 export function AppShell() {
-  const { user: authUser } = useCurrentUserState();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-
-  const [badgeCount, setBadgeCount] = useState(0);
-  useEffect(() => {
-    if (!authUser?.id) {
-      setBadgeCount(0);
-      return;
-    }
-    let cancelled = false;
-    const tick = () => {
-      void fetchActivityBadge().then((b) => {
-        if (!cancelled) setBadgeCount(b.unreadActivity + b.pendingFriendRequests);
-      });
-    };
-    tick();
-    const id = window.setInterval(tick, 45_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [authUser?.id]);
 
   const { user, isPending } = useCurrentUserState();
   const view = useWatchlistStore((s) => s.view);
@@ -200,19 +178,6 @@ export function AppShell() {
             </div>
           </Link>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <Link
-              to="/profile"
-              className="relative rounded-[10px] border border-line bg-raised/90 p-2.5 shadow-sm transition hover:border-lime/40 hover:text-ink"
-              aria-label="Mon profil"
-              title="Mon profil"
-            >
-              <User className="size-4" />
-              {badgeCount > 0 ? (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lime px-1 text-[10px] font-bold text-bg">
-                  {badgeCount > 9 ? "9+" : badgeCount}
-                </span>
-              ) : null}
-            </Link>
             <ThemePicker />
             <UserButton />
             <button

@@ -456,9 +456,9 @@ function MyProfilePage() {
               </div>
 
               {profile?.stats ? (
-                <div className="rounded-[10px] border border-line bg-bg/40 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold">Stats</span>
+                <details open className="mt-4 rounded-[10px] border border-line bg-bg/40 p-3">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                    <span>Statistiques</span>
                     <label className="flex items-center gap-2 text-xs text-dim">
                       <input
                         type="checkbox"
@@ -467,8 +467,8 @@ function MyProfilePage() {
                       />
                       Afficher sur le profil
                     </label>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs sm:grid-cols-6">
+                  </summary>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs sm:grid-cols-6">
                     <div className="rounded-lg bg-raised p-2">
                       <div className="font-bold">{profile.stats.total}</div>
                       <div className="text-dim">Total</div>
@@ -494,12 +494,12 @@ function MyProfilePage() {
                       <div className="text-dim">Épisodes</div>
                     </div>
                   </div>
-                </div>
+                </details>
               ) : null}
 
-              <div className="rounded-[10px] border border-line bg-bg/40 p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
+              <details open className="mt-3 rounded-[10px] border border-line bg-bg/40 p-3">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                  <span className="inline-flex items-center gap-1.5">
                     <Star className="size-4 text-lime" />
                     Top 5 favoris
                   </span>
@@ -511,7 +511,7 @@ function MyProfilePage() {
                     />
                     Afficher
                   </label>
-                </div>
+                </summary>
                 <p className="mb-2 text-[11.5px] text-dim">
                   Choisis jusqu&apos;à 5 titres depuis ta watchlist.
                 </p>
@@ -570,30 +570,32 @@ function MyProfilePage() {
                       ))}
                   </select>
                 ) : null}
-              </div>
+              </details>
 
-              <div className="space-y-3 rounded-[10px] border border-line bg-bg/40 p-3">
-                <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
+              <details open className="mt-3 rounded-[10px] border border-line bg-bg/40 p-3">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold [&::-webkit-details-marker]:hidden">
                   <ExternalLink className="size-4 text-lime" />
                   Liens externes
-                </span>
-                <Field label="AniList">
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <Field label="AniList">
                   <input
                     value={anilistUrl}
                     onChange={(e) => setAnilistUrl(e.target.value)}
                     placeholder="https://anilist.co/user/…"
                     className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime"
                   />
-                </Field>
-                <Field label="MyAnimeList">
+                  </Field>
+                  <Field label="MyAnimeList">
                   <input
                     value={malUrl}
                     onChange={(e) => setMalUrl(e.target.value)}
                     placeholder="https://myanimelist.net/profile/…"
                     className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime"
                   />
-                </Field>
-              </div>
+                  </Field>
+                </div>
+              </details>
 
               {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
               {okMsg ? <p className="mt-3 text-sm text-lime">{okMsg}</p> : null}
