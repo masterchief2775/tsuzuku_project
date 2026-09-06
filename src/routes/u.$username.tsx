@@ -119,6 +119,17 @@ function PublicProfilePage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bioFieldRef = useRef<HTMLTextAreaElement>(null);
+
+  // Grow the bio field to fit its content instead of showing a fixed, often
+  // half-empty box — it should look like the paragraph it replaces, not a
+  // generic multi-line form textarea.
+  useEffect(() => {
+    const el = bioFieldRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [editBio]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -356,10 +367,13 @@ function PublicProfilePage() {
                 )}
               </div>
               {isSelf ? (
-                <div className="profile-inline-edit mt-4">
-                  <h1 className="font-serif text-2xl font-semibold">{profile.displayName}</h1>
-                  <input value={editName} onChange={(event) => setEditName(event.target.value)} className="ui-input profile-inline-input mx-auto max-w-sm text-center" placeholder="Nom affiché" maxLength={48} />
-                </div>
+                <input
+                  value={editName}
+                  onChange={(event) => setEditName(event.target.value)}
+                  className="profile-inline-field font-serif mx-auto mt-4 max-w-sm text-center text-2xl font-semibold"
+                  placeholder="Nom affiché"
+                  maxLength={48}
+                />
               ) : (
                 <h1 className="font-serif mt-4 text-2xl font-semibold">{profile.displayName}</h1>
               )}
@@ -370,10 +384,15 @@ function PublicProfilePage() {
               </p>
               {profile.bio || isSelf ? (
                 isSelf ? (
-                  <div className="profile-inline-edit mx-auto mt-4 max-w-md">
-                    <p className="text-sm leading-relaxed text-dim">{profile.bio || "Ajouter une bio…"}</p>
-                    <textarea value={editBio} onChange={(event) => setEditBio(event.target.value)} className="ui-input profile-inline-input min-h-20 resize-y text-left" placeholder="Bio" maxLength={280} />
-                  </div>
+                  <textarea
+                    ref={bioFieldRef}
+                    value={editBio}
+                    onChange={(event) => setEditBio(event.target.value)}
+                    className="profile-inline-field mx-auto mt-4 max-w-md resize-none text-left text-sm leading-relaxed text-dim"
+                    placeholder="Ajouter une bio…"
+                    maxLength={280}
+                    rows={1}
+                  />
                 ) : (
                   <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-dim">{profile.bio}</p>
                 )
