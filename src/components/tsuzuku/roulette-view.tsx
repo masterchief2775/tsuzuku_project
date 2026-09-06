@@ -412,33 +412,37 @@ function SourceTab({
 }
 
 function ConfettiBurst() {
-  const bits = useMemo(
-    () =>
-      Array.from({ length: 28 }, (_, i) => ({
-        id: i,
-        dx: `${(i % 2 === 0 ? -1 : 1) * (12 + (i * 9) % 70)}px`,
-        rot: `${120 + i * 37}deg`,
-        color: ["var(--color-lime)", "var(--color-status-completed)", "var(--color-status-plan)", "var(--color-status-hold)"][
-          i % 4
-        ],
-        left: `${20 + ((i * 17) % 60)}%`,
-        delay: `${(i % 7) * 0.04}s`,
-      })),
-    [],
-  );
+  const pieces = Array.from({ length: 28 }, (_, i) => {
+    const angle = (i / 28) * Math.PI * 2;
+    const distance = 90 + ((i * 37) % 100);
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance - 30;
+    const rotation = ((i * 73) % 360) - 180;
+    const delay = (i % 7) * 18;
+
+    return {
+      dx,
+      dy,
+      rotation,
+      delay,
+    };
+  });
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden" aria-hidden>
-      {bits.map((b) => (
+    <div
+      className="pointer-events-none absolute inset-0 z-30 overflow-hidden"
+      aria-hidden="true"
+    >
+      {pieces.map((piece, i) => (
         <span
-          key={b.id}
+          key={i}
           className="confetti-bit"
           style={
             {
-              left: b.left,
-              background: b.color,
-              animationDelay: b.delay,
-              "--dx": b.dx,
-              "--rot": b.rot,
+              "--dx": `${piece.dx}px`,
+              "--dy": `${piece.dy}px`,
+              "--rot": `${piece.rotation}deg`,
+              "--delay": `${piece.delay}ms`,
             } as React.CSSProperties
           }
         />
