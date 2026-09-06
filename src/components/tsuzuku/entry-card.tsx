@@ -25,7 +25,7 @@ export function EntryCard({
   return (
     <div
       className={cn(
-        "group relative rounded-[12px] border border-line bg-raised text-left shadow-sm",
+        "group hover-lift relative rounded-[12px] border border-line bg-raised text-left shadow-sm",,
         compact ? "min-w-[150px] shrink-0" : "",
       )}
       style={{ ["--accent" as string]: meta.color }}
@@ -82,7 +82,7 @@ export function EntryRow({
   const meta = statusMeta(entry.status);
   return (
     <div
-      className="group relative rounded-[12px] border border-line bg-raised shadow-sm"
+      className="group hover-lift relative rounded-[12px] border border-line bg-raised shadow-sm"
       style={{ ["--accent" as string]: meta.color }}
     >
       <button

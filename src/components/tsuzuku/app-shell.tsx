@@ -140,7 +140,7 @@ export function AppShell() {
 
   if (isPending) {
     return (
-      <div className="ambient-bg min-h-dvh text-ink">
+      <div className="ambient-bg min-h-dvh bg-bg text-ink">
         <header className="flex items-center justify-between border-b border-line px-4 py-5 sm:px-7">
           <div className="flex items-center gap-3">
             <span className="size-[38px] animate-pulse rounded-sm bg-raised" />
@@ -164,7 +164,7 @@ export function AppShell() {
   if (!user) return <RedirectToSignIn />;
 
   return (
-    <div className="min-h-dvh bg-bg text-ink">
+    <div className="ambient-bg min-h-dvh bg-bg text-ink">
       {!online ? (
         <div className="bg-amber-500/15 px-4 py-2 text-center text-[12.5px] font-semibold text-amber-200">
           Mode hors-ligne — ta liste locale reste utilisable ; les changements se synchroniseront au
