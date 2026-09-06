@@ -60,12 +60,17 @@ export function RouletteView() {
   const setActiveEntryId = useWatchlistStore((s) => s.setActiveEntryId);
   const setView = useWatchlistStore((s) => s.setView);
   const addEntry = useWatchlistStore((s) => s.addEntry);
-  const addedIds = useMemo(() => new Set(entries.map((e) => e.anilistId)), [entries]);
+  const addedIds = useMemo(
+    () => new Set(entries.map((e) => e.anilistId)),
+    [entries],
+  );
 
   const facets = useMemo(() => collectFacets(entries), [entries]);
   const [source, setSource] = useState<"list" | "anilist">("list");
   const [genre, setGenre] = useState<string>("Tous");
-  const [statusScope, setStatusScope] = useState<"watchable" | "all" | StatusKey>("watchable");
+  const [statusScope, setStatusScope] = useState<
+    "watchable" | "all" | StatusKey
+  >("watchable");
   const [spinning, setSpinning] = useState(false);
   const [loadingPool, setLoadingPool] = useState(false);
   const [poolError, setPoolError] = useState("");
@@ -86,7 +91,9 @@ export function RouletteView() {
         } else if (statusScope !== "all" && e.status !== statusScope) {
           return false;
         }
+
         if (genre !== "Tous" && !e.genres.includes(genre)) return false;
+
         return true;
       })
       .map((e) => ({
@@ -100,7 +107,9 @@ export function RouletteView() {
 
   useEffect(() => {
     if (source !== "anilist") return;
+
     const ac = new AbortController();
+
     setLoadingPool(true);
     setPoolError("");
     setWinner(null);
@@ -109,19 +118,24 @@ export function RouletteView() {
     void (async () => {
       try {
         let media: AniListMedia[] = [];
+
         if (genre !== "Tous") {
           media = await fetchByGenres([genre], 50, ac.signal);
         } else {
           media = await fetchTrending(ac.signal);
+
           if (media.length < 20) {
             const more = await fetchByGenres(["Action"], 30, ac.signal);
             const seen = new Set(media.map((m) => m.id));
+
             for (const m of more) {
               if (!seen.has(m.id)) media.push(m);
             }
           }
         }
+
         if (ac.signal.aborted) return;
+
         setGlobalPool(
           media.map((m) => ({
             key: `al-${m.id}`,
@@ -133,8 +147,11 @@ export function RouletteView() {
         );
       } catch (err) {
         if (ac.signal.aborted) return;
+
         setGlobalPool([]);
-        setPoolError((err as Error).message || "Impossible de charger AniList");
+        setPoolError(
+          (err as Error).message || "Impossible de charger AniList",
+        );
       } finally {
         if (!ac.signal.aborted) setLoadingPool(false);
       }
@@ -144,7 +161,8 @@ export function RouletteView() {
   }, [source, genre]);
 
   const pool = source === "list" ? listPool : globalPool;
-  const genreOptions = source === "list" ? facets.genres : [...GLOBAL_GENRES];
+  const genreOptions =
+    source === "list" ? facets.genres : [...GLOBAL_GENRES];
 
   useEffect(() => {
     return () => {
@@ -154,111 +172,135 @@ export function RouletteView() {
 
   const animateTo = (targetPx: number, onDone: () => void) => {
     const el = trackRef.current;
+
     if (!el) {
       onDone();
       return;
     }
-    // Prefer pure JS animation — survives prefers-reduced-motion CSS overrides
-    // that force transition-duration: 0.01ms on every element.
+
     const start = performance.now();
     const from = 0;
-    el.style.transform = `translate3d(0px, 0, 0)`;
+
+    el.style.transform = "translate3d(0px, 0, 0)";
 
     const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
 
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / SPIN_MS);
       const x = from + (targetPx - from) * easeOutQuint(t);
+
       el.style.transform = `translate3d(${-x}px, 0, 0)`;
+
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
         onDone();
       }
     };
+
     rafRef.current = requestAnimationFrame(tick);
   };
 
   const spin = () => {
     if (spinning || loadingPool || pool.length === 0) return;
+
     setWinner(null);
+
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
     const pick = shufflePick(pool);
-    // Before + winner + after → looks infinite (cards keep scrolling past the marker)
+
     const BEFORE = 32;
     const AFTER = 16;
+
     const strip: RouletteItem[] = [];
-    for (let i = 0; i < BEFORE; i++) strip.push(shufflePick(pool));
+
+    for (let i = 0; i < BEFORE; i++) {
+      strip.push(shufflePick(pool));
+    }
+
     const winnerIndex = strip.length;
+
     strip.push(pick);
-    for (let i = 0; i < AFTER; i++) strip.push(shufflePick(pool));
+
+    for (let i = 0; i < AFTER; i++) {
+      strip.push(shufflePick(pool));
+    }
 
     setReel(strip);
     setSpinning(true);
 
-    // Stop exactly on the winner card (not at the end of the strip)
-  requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      const viewport = viewportRef.current;
-      const track = trackRef.current;
+      requestAnimationFrame(() => {
+        const viewport = viewportRef.current;
+        const track = trackRef.current;
 
-      if (!viewport || !track) return;
+        if (!viewport || !track) return;
 
-      const winnerCard = track.children[winnerIndex] as HTMLElement | undefined;
+        const winnerCard = track.children[
+          winnerIndex
+        ] as HTMLElement | undefined;
 
-      if (!winnerCard) return;
+        if (!winnerCard) return;
 
-      // Toujours mesurer depuis la position initiale du reel.
-      track.style.transform = "translate3d(0, 0, 0)";
+        track.style.transform = "translate3d(0, 0, 0)";
 
-      const viewportRect = viewport.getBoundingClientRect();
-      const winnerRect = winnerCard.getBoundingClientRect();
+        const viewportRect = viewport.getBoundingClientRect();
+        const winnerRect = winnerCard.getBoundingClientRect();
 
-      const viewportCenter =
-        viewportRect.left + viewportRect.width / 2;
+        const viewportCenter =
+          viewportRect.left + viewportRect.width / 2;
 
-      const winnerCenter =
-        winnerRect.left + winnerRect.width / 2;
+        const winnerCenter =
+          winnerRect.left + winnerRect.width / 2;
 
-      // Distance exacte entre le centre de la carte gagnante
-      // et le centre réel de la roulette.
-      const target = winnerCenter - viewportCenter;
+        const target = winnerCenter - viewportCenter;
 
-      animateTo(target, () => {
-        setShowFlash(true);
-        setWinner(pick);
-        setSpinning(false);
+        animateTo(target, () => {
+          setShowFlash(true);
+          setWinner(pick);
+          setSpinning(false);
 
-        window.setTimeout(() => {
-          setShowFlash(false);
-        }, 600);
+          window.setTimeout(() => {
+            setShowFlash(false);
+          }, 600);
+        });
       });
     });
-  });
   };
 
   return (
     <div className="animate-fade-up mx-auto max-w-3xl overflow-x-clip">
       <div className="mb-6">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Roulette</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">
+          Roulette
+        </h1>
+
         <p className="mt-1 text-sm text-dim">
           Le hasard décide — dans ta liste ou dans tout le catalogue AniList.
         </p>
       </div>
 
       <div className="mb-4 flex gap-1.5 rounded-[10px] border border-line bg-raised p-1">
-        <SourceTab active={source === "list"} onClick={() => !spinning && setSource("list")}>
+        <SourceTab
+          active={source === "list"}
+          onClick={() => !spinning && setSource("list")}
+        >
           Ma liste
         </SourceTab>
-        <SourceTab active={source === "anilist"} onClick={() => !spinning && setSource("anilist")}>
+
+        <SourceTab
+          active={source === "anilist"}
+          onClick={() => !spinning && setSource("anilist")}
+        >
           Tous les animes
         </SourceTab>
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-3 rounded-[12px] border border-line bg-raised p-4">
-        <label className="flex min-w-[160px] flex-1 flex-col gap-1 text-[11.5px] font-semibold text-dim">
+      <div className="mb-5 flex flex-wrap gap-3 rounded-lg border border-line bg-raised p-4">
+        <label className="flex min-w-40 flex-1 flex-col gap-1 text-[11.5px] font-semibold text-dim">
           Genre
+
           <select
             value={genre}
             onChange={(e) => setGenre(e.target.value)}
@@ -266,6 +308,7 @@ export function RouletteView() {
             className="rounded-[9px] border border-line bg-bg px-3 py-2 text-sm font-semibold text-ink"
           >
             <option value="Tous">Tous les genres</option>
+
             {genreOptions.map((g) => (
               <option key={g} value={g}>
                 {g}
@@ -273,16 +316,22 @@ export function RouletteView() {
             ))}
           </select>
         </label>
+
         {source === "list" ? (
-          <label className="flex min-w-[160px] flex-1 flex-col gap-1 text-[11.5px] font-semibold text-dim">
+          <label className="flex min-w-40 flex-1 flex-col gap-1 text-[11.5px] font-semibold text-dim">
             Statut
+
             <select
               value={statusScope}
-              onChange={(e) => setStatusScope(e.target.value as typeof statusScope)}
+              onChange={(e) =>
+                setStatusScope(e.target.value as typeof statusScope)
+              }
               disabled={spinning}
               className="rounded-[9px] border border-line bg-bg px-3 py-2 text-sm font-semibold text-ink"
             >
-              <option value="watchable">À regarder / En cours / Pause</option>
+              <option value="watchable">
+                À regarder / En cours / Pause
+              </option>
               <option value="all">Toute la liste</option>
               <option value="Plan to Watch">À regarder seulement</option>
               <option value="Watching">En cours seulement</option>
@@ -291,8 +340,9 @@ export function RouletteView() {
             </select>
           </label>
         ) : (
-          <div className="flex min-w-[160px] flex-1 flex-col justify-end gap-1 text-[11.5px] text-dim">
+          <div className="flex min-w-40 flex-1 flex-col justify-end gap-1 text-[11.5px] text-dim">
             <span className="font-semibold">Source</span>
+
             <span className="rounded-[9px] border border-line bg-bg px-3 py-2 text-sm text-ink">
               Catalogue AniList
             </span>
@@ -303,7 +353,8 @@ export function RouletteView() {
       <p className="mb-3 flex items-center gap-2 text-xs font-semibold text-dim">
         {loadingPool ? (
           <>
-            <Loader2 className="size-3.5 animate-spin" /> Chargement du catalogue…
+            <Loader2 className="size-3.5 animate-spin" />
+            Chargement du catalogue…
           </>
         ) : (
           <>
@@ -313,28 +364,34 @@ export function RouletteView() {
           </>
         )}
       </p>
-      {poolError ? <p className="mb-3 text-sm text-red-400">{poolError}</p> : null}
 
-      {/* Viewport — clipped box so nothing (text or cards) escapes */}
+      {poolError ? (
+        <p className="mb-3 text-sm text-red-400">{poolError}</p>
+      ) : null}
+
       <div
         ref={viewportRef}
         className={cn(
-          "relative mb-6 h-[200px] w-full max-w-full overflow-hidden rounded-[14px] border bg-raised transition-[border-color,box-shadow] duration-300",
+          "relative mb-6 h-50 w-full max-w-full overflow-hidden rounded-lg border bg-raised transition-[border-color,box-shadow] duration-300",
           spinning
             ? "animate-spin-glow border-lime/60 shadow-[0_0_40px_color-mix(in_oklab,var(--color-lime)_20%,transparent)]"
             : "border-line",
         )}
         style={{ contain: "paint", isolation: "isolate" }}
       >
-        {/* Center marker */}
         <div
           className={cn(
-            "pointer-events-none absolute top-2 bottom-2 left-1/2 z-20 w-[120px] -translate-x-1/2 rounded-[12px] border-2 border-lime",
-            spinning ? "animate-marker-pulse" : "shadow-[0_0_24px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]",
+            "pointer-events-none absolute top-2 bottom-2 left-1/2 z-20 w-30 -translate-x-1/2 rounded-md border-2 border-lime",
+            spinning
+              ? "animate-marker-pulse"
+              : "shadow-[0_0_24px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]",
           )}
         />
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-12 bg-gradient-to-r from-raised to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-12 bg-gradient-to-l from-raised to-transparent" />
+
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-12 bg-linear-to-r from-raised to-transparent" />
+
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-12 bg-linear-to-l from-raised to-transparent" />
+
         {showFlash ? <div className="roulette-flash" /> : null}
 
         {reel.length === 0 ? (
@@ -346,7 +403,10 @@ export function RouletteView() {
         ) : (
           <div
             ref={trackRef}
-            className={cn("absolute top-4 left-0 flex", spinning && "opacity-95")}
+            className={cn(
+              "absolute top-4 left-0 flex",
+              spinning && "opacity-95",
+            )}
             style={{
               gap: CARD_GAP,
               paddingLeft: "calc(50% - 60px)",
@@ -360,7 +420,12 @@ export function RouletteView() {
                 className="shrink-0 overflow-hidden rounded-[10px] border border-line bg-bg"
                 style={{ width: CARD_W }}
               >
-                <Cover src={item.image} title={item.title} className="h-[140px] w-full" />
+                <Cover
+                  src={item.image}
+                  title={item.title}
+                  className="h-35 w-full"
+                />
+
                 <div className="truncate px-1.5 py-1 text-center text-[10.5px] font-semibold">
                   {item.title}
                 </div>
@@ -384,6 +449,7 @@ export function RouletteView() {
           <Dices className={cn("size-5", spinning && "animate-spin")} />
           {spinning ? "Ça tourne…" : "Lancer"}
         </button>
+
         {source === "list" && pool.length === 0 && !loadingPool ? (
           <p className="text-sm text-dim">
             Aucun titre pour ces filtres.{" "}
@@ -401,12 +467,18 @@ export function RouletteView() {
       {winner && !spinning ? (
         <WinnerCard
           item={winner}
-          alreadyInList={winner.media ? addedIds.has(winner.media.id) : true}
+          alreadyInList={
+            winner.media ? addedIds.has(winner.media.id) : true
+          }
           onOpenList={() => {
-            if (winner.entry) setActiveEntryId(winner.entry.id);
+            if (winner.entry) {
+              setActiveEntryId(winner.entry.id);
+            }
           }}
           onAdd={() => {
-            if (winner.media) addEntry(winner.media);
+            if (winner.media) {
+              addEntry(winner.media);
+            }
           }}
           onSpin={spin}
         />
@@ -429,7 +501,7 @@ function SourceTab({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex-1 rounded-[8px] px-3 py-2 text-sm font-bold transition-colors",
+        "flex-1 rounded-sm px-3 py-2 text-sm font-bold transition-colors",
         active ? "bg-lime text-bg" : "text-dim hover:text-ink",
       )}
     >
@@ -443,6 +515,7 @@ function ConfettiBurst() {
 
   useEffect(() => {
     const container = containerRef.current;
+
     if (!container) return;
 
     const pieces = Array.from(
@@ -508,10 +581,7 @@ function ConfettiBurst() {
       aria-hidden="true"
     >
       {Array.from({ length: 28 }, (_, i) => (
-        <span
-          key={i}
-          className="confetti-bit"
-        />
+        <span key={i} className="confetti-bit" />
       ))}
     </div>
   );
@@ -531,23 +601,37 @@ function WinnerCard({
   onSpin: () => void;
 }) {
   const meta = item.entry ? statusMeta(item.entry.status) : null;
+
   return (
     <div
-      className="animate-winner-pop relative mt-8 overflow-visible rounded-[14px] border border-lime/50 bg-lime/5 p-4 shadow-[0_0_48px_color-mix(in_oklab,var(--color-lime)_12%,transparent)] sm:flex sm:gap-4"
-      style={meta ? { ["--accent" as string]: meta.color } : undefined}
+      className="animate-winner-pop relative mt-8 overflow-visible rounded-lg border border-lime/50 bg-lime/5 p-4 shadow-[0_0_48px_color-mix(in_oklab,var(--color-lime)_12%,transparent)] sm:flex sm:gap-4"
+      style={
+        meta
+          ? { ["--accent" as string]: meta.color }
+          : undefined
+      }
     >
       <ConfettiBurst />
+
       <Cover
         src={item.image}
         title={item.title}
-        className="mx-auto h-[180px] w-[130px] shrink-0 rounded-[10px] sm:mx-0"
+        className="mx-auto h-45 w-32.5 shrink-0 rounded-[10px] sm:mx-0"
       />
+
       <div className="mt-3 min-w-0 flex-1 text-center sm:mt-0 sm:text-left">
         <div className="mb-1 flex items-center justify-center gap-1.5 text-lime sm:justify-start">
           <Sparkles className="size-4" />
-          <span className="text-xs font-bold tracking-wide uppercase">Ton tirage</span>
+
+          <span className="text-xs font-bold tracking-wide uppercase">
+            Ton tirage
+          </span>
         </div>
-        <h2 className="font-serif text-xl font-semibold">{item.title}</h2>
+
+        <h2 className="font-serif text-xl font-semibold">
+          {item.title}
+        </h2>
+
         <p className="mt-1 text-sm text-dim">
           {item.entry ? (
             <>
@@ -556,8 +640,12 @@ function WinnerCard({
           ) : (
             "Catalogue AniList"
           )}
-          {item.genres[0] ? ` · ${item.genres.slice(0, 3).join(", ")}` : ""}
+
+          {item.genres[0]
+            ? ` · ${item.genres.slice(0, 3).join(", ")}`
+            : ""}
         </p>
+
         <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
           {item.entry ? (
             <button
@@ -581,6 +669,7 @@ function WinnerCard({
               Ajouter à ma liste
             </button>
           )}
+
           <button
             type="button"
             onClick={onSpin}
