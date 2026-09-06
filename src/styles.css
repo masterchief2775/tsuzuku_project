@@ -429,17 +429,14 @@ html[data-theme="ocean"] {
   position: absolute;
   top: 18%;
   left: 50%;
-
   display: block;
   width: 8px;
   height: 12px;
-
+  z-index: 50;
   border-radius: 2px;
   pointer-events: none;
-
   background: var(--color-lime);
-
-  opacity: 0;
+  opacity: 1;
 
   box-shadow:
     0 0 8px color-mix(

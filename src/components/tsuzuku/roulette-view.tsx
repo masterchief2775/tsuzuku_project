@@ -507,7 +507,7 @@ function WinnerCard({
   const meta = item.entry ? statusMeta(item.entry.status) : null;
   return (
     <div
-      className="animate-winner-pop relative mt-8 overflow-hidden rounded-[14px] border border-lime/50 bg-lime/5 p-4 shadow-[0_0_48px_color-mix(in_oklab,var(--color-lime)_12%,transparent)] sm:flex sm:gap-4"
+      className="animate-winner-pop relative mt-8 overflow-visible rounded-[14px] border border-lime/50 bg-lime/5 p-4 shadow-[0_0_48px_color-mix(in_oklab,var(--color-lime)_12%,transparent)] sm:flex sm:gap-4"
       style={meta ? { ["--accent" as string]: meta.color } : undefined}
     >
       <ConfettiBurst />
