@@ -74,6 +74,15 @@ export type AniListMedia = {
   nextAiringEpisode?: NextAiringEpisode | null;
 };
 
+/** Rich fields fetched only for the entry detail modal. */
+export type AniListMediaDetail = AniListMedia & {
+  description: string | null;
+  bannerImage: string | null;
+  season: string | null;
+  siteUrl: string | null;
+  trailer: { id: string | null; site: string | null; thumbnail: string | null } | null;
+};
+
 export type MediaKind = "film" | "ova" | "special" | "series";
 
 export function statusMeta(key: StatusKey) {
@@ -313,6 +322,17 @@ const SEARCH_GQL = `query ($search: String) { Page(perPage: 12) { media(search: 
 const TRENDING_GQL = `query { Page(perPage: 12) { media(type: ANIME, isAdult: false, sort: TRENDING_DESC) { ${MEDIA_FIELDS} } } }`;
 const MEDIA_BY_ID_GQL = `query ($id: Int) { Media(id: $id, type: ANIME) { ${MEDIA_FIELDS} } }`;
 const MEDIA_BY_IDS_GQL = `query ($ids: [Int]) { Page(perPage: 50) { media(id_in: $ids, type: ANIME) { ${MEDIA_FIELDS} } } }`;
+
+const MEDIA_DETAIL_FIELDS = `
+  ${MEDIA_FIELDS}
+  description(asHtml: false)
+  bannerImage
+  season
+  siteUrl
+  trailer { id site thumbnail }
+`;
+
+const MEDIA_BY_ID_DETAIL_GQL = `query ($id: Int) { Media(id: $id, type: ANIME) { ${MEDIA_DETAIL_FIELDS} } }`;
 const GENRE_RECO_GQL = `query ($genres: [String], $perPage: Int) {
   Page(perPage: $perPage) {
     media(genre_in: $genres, type: ANIME, isAdult: false, sort: SCORE_DESC) { ${MEDIA_FIELDS} }
@@ -451,6 +471,66 @@ export async function fetchMediaById(id: number, signal?: AbortSignal): Promise<
   if (json.errors) throw new Error(json.errors.map((e) => e.message).join(", "));
   if (!json.data?.Media) throw new Error("Anime introuvable sur AniList");
   return json.data.Media;
+}
+
+/** Full detail payload for the entry modal (synopsis, trailer, banner…). */
+export async function fetchMediaDetailById(
+  id: number,
+  signal?: AbortSignal,
+): Promise<AniListMediaDetail> {
+  const res = await fetch("https://graphql.anilist.co", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query: MEDIA_BY_ID_DETAIL_GQL, variables: { id } }),
+    signal,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
+  }
+  const json = (await res.json()) as {
+    errors?: { message: string }[];
+    data?: { Media?: AniListMediaDetail };
+  };
+  if (json.errors) throw new Error(json.errors.map((e) => e.message).join(", "));
+  if (!json.data?.Media) throw new Error("Anime introuvable sur AniList");
+  return json.data.Media;
+}
+
+/** Strip AniList spoiler markers and residual HTML from a synopsis. */
+export function plainSynopsis(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw
+    .replace(/~![\s\S]*?!~/g, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function trailerWatchUrl(
+  trailer: { id: string | null; site: string | null } | null | undefined,
+): string | null {
+  if (!trailer?.id || !trailer.site) return null;
+  const site = trailer.site.toLowerCase();
+  if (site === "youtube") return `https://www.youtube.com/watch?v=${trailer.id}`;
+  if (site === "dailymotion") return `https://www.dailymotion.com/video/${trailer.id}`;
+  return null;
+}
+
+export function trailerEmbedUrl(
+  trailer: { id: string | null; site: string | null } | null | undefined,
+): string | null {
+  if (!trailer?.id || !trailer.site) return null;
+  const site = trailer.site.toLowerCase();
+  if (site === "youtube") return `https://www.youtube.com/embed/${trailer.id}`;
+  if (site === "dailymotion") return `https://www.dailymotion.com/embed/video/${trailer.id}`;
+  return null;
 }
 
 export const TRENDING_KEY = "__trending__";
