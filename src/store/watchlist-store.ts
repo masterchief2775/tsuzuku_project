@@ -516,6 +516,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     if (selectedIds.length === 0) return;
     const idSet = new Set(selectedIds);
     const now = new Date().toISOString();
+    let needsAiringRefresh = false;
     const next = entries.map((e) => {
       if (!idSet.has(e.id)) return e;
       const updated = { ...e, status, updatedAt: now };
@@ -527,6 +528,11 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       ) {
         updated.progress = updated.totalEpisodes;
       }
+      // Passage en "En cours" : forcer un refresh AniList (banner + prochain épisode)
+      if (status === "Watching" && e.status !== "Watching") {
+        updated.nextAiring = null;
+        needsAiringRefresh = true;
+      }
       return updated;
     });
     set({
@@ -537,6 +543,9 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     showToast({
       message: `${selectedIds.length} titre${selectedIds.length > 1 ? "s" : ""} mis à jour`,
     });
+    if (needsAiringRefresh || status === "Watching") {
+      void get().refreshNextAirings();
+    }
   },
 
   bulkRemove: () => {
