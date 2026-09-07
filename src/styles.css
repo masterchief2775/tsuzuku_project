@@ -160,6 +160,36 @@ html[data-theme="mono"] {
   --color-status-dropped: #ff6b6b;
 }
 
+html[data-theme="qc-sombre"] {
+  --color-bg: #0a1628;
+  --color-raised: #12203a;
+  --color-ink: #eef3fb;
+  --color-dim: #8fa3c4;
+  --color-line: #1a2f4d;
+  --color-lime: #3d7cff;
+  --color-crimson: #e85d75;
+  --color-status-plan: #7ba3ff;
+  --color-status-watching: #3d7cff;
+  --color-status-completed: #4fd1a5;
+  --color-status-hold: #f0c14a;
+  --color-status-dropped: #e85d75;
+}
+
+html[data-theme="qc-clair"] {
+  --color-bg: #f4f7fb;
+  --color-raised: #ffffff;
+  --color-ink: #0f1c33;
+  --color-dim: #5a6d8a;
+  --color-line: #d5deeb;
+  --color-lime: #003da5;
+  --color-crimson: #c62828;
+  --color-status-plan: #4a6fd4;
+  --color-status-watching: #003da5;
+  --color-status-completed: #0d8a5a;
+  --color-status-hold: #b8860b;
+  --color-status-dropped: #c62828;
+}
+
 @layer base {
   html {
     scrollbar-color: var(--color-lime) var(--color-bg);

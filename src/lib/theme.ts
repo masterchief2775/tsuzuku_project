@@ -1,10 +1,33 @@
 export type StandardThemeId = "dark" | "light" | "sakura" | "ocean";
-export type SecretThemeId = "void" | "ember" | "neon" | "aurora" | "manga" | "mono";
+export type SecretThemeId =
+  | "void"
+  | "ember"
+  | "neon"
+  | "aurora"
+  | "manga"
+  | "mono"
+  | "qc-sombre"
+  | "qc-clair";
 export type ThemeId = StandardThemeId | SecretThemeId;
 
 const STORAGE_KEY = "tsuzuku-theme";
 const SECRET_STORAGE_KEY = "tsuzuku-secret-themes";
 const LEGACY_SECRET_STORAGE_KEY = "tsuzuku-secret-theme";
+
+const ALL_SECRET_THEME_IDS: SecretThemeId[] = [
+  "void",
+  "ember",
+  "neon",
+  "aurora",
+  "manga",
+  "mono",
+  "qc-sombre",
+  "qc-clair",
+];
+
+function isSecretThemeId(value: string): value is SecretThemeId {
+  return (ALL_SECRET_THEME_IDS as string[]).includes(value);
+}
 
 export const SECRET_THEME_CODES: Record<SecretThemeId, string> = {
   void: "tsuzuku",
@@ -13,6 +36,8 @@ export const SECRET_THEME_CODES: Record<SecretThemeId, string> = {
   aurora: "aurore",
   manga: "mangaka",
   mono: "encre",
+  "qc-sombre": "qclibre",
+  "qc-clair": "duplessis",
 };
 
 const SECRET_THEMES: { id: SecretThemeId; label: string; swatch: [string, string, string] }[] = [
@@ -22,6 +47,8 @@ const SECRET_THEMES: { id: SecretThemeId; label: string; swatch: [string, string
   { id: "aurora", label: "Aurora", swatch: ["#071d22", "#62e6c5", "#17484a"] },
   { id: "manga", label: "Manga", swatch: ["#fff8ed", "#ff5d73", "#ffe0a8"] },
   { id: "mono", label: "Monochrome", swatch: ["#101010", "#f5f5f5", "#353535"] },
+  { id: "qc-sombre", label: "Québec sombre", swatch: ["#0a1628", "#3d7cff", "#1a2f4d"] },
+  { id: "qc-clair", label: "Québec clair", swatch: ["#f4f7fb", "#003da5", "#ffffff"] },
 ];
 
 export const THEMES: { id: ThemeId; label: string; swatch: [string, string, string] }[] = [
@@ -43,7 +70,7 @@ export function getUnlockedSecretThemes(): SecretThemeId[] {
       const values = JSON.parse(parsed) as unknown;
       if (Array.isArray(values)) {
         for (const value of values) {
-          if (value === "void" || value === "ember" || value === "neon" || value === "aurora" || value === "manga" || value === "mono") {
+          if (typeof value === "string" && isSecretThemeId(value)) {
             unlocked.push(value);
           }
         }
@@ -100,9 +127,22 @@ export function recordSecretThemeInput(input: string): SecretThemeId | null {
 export function getStoredTheme(): ThemeId {
   if (typeof window === "undefined") return "dark";
   const v = window.localStorage.getItem(STORAGE_KEY);
-  const valid: ThemeId[] = ["dark", "light", "sakura", "ocean", "void", "ember", "neon", "aurora", "manga", "mono"];
+  const valid: ThemeId[] = [
+    "dark",
+    "light",
+    "sakura",
+    "ocean",
+    "void",
+    "ember",
+    "neon",
+    "aurora",
+    "manga",
+    "mono",
+    "qc-sombre",
+    "qc-clair",
+  ];
 
-  if (v && (v === "void" || v === "ember" || v === "neon" || v === "aurora" || v === "manga" || v === "mono") && !isSecretThemeUnlocked(v as SecretThemeId)) {
+  if (v && isSecretThemeId(v) && !isSecretThemeUnlocked(v)) {
     return "dark";
   }
   if (v && valid.includes(v as ThemeId)) return v as ThemeId;
@@ -111,7 +151,10 @@ export function getStoredTheme(): ThemeId {
 
 export function applyTheme(id: ThemeId) {
   if (typeof document === "undefined") return;
-  const safeId = id !== "dark" && id !== "light" && id !== "sakura" && id !== "ocean" && !isSecretThemeUnlocked(id) ? "dark" : id;
+  const safeId =
+    id !== "dark" && id !== "light" && id !== "sakura" && id !== "ocean" && !isSecretThemeUnlocked(id)
+      ? "dark"
+      : id;
   document.documentElement.setAttribute("data-theme", safeId);
   window.localStorage.setItem(STORAGE_KEY, safeId);
 }

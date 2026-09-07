@@ -33,7 +33,15 @@ export function ThemePicker() {
   }, [open]);
 
   const pick = (id: ThemeId) => {
-    const isSecretTheme = id === "void" || id === "ember" || id === "neon" || id === "aurora" || id === "manga" || id === "mono";
+    const isSecretTheme =
+      id === "void" ||
+      id === "ember" ||
+      id === "neon" ||
+      id === "aurora" ||
+      id === "manga" ||
+      id === "mono" ||
+      id === "qc-sombre" ||
+      id === "qc-clair";
     if (isSecretTheme && !isSecretThemeUnlocked(id)) return;
     setTheme(id);
     applyTheme(id);
@@ -56,7 +64,16 @@ export function ThemePicker() {
   };
 
   const hasUnlockedSecretTheme = THEMES.some(
-    (t) => (t.id === "void" || t.id === "ember" || t.id === "neon" || t.id === "aurora" || t.id === "manga" || t.id === "mono") && isSecretThemeUnlocked(t.id),
+    (t) =>
+      (t.id === "void" ||
+        t.id === "ember" ||
+        t.id === "neon" ||
+        t.id === "aurora" ||
+        t.id === "manga" ||
+        t.id === "mono" ||
+        t.id === "qc-sombre" ||
+        t.id === "qc-clair") &&
+      isSecretThemeUnlocked(t.id),
   );
 
   const visibleThemes = THEMES.filter(

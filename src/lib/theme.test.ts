@@ -64,20 +64,26 @@ describe("theme secrets", () => {
     const aurora = recordSecretThemeInput("aurore");
     const manga = recordSecretThemeInput("mangaka");
     const mono = recordSecretThemeInput("encre");
+    const qcSombre = recordSecretThemeInput("qclibre");
+    const qcClair = recordSecretThemeInput("duplessis");
 
     assert.equal(ember, "ember");
     assert.equal(neon, "neon");
     assert.equal(aurora, "aurora");
     assert.equal(manga, "manga");
     assert.equal(mono, "mono");
+    assert.equal(qcSombre, "qc-sombre");
+    assert.equal(qcClair, "qc-clair");
     assert.equal(isSecretThemeUnlocked("ember"), true);
     assert.equal(isSecretThemeUnlocked("neon"), true);
     assert.equal(isSecretThemeUnlocked("aurora"), true);
     assert.equal(isSecretThemeUnlocked("manga"), true);
     assert.equal(isSecretThemeUnlocked("mono"), true);
+    assert.equal(isSecretThemeUnlocked("qc-sombre"), true);
+    assert.equal(isSecretThemeUnlocked("qc-clair"), true);
     assert.equal(
       globalThis.localStorage.getItem("tsuzuku-secret-themes"),
-      JSON.stringify(["void", "ember", "neon", "aurora", "manga", "mono"]),
+      JSON.stringify(["void", "ember", "neon", "aurora", "manga", "mono", "qc-sombre", "qc-clair"]),
     );
   });
 
