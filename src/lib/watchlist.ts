@@ -138,7 +138,7 @@ export function nextAiringText(entry: Pick<WatchlistEntry, "nextAiring" | "statu
   if (entry.nextAiring.airingAt <= 0 || entry.nextAiring.episode <= 0) return null;
   const now = Math.floor(Date.now() / 1000);
   const seconds = entry.nextAiring.airingAt - now;
-  if (seconds <= 0) return `Ép. ${entry.nextAiring.episode} bientôt`;
+  if (seconds <= 0) return `Ép. ${entry.nextAiring.episode} disponible`;
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const mins = Math.floor((seconds % 3600) / 60);

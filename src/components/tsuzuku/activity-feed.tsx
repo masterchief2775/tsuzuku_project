@@ -56,7 +56,7 @@ export function ActivityFeed({ compact = true }: { compact?: boolean }) {
   const reload = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const list = await fetchFriendActivity(compact ? 8 : 15);
+      const list = await fetchFriendActivity(compact ? 4 : 15);
       setItems(list);
     } catch {
       /* offline */

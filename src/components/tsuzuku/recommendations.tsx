@@ -88,7 +88,7 @@ export function Recommendations() {
         ) : null}
       </p>
       {error ? <p className="text-sm text-dim">{error}</p> : null}
-      {loading ? <MediaGridSkeleton count={4} /> : null}
+      {loading ? <MediaGridSkeleton count={6} /> : null}
       {!loading && !error && results.length === 0 ? (
         <p className="rounded-[10px] border border-dashed border-line px-4 py-5 text-center text-sm text-dim">
           Pas de suggestion pour l&apos;instant — ajoute d&apos;autres titres notés ou terminés.
