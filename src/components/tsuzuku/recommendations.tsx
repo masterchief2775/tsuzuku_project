@@ -33,7 +33,7 @@ export function Recommendations() {
     }
     const cached = recoCache.get(cacheKey);
     if (cached) {
-      setResults(cached.filter((m) => !owned.has(m.id)).slice(0, 8));
+      setResults(cached.filter((m) => !owned.has(m.id)).slice(0, 6));
       return;
     }
     abortRef.current?.abort();
@@ -50,7 +50,7 @@ export function Recommendations() {
           const first = recoCache.keys().next().value;
           if (first) recoCache.delete(first);
         }
-        setResults(filtered.slice(0, 8));
+        setResults(filtered.slice(0, 6));
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         setError("Suggestions indisponibles pour le moment");
