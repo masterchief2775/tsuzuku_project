@@ -219,7 +219,7 @@ export function MessagesView() {
 
   if (activeUserId) {
     return (
-      <div className="mx-auto flex h-[calc(100dvh-140px)] max-w-2xl animate-fade-up flex-col">
+      <div className="mx-auto flex h-[calc(100dvh-140px)] w-full max-w-2xl animate-fade-up flex-col">
         <div className="mb-3 flex items-center gap-3">
           <button
             type="button"
@@ -275,7 +275,7 @@ export function MessagesView() {
 
         {error ? <p className="mt-2 text-xs font-semibold text-crimson">{error}</p> : null}
 
-        <form onSubmit={(event) => void submitReply(event)} className="mt-3 flex items-end gap-2">
+        <form onSubmit={(event) => void submitReply(event)} className="mt-3 flex w-full min-w-0 items-end gap-2">
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
@@ -285,7 +285,7 @@ export function MessagesView() {
                 void submitReply(event as unknown as React.FormEvent<HTMLFormElement>);
               }
             }}
-            className="ui-input min-h-11 flex-1 resize-none py-2.5"
+            className="ui-input min-h-11 min-w-0 flex-1 resize-none py-2.5"
             placeholder="Écris un message…"
             rows={1}
             maxLength={2000}
@@ -293,7 +293,7 @@ export function MessagesView() {
           <button
             type="submit"
             disabled={sending || !body.trim()}
-            className="ui-button-primary w-auto shrink-0 px-4 disabled:opacity-60"
+            className="ui-button-primary h-11 w-11 shrink-0 px-0 disabled:opacity-60"
             aria-label="Envoyer"
           >
             <Send className="size-4" />
@@ -304,7 +304,7 @@ export function MessagesView() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl animate-fade-up">
+    <div className="mx-auto w-full max-w-2xl animate-fade-up">
       <div className="mb-6">
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Messages</h1>
         <p className="mt-1 text-sm text-dim">Échange en direct avec les utilisateurs de Tsuzuku.</p>

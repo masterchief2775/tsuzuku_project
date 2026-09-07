@@ -230,7 +230,7 @@ function LoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className="ui-button-primary disabled:cursor-wait disabled:opacity-60"
+              className="ui-button-primary w-full disabled:cursor-wait disabled:opacity-60"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : mode === "login" ? <LogIn className="size-4" /> : <UserPlus className="size-4" />}
               {mode === "login" ? "Se connecter" : "Créer mon compte"}

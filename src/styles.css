@@ -317,7 +317,6 @@ html[data-theme="mono"] {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    width: 100%;
     border-radius: 12px;
     border: 1px solid color-mix(in oklab, var(--color-lime) 30%, var(--color-line));
     background: var(--color-lime);
