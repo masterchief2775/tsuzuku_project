@@ -343,6 +343,26 @@ const GENRE_RECO_GQL = `query ($genres: [String], $perPage: Int) {
     media(genre_in: $genres, type: ANIME, isAdult: false, sort: SCORE_DESC) { ${MEDIA_FIELDS} }
   }
 }`;
+
+/** Large, pageable pool for the roulette (format + genre filters server-side). */
+const ROULETTE_POOL_GQL = `query (
+  $page: Int,
+  $perPage: Int,
+  $genres: [String],
+  $format_in: [MediaFormat],
+  $sort: [MediaSort]
+) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo { lastPage hasNextPage }
+    media(
+      type: ANIME
+      isAdult: false
+      genre_in: $genres
+      format_in: $format_in
+      sort: $sort
+    ) { ${MEDIA_FIELDS} }
+  }
+}`;
 const SEASON_GQL = `query ($season: MediaSeason, $seasonYear: Int, $page: Int) {
   Page(page: $page, perPage: 24) {
     media(season: $season, seasonYear: $seasonYear, type: ANIME, isAdult: false, sort: POPULARITY_DESC) { ${MEDIA_FIELDS} }
@@ -400,6 +420,115 @@ export function fetchByGenres(
   if (genres.length === 0) return Promise.resolve([]);
   return fetchAniList(GENRE_RECO_GQL, { genres, perPage }, signal);
 }
+
+export type RouletteFormatFilter = "all" | "series" | "film" | "ova";
+
+const ROULETTE_FORMATS: Record<Exclude<RouletteFormatFilter, "all">, string[]> = {
+  series: ["TV", "TV_SHORT", "ONA"],
+  film: ["MOVIE"],
+  ova: ["OVA", "SPECIAL"],
+};
+
+const ROULETTE_SORTS = [
+  "POPULARITY_DESC",
+  "SCORE_DESC",
+  "TRENDING_DESC",
+  "FAVOURITES_DESC",
+  "ID_DESC",
+  "START_DATE_DESC",
+] as const;
+
+/**
+ * Build a ~50-title AniList pool for the roulette.
+ * Uses multiple random pages + mixed sorts so results aren't stuck on the same trending set.
+ * Format/genre are applied in the GraphQL query (not only client-side) so filters stay full.
+ */
+export async function fetchRoulettePool(options: {
+  genre?: string | null;
+  format?: RouletteFormatFilter;
+  targetSize?: number;
+  signal?: AbortSignal;
+}): Promise<AniListMedia[]> {
+  const target = options.targetSize ?? 50;
+  const genre = options.genre && options.genre !== "Tous" ? options.genre : null;
+  const format = options.format ?? "all";
+  const formatIn = format === "all" ? null : ROULETTE_FORMATS[format];
+  const signal = options.signal;
+
+  const byId = new Map<number, AniListMedia>();
+
+  const fetchPage = async (page: number, sort: string) => {
+    const variables: Record<string, unknown> = {
+      page,
+      perPage: 50,
+      sort: [sort],
+    };
+    if (genre) variables.genres = [genre];
+    if (formatIn) variables.format_in = formatIn;
+    const res = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        query: ROULETTE_POOL_GQL,
+        variables,
+      }),
+      signal,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
+    }
+    const json = (await res.json()) as {
+      errors?: { message: string }[];
+      data?: {
+        Page?: {
+          pageInfo?: { lastPage?: number; hasNextPage?: boolean };
+          media?: AniListMedia[];
+        };
+      };
+    };
+    if (json.errors) throw new Error(json.errors.map((e) => e.message).join(", "));
+    return {
+      media: json.data?.Page?.media ?? [],
+      lastPage: json.data?.Page?.pageInfo?.lastPage ?? 1,
+    };
+  };
+
+  // First probe page to learn lastPage for this filter set
+  const probeSort = ROULETTE_SORTS[Math.floor(Math.random() * ROULETTE_SORTS.length)]!;
+  const probe = await fetchPage(1, probeSort);
+  for (const m of probe.media) byId.set(m.id, m);
+  const lastPage = Math.max(1, probe.lastPage);
+
+  // Pull several random pages with varied sorts until we have enough (~50)
+  const attempts = Math.min(8, Math.max(3, Math.ceil(target / 20)));
+  const usedPages = new Set<number>([1]);
+  for (let i = 0; i < attempts && byId.size < target; i++) {
+    let page = 1 + Math.floor(Math.random() * lastPage);
+    let guard = 0;
+    while (usedPages.has(page) && usedPages.size < lastPage && guard < 8) {
+      page = 1 + Math.floor(Math.random() * lastPage);
+      guard++;
+    }
+    usedPages.add(page);
+    const sort = ROULETTE_SORTS[Math.floor(Math.random() * ROULETTE_SORTS.length)]!;
+    try {
+      const batch = await fetchPage(page, sort);
+      for (const m of batch.media) byId.set(m.id, m);
+    } catch {
+      // ignore individual page failures; keep what we have
+    }
+  }
+
+  const all = [...byId.values()];
+  // Fisher–Yates shuffle
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j]!, all[i]!];
+  }
+  return all.slice(0, Math.min(Math.max(target, 50), all.length));
+}
+
 
 export function fetchBySeason(
   season: AniListSeason,

@@ -3,8 +3,7 @@ import { Dices, History, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
 import {
   collectFacets,
-  fetchByGenres,
-  fetchTrending,
+  fetchRoulettePool,
   kindLabel,
   mediaKind,
   mediaTitle,
@@ -12,6 +11,7 @@ import {
   statusMeta,
   type AniListMedia,
   type MediaFormat,
+  type RouletteFormatFilter,
   type StatusKey,
   type WatchlistEntry,
 } from "@/lib/watchlist";
@@ -40,8 +40,6 @@ const GLOBAL_GENRES = [
   "Thriller",
 ] as const;
 
-type FormatFilter = "all" | "series" | "film" | "ova";
-
 type RouletteItem = {
   key: string;
   title: string;
@@ -66,7 +64,7 @@ function shufflePick<T>(arr: T[]): T {
 function matchesFormat(
   format: MediaFormat | undefined | null,
   totalEpisodes: number | null | undefined,
-  filter: FormatFilter,
+  filter: RouletteFormatFilter,
 ) {
   if (filter === "all") return true;
   const kind = mediaKind(format ?? null, totalEpisodes ?? null);
@@ -93,7 +91,7 @@ export function RouletteView() {
   const [source, setSource] = useState<"list" | "anilist">("list");
   const [genre, setGenre] = useState<string>("Tous");
   const [statusScope, setStatusScope] = useState<"watchable" | "all" | StatusKey>("watchable");
-  const [formatFilter, setFormatFilter] = useState<FormatFilter>("all");
+  const [formatFilter, setFormatFilter] = useState<RouletteFormatFilter>("all");
   const [excludeSession, setExcludeSession] = useState(true);
   const [spinning, setSpinning] = useState(false);
   const [loadingPool, setLoadingPool] = useState(false);
@@ -104,6 +102,7 @@ export function RouletteView() {
   const [showFlash, setShowFlash] = useState(false);
   const [history, setHistory] = useState<RouletteItem[]>([]);
   const [sessionSkip, setSessionSkip] = useState<Set<string>>(new Set());
+  const [poolKey, setPoolKey] = useState(0);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -143,27 +142,22 @@ export function RouletteView() {
 
     void (async () => {
       try {
-        let media: AniListMedia[] = [];
-        if (genre !== "Tous") {
-          media = await fetchByGenres([genre], 50, ac.signal);
-        } else {
-          media = await fetchTrending(ac.signal);
-          // Mix in 2 random genres for more variety beyond pure trending
-          const picks = [...GLOBAL_GENRES].sort(() => Math.random() - 0.5).slice(0, 2);
-          for (const g of picks) {
-            const more = await fetchByGenres([g], 20, ac.signal);
-            const seen = new Set(media.map((m) => m.id));
-            for (const m of more) {
-              if (!seen.has(m.id)) {
-                media.push(m);
-                seen.add(m.id);
-              }
-            }
-          }
-        }
+        // ~50 titres, pages aléatoires, format filtré côté AniList
+        const media = await fetchRoulettePool({
+          genre,
+          format: formatFilter,
+          targetSize: 50,
+          signal: ac.signal,
+        });
         if (ac.signal.aborted) return;
+        // Shuffle again client-side for the reel order
+        const shuffled = [...media];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+        }
         setGlobalPool(
-          media.map((m) => ({
+          shuffled.map((m) => ({
             key: `al-${m.id}`,
             title: mediaTitle(m),
             image: m.coverImage?.large ?? null,
@@ -184,18 +178,16 @@ export function RouletteView() {
     })();
 
     return () => ac.abort();
-  }, [source, genre]);
+  }, [source, genre, formatFilter, poolKey]);
 
   const basePool = source === "list" ? listPool : globalPool;
   const pool = useMemo(() => {
     return basePool.filter((item) => {
-      if (source === "anilist") {
-        if (!matchesFormat(item.format, item.media?.episodes ?? null, formatFilter)) return false;
-        if (excludeSession && sessionSkip.has(item.key)) return false;
-      }
+      if (excludeSession && sessionSkip.has(item.key)) return false;
+      // Liste: format déjà filtré dans listPool. AniList: format filtré côté API.
       return true;
     });
-  }, [basePool, source, formatFilter, excludeSession, sessionSkip]);
+  }, [basePool, excludeSession, sessionSkip]);
 
   const genreOptions = source === "list" ? facets.genres : [...GLOBAL_GENRES];
   const canSpin = !spinning && !loadingPool && pool.length >= 2;
@@ -359,7 +351,7 @@ export function RouletteView() {
             <select
               value={formatFilter}
               disabled={spinning}
-              onChange={(e) => setFormatFilter(e.target.value as FormatFilter)}
+              onChange={(e) => setFormatFilter(e.target.value as RouletteFormatFilter)}
               className="rounded-[9px] border border-line bg-bg px-2.5 py-2 text-[13px] font-medium text-ink"
             >
               <option value="all">Tous</option>
@@ -393,16 +385,28 @@ export function RouletteView() {
 
       {/* Pool counter */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div
-          className={cn(
-            "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold",
-            pool.length >= 2
-              ? "border-lime/30 bg-lime/10 text-lime"
-              : "border-line bg-raised text-dim",
-          )}
-        >
-          {loadingPool ? <Loader2 className="size-3.5 animate-spin" /> : <Dices className="size-3.5" />}
-          {poolHint()}
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold",
+              pool.length >= 2
+                ? "border-lime/30 bg-lime/10 text-lime"
+                : "border-line bg-raised text-dim",
+            )}
+          >
+            {loadingPool ? <Loader2 className="size-3.5 animate-spin" /> : <Dices className="size-3.5" />}
+            {poolHint()}
+          </div>
+          {source === "anilist" ? (
+            <button
+              type="button"
+              disabled={loadingPool || spinning}
+              onClick={() => setPoolKey((k) => k + 1)}
+              className="rounded-full border border-line bg-raised px-3 py-1.5 text-[12px] font-semibold text-dim hover:text-ink disabled:opacity-40"
+            >
+              Nouveau tirage de pool
+            </button>
+          ) : null}
         </div>
         {poolError && source === "anilist" ? (
           <button
