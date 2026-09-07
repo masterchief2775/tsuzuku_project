@@ -37,7 +37,7 @@ export function Cover({ src, title, className, imgClassName }: CoverProps) {
           src={src}
           alt=""
           loading="lazy"
-          className={cn("size-full object-cover", imgClassName)}
+          className={cn("size-full object-cover object-top", imgClassName)}
           onError={() => setFailed(true)}
         />
       )}

@@ -24,7 +24,7 @@ export function MediaGrid({
             <Cover
               src={m.coverImage?.large}
               title={title}
-              className="aspect-[2/3] h-auto w-full shrink-0 object-cover"
+              className="aspect-[2/3] h-auto w-full shrink-0" imgClassName="object-top"
             />
             <div className="flex min-h-0 flex-1 flex-col px-3 pt-2.5 pb-3">
               <div className="line-clamp-2 min-h-[2.6em] text-[13px] leading-snug font-bold">

@@ -341,6 +341,10 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
         autoCompletedTitle = merged.title;
       }
       if (merged.status === "Completed" && prevStatus !== "Completed") {
+        // Terminé = tous les épisodes considérés comme vus
+        if (merged.totalEpisodes != null && merged.totalEpisodes > 0) {
+          merged.progress = merged.totalEpisodes;
+        }
         completedForActivity = merged;
       }
       if (
@@ -507,9 +511,19 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     if (selectedIds.length === 0) return;
     const idSet = new Set(selectedIds);
     const now = new Date().toISOString();
-    const next = entries.map((e) =>
-      idSet.has(e.id) ? { ...e, status, updatedAt: now } : e,
-    );
+    const next = entries.map((e) => {
+      if (!idSet.has(e.id)) return e;
+      const updated = { ...e, status, updatedAt: now };
+      if (
+        status === "Completed" &&
+        e.status !== "Completed" &&
+        updated.totalEpisodes != null &&
+        updated.totalEpisodes > 0
+      ) {
+        updated.progress = updated.totalEpisodes;
+      }
+      return updated;
+    });
     set({
       entries: applyPersist(next, userId, get),
       selectedIds: [],

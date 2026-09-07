@@ -26,13 +26,13 @@ export function EntryCard({
     <div
       className={cn(
         "group hover-lift relative rounded-[12px] border border-line bg-raised text-left shadow-sm",
-        compact ? "min-w-[150px] shrink-0" : "",
+        compact ? "w-[156px] max-w-[156px] shrink-0" : "",
       )}
       style={{ ["--accent" as string]: meta.color }}
     >
       <button type="button" className="block w-full text-left" onClick={() => onOpen(entry.id)}>
         <div className="relative overflow-hidden rounded-t-[12px]">
-          <Cover src={entry.image} title={entry.title} className="h-[210px] w-full" />
+          <Cover src={entry.image} title={entry.title} className="h-[210px] w-full" imgClassName="object-top" />
           <span className="absolute top-2 left-2 rounded-full bg-bg/85 px-2 py-0.5 text-[10px] font-bold text-[var(--accent)]">
             {meta.label}
           </span>
