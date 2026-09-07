@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   CheckSquare,
   LayoutGrid,
@@ -54,8 +54,19 @@ export function ListView() {
 
   const facets = collectFacets(entries);
   const advancedCount =
-    genreFilters.length + yearFilters.length + studioFilters.length + tagFilters.length + peopleFilters.length;
+    genreFilters.length +
+    yearFilters.length +
+    studioFilters.length +
+    tagFilters.length +
+    peopleFilters.length;
   const hasAdvanced = advancedCount > 0 || listQuery.trim().length > 0;
+
+  const statusCounts = useMemo(() => {
+    const map: Record<string, number> = { Tous: entries.length };
+    for (const s of STATUSES) map[s.key] = 0;
+    for (const e of entries) map[e.status] = (map[e.status] || 0) + 1;
+    return map;
+  }, [entries]);
 
   let list = filterEntries(entries, {
     status: statusFilter,
@@ -68,8 +79,10 @@ export function ListView() {
   });
   list = [...list].sort((a, b) => {
     if (sortBy === "updated") return +new Date(b.updatedAt) - +new Date(a.updatedAt);
-    if (sortBy === "title") return a.title.localeCompare(b.title);
+    if (sortBy === "added") return +new Date(b.addedAt) - +new Date(a.addedAt);
+    if (sortBy === "title") return a.title.localeCompare(b.title, "fr");
     if (sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
+    if (sortBy === "year") return (b.year || 0) - (a.year || 0);
     if (sortBy === "progress") {
       const pa = a.totalEpisodes ? a.progress / a.totalEpisodes : 0;
       const pb = b.totalEpisodes ? b.progress / b.totalEpisodes : 0;
@@ -78,8 +91,7 @@ export function ListView() {
     return 0;
   });
 
-  const allVisibleSelected =
-    list.length > 0 && list.every((e) => selectedIds.includes(e.id));
+  const allVisibleSelected = list.length > 0 && list.every((e) => selectedIds.includes(e.id));
 
   const onOpen = (id: string) => {
     if (selectionMode) {
@@ -90,15 +102,32 @@ export function ListView() {
   };
 
   return (
-    <div>
-      <div className="mb-3 flex items-center gap-2.5 rounded-[10px] border border-line bg-raised px-4 py-3 text-dim">
+    <div className="animate-fade-up">
+      <header className="mb-4">
+        <h1 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">Ma liste</h1>
+        <p className="mt-0.5 text-[13px] text-dim">
+          {entries.length} titre{entries.length === 1 ? "" : "s"} au total
+          {statusFilter !== "Tous" ? (
+            <>
+              {" "}
+              · filtre{" "}
+              <span className="font-semibold text-ink">
+                {STATUSES.find((s) => s.key === statusFilter)?.label ?? statusFilter}
+              </span>
+            </>
+          ) : null}
+        </p>
+      </header>
+
+      {/* Search */}
+      <div className="mb-3 flex items-center gap-2.5 rounded-[12px] border border-line bg-raised px-3.5 py-2.5 text-dim focus-within:border-lime/40">
         <Search className="size-4 shrink-0" />
         <input
           id="list-search-input"
           value={listQuery}
           onChange={(ev) => setListQuery(ev.target.value)}
           placeholder="Filtrer par titre, tag ou avis…"
-          className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-dim"
           aria-label="Rechercher dans ma liste"
         />
         {listQuery ? (
@@ -108,27 +137,32 @@ export function ListView() {
         ) : null}
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex flex-wrap gap-1.5">
-          <FilterPill active={statusFilter === "Tous"} onClick={() => setStatusFilter("Tous")}>
-            Tous
+      {/* Status pills with counts */}
+      <div className="mb-3 flex gap-1.5 overflow-x-auto pb-0.5">
+        <FilterPill active={statusFilter === "Tous"} onClick={() => setStatusFilter("Tous")}>
+          Tous
+          <span className="ml-1 tabular-nums opacity-70">{statusCounts.Tous}</span>
+        </FilterPill>
+        {STATUSES.map((s) => (
+          <FilterPill
+            key={s.key}
+            active={statusFilter === s.key}
+            accent={s.color}
+            onClick={() => setStatusFilter(s.key)}
+          >
+            {s.label}
+            <span className="ml-1 tabular-nums opacity-70">{statusCounts[s.key] ?? 0}</span>
           </FilterPill>
-          {STATUSES.map((s) => (
-            <FilterPill
-              key={s.key}
-              active={statusFilter === s.key}
-              accent={s.color}
-              onClick={() => setStatusFilter(s.key)}
-            >
-              {s.label}
-            </FilterPill>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             className={cn(
-              "flex items-center gap-1.5 rounded-sm border px-2.5 py-2 text-[12.5px] font-semibold",
+              "flex items-center gap-1.5 rounded-[10px] border px-2.5 py-2 text-[12.5px] font-semibold",
               selectionMode ? "border-lime bg-lime/10 text-lime" : "border-line bg-raised text-dim",
             )}
             onClick={() => {
@@ -142,7 +176,7 @@ export function ListView() {
           <button
             type="button"
             className={cn(
-              "flex items-center gap-1.5 rounded-sm border px-2.5 py-2 text-[12.5px] font-semibold",
+              "flex items-center gap-1.5 rounded-[10px] border px-2.5 py-2 text-[12.5px] font-semibold",
               filtersOpen || advancedCount > 0
                 ? "border-lime bg-lime/10 text-lime"
                 : "border-line bg-raised text-dim",
@@ -158,20 +192,24 @@ export function ListView() {
               </span>
             ) : null}
           </button>
+        </div>
+        <div className="flex items-center gap-2">
           <select
             value={sortBy}
             onChange={(ev) => setSortBy(ev.target.value as SortId)}
-            className="rounded-sm border border-line bg-raised px-2.5 py-2 text-[12.5px]"
+            className="rounded-[10px] border border-line bg-raised px-2.5 py-2 text-[12.5px]"
             aria-label="Trier"
           >
-            <option value="updated">Mis à jour récemment</option>
+            <option value="updated">Mis à jour</option>
+            <option value="added">Ajoutés récemment</option>
             <option value="title">Titre (A–Z)</option>
             <option value="rating">Note</option>
             <option value="progress">Progression</option>
+            <option value="year">Année</option>
           </select>
           <button
             type="button"
-            className="rounded-sm border border-line bg-raised p-2"
+            className="rounded-[10px] border border-line bg-raised p-2"
             aria-label={layout === "grid" ? "Vue liste" : "Vue grille"}
             onClick={() => setLayout(layout === "grid" ? "list" : "grid")}
           >
@@ -180,15 +218,14 @@ export function ListView() {
         </div>
       </div>
 
+      {/* Selection bar */}
       {selectionMode ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[10px] border border-lime/40 bg-lime/5 px-3 py-2.5">
+        <div className="sticky top-[4.5rem] z-20 mb-4 flex flex-wrap items-center gap-2 rounded-[12px] border border-lime/40 bg-raised/95 px-3 py-2.5 shadow-lg backdrop-blur-md">
           <button
             type="button"
             className="flex items-center gap-1.5 text-[12.5px] font-semibold text-dim"
             onClick={() =>
-              allVisibleSelected
-                ? selectAllVisible([])
-                : selectAllVisible(list.map((e) => e.id))
+              allVisibleSelected ? selectAllVisible([]) : selectAllVisible(list.map((e) => e.id))
             }
           >
             {allVisibleSelected ? (
@@ -199,7 +236,7 @@ export function ListView() {
             {selectedIds.length} sélectionné{selectedIds.length > 1 ? "s" : ""}
           </button>
           <select
-            className="rounded-sm border border-line bg-raised px-2 py-1.5 text-[12px]"
+            className="rounded-[9px] border border-line bg-bg px-2 py-1.5 text-[12px]"
             defaultValue=""
             onChange={(e) => {
               const v = e.target.value as StatusKey | "";
@@ -229,13 +266,13 @@ export function ListView() {
               value={tagDraft}
               onChange={(e) => setTagDraft(e.target.value)}
               placeholder="Ajouter un tag"
-              className="w-28 rounded-sm border border-line bg-raised px-2 py-1.5 text-[12px] outline-none sm:w-36"
+              className="w-28 rounded-[9px] border border-line bg-bg px-2 py-1.5 text-[12px] outline-none sm:w-36"
               disabled={selectedIds.length === 0}
             />
             <button
               type="submit"
               disabled={selectedIds.length === 0 || !tagDraft.trim()}
-              className="rounded-sm border border-line bg-raised px-2 py-1.5 text-[12px] font-semibold disabled:opacity-40"
+              className="rounded-[9px] border border-line bg-bg px-2 py-1.5 text-[12px] font-semibold disabled:opacity-40"
             >
               Tag
             </button>
@@ -244,7 +281,7 @@ export function ListView() {
             type="button"
             disabled={selectedIds.length === 0}
             onClick={() => setConfirmDelete(true)}
-            className="ml-auto flex items-center gap-1 rounded-sm border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-[12px] font-semibold text-red-300 disabled:opacity-40"
+            className="ml-auto flex items-center gap-1 rounded-[9px] border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-[12px] font-semibold text-red-300 disabled:opacity-40"
           >
             <Trash2 className="size-3.5" />
             Supprimer
@@ -284,7 +321,7 @@ export function ListView() {
       ) : null}
 
       {filtersOpen ? (
-        <div className="mb-5 space-y-3 rounded-lg border border-line bg-raised p-4">
+        <div className="mb-5 space-y-3 rounded-[12px] border border-line bg-raised p-4">
           <FacetRow label="Genres" empty="Aucun genre pour l’instant">
             {facets.genres.map((g) => (
               <FilterPill key={g} active={genreFilters.includes(g)} onClick={() => toggleGenreFilter(g)}>
@@ -340,15 +377,34 @@ export function ListView() {
         </div>
       ) : null}
 
-      <div className="mb-3 text-xs font-semibold text-dim">
-        {list.length} titre{list.length === 1 ? "" : "s"}
-        {list.length !== entries.length ? ` sur ${entries.length}` : ""}
+      <div className="mb-3 flex items-center justify-between gap-2 text-xs font-semibold text-dim">
+        <span>
+          {list.length} titre{list.length === 1 ? "" : "s"}
+          {list.length !== entries.length ? ` sur ${entries.length}` : ""}
+        </span>
+        {hasAdvanced || statusFilter !== "Tous" ? (
+          <button
+            type="button"
+            className="font-semibold text-lime hover:underline"
+            onClick={() => {
+              setStatusFilter("Tous");
+              clearAdvancedFilters();
+            }}
+          >
+            Tout afficher
+          </button>
+        ) : null}
       </div>
 
       {list.length === 0 ? (
-        <div className="px-5 py-12 text-center">
-          <p className="mb-4 text-sm text-dim">
-            {entries.length === 0 ? "Rien ici pour l'instant." : "Aucun titre ne correspond."}
+        <div className="rounded-[14px] border border-dashed border-line px-5 py-14 text-center">
+          <p className="mb-1 font-serif text-lg font-medium">
+            {entries.length === 0 ? "Liste vide" : "Aucun résultat"}
+          </p>
+          <p className="mb-5 text-sm text-dim">
+            {entries.length === 0
+              ? "Cherche un anime pour commencer ta watchlist."
+              : "Aucun titre ne correspond à ces filtres."}
           </p>
           {entries.length === 0 ? (
             <button
@@ -362,7 +418,7 @@ export function ListView() {
           ) : (
             <button
               type="button"
-              className="text-sm font-semibold text-lime"
+              className="text-sm font-semibold text-lime hover:underline"
               onClick={() => {
                 setStatusFilter("Tous");
                 clearAdvancedFilters();
@@ -373,13 +429,13 @@ export function ListView() {
           )}
         </div>
       ) : layout === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] sm:gap-4">
           {list.map((e) => (
             <div key={e.id} className="relative">
               {selectionMode ? (
                 <button
                   type="button"
-                  className="absolute top-2 right-2 z-10 rounded-md bg-bg/90 p-1"
+                  className="absolute top-2 right-2 z-10 rounded-md bg-bg/90 p-1 shadow"
                   onClick={() => toggleSelected(e.id)}
                   aria-label="Sélectionner"
                 >
@@ -392,7 +448,7 @@ export function ListView() {
               ) : null}
               <div
                 className={cn(
-                  selectedIds.includes(e.id) && selectionMode ? "ring-2 ring-lime rounded-lg" : "",
+                  selectedIds.includes(e.id) && selectionMode ? "rounded-lg ring-2 ring-lime" : "",
                 )}
               >
                 <EntryCard entry={e} onOpen={onOpen} query={listQuery} />
@@ -407,7 +463,7 @@ export function ListView() {
               key={e.id}
               className={cn(
                 "flex items-stretch gap-2",
-                selectedIds.includes(e.id) && selectionMode ? "ring-2 ring-lime rounded-[10px]" : "",
+                selectedIds.includes(e.id) && selectionMode ? "rounded-[10px] ring-2 ring-lime" : "",
               )}
             >
               {selectionMode ? (
@@ -473,10 +529,10 @@ function FilterPill({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-2.5 py-1 text-[11.5px] font-semibold",
+        "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1.5 text-[11.5px] font-semibold",
         active
           ? "border-lime bg-lime/15 text-lime"
-          : "border-line bg-bg text-dim hover:border-lime/50",
+          : "border-line bg-raised text-dim hover:border-lime/50",
       )}
       style={active && accent ? { borderColor: accent, color: accent } : undefined}
     >

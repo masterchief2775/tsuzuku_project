@@ -87,25 +87,32 @@ export function EntryRow({
     >
       <button
         type="button"
-        className="grid w-full grid-cols-[40px_1fr_auto_auto_auto] items-center gap-3.5 py-2 pr-12 pl-3.5 text-left"
+        className="grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 py-2.5 pr-12 pl-3 text-left sm:grid-cols-[44px_minmax(0,1fr)_auto_auto_auto] sm:gap-3.5 sm:pl-3.5"
         onClick={() => onOpen(entry.id)}
       >
-        <Cover src={entry.image} title={entry.title} className="h-10 w-8 rounded" />
-        <div className="min-w-0 truncate text-[13.5px] font-semibold">
-          <Highlight text={entry.title} query={query} />
+        <Cover src={entry.image} title={entry.title} className="h-12 w-9 rounded-md sm:h-10 sm:w-8" />
+        <div className="min-w-0">
+          <div className="truncate text-[13.5px] font-semibold">
+            <Highlight text={entry.title} query={query} />
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-dim sm:hidden">
+            <span className="font-semibold text-[var(--accent)]">{meta.label}</span>
+            <span>{nextAiringText(entry) ?? progressText(entry)}</span>
+            {entry.year ? <span>{entry.year}</span> : null}
+          </div>
         </div>
-        <span className="rounded-full bg-bg px-2 py-0.5 text-[10px] font-bold text-[var(--accent)]">
+        <span className="hidden rounded-full bg-bg px-2 py-0.5 text-[10px] font-bold text-[var(--accent)] sm:inline">
           {meta.label}
         </span>
-        <span className="text-xs text-dim">
+        <span className="hidden text-xs text-dim sm:inline">
           {nextAiringText(entry) ?? progressText(entry)}
         </span>
         {entry.rating != null ? (
-          <span className="flex items-center gap-0.5 text-lime">
+          <span className="hidden items-center gap-0.5 text-lime sm:flex">
             <Star className="size-3 fill-lime" /> {entry.rating}
           </span>
         ) : (
-          <span />
+          <span className="hidden sm:block" />
         )}
       </button>
       <QuickActions entry={entry} />
