@@ -5,8 +5,11 @@ import { Recommendations } from "@/components/tsuzuku/recommendations";
 import {
   computeStats,
   nextAiringText,
+  progressText,
   STATUSES,
+  statusMeta,
   upcomingThisWeek,
+  type WatchlistEntry,
 } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { ActivityFeed } from "@/components/tsuzuku/activity-feed";
@@ -155,9 +158,9 @@ export function Dashboard() {
       {watching.length > 0 ? (
         <section className="mb-7">
           <h3 className="font-serif mb-3 text-[17px] font-medium">En cours</h3>
-          <div className="flex gap-3.5 overflow-x-auto pb-1.5">
+          <div className="flex flex-col gap-3">
             {watching.map((e) => (
-              <EntryCard key={e.id} entry={e} compact onOpen={setActiveEntryId} />
+              <WatchingBanner key={e.id} entry={e} onOpen={setActiveEntryId} />
             ))}
           </div>
         </section>
@@ -174,6 +177,69 @@ export function Dashboard() {
         </div>
       </section>
     </div>
+  );
+}
+
+function WatchingBanner({
+  entry,
+  onOpen,
+}: {
+  entry: WatchlistEntry;
+  onOpen: (id: string) => void;
+}) {
+  const meta = statusMeta(entry.status);
+  const airing = nextAiringText(entry);
+  const banner = entry.bannerImage || entry.image;
+  const pct =
+    entry.totalEpisodes && entry.totalEpisodes > 0
+      ? Math.min(100, Math.round((entry.progress / entry.totalEpisodes) * 100))
+      : null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(entry.id)}
+      className="group relative w-full overflow-hidden rounded-[14px] border border-line bg-raised text-left shadow-sm transition hover:border-lime/30"
+      style={{ ["--accent" as string]: meta.color }}
+    >
+      <div className="relative h-[140px] w-full overflow-hidden sm:h-[168px]">
+        {banner ? (
+          <img
+            src={banner}
+            alt=""
+            className="size-full object-cover object-center transition duration-300 group-hover:scale-[1.02]"
+            loading="lazy"
+          />
+        ) : (
+          <div className="size-full bg-bg" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/55 to-bg/10" />
+        <span className="absolute top-2.5 left-2.5 rounded-full bg-bg/85 px-2 py-0.5 text-[10px] font-bold text-[var(--accent)] backdrop-blur-sm">
+          {meta.label}
+        </span>
+        {airing ? (
+          <span className="absolute top-2.5 right-2.5 rounded-full bg-lime/20 px-2.5 py-0.5 text-[11px] font-bold text-lime backdrop-blur-sm">
+            {airing}
+          </span>
+        ) : null}
+      </div>
+      <div className="relative -mt-10 px-3.5 pb-3.5 pt-0">
+        <div className="line-clamp-2 text-[14px] leading-snug font-bold drop-shadow-sm sm:text-[15px]">
+          {entry.title}
+        </div>
+        <div className="mt-1.5 flex items-center justify-between gap-2 text-[12px] text-dim">
+          <span>{progressText(entry)}</span>
+          {entry.rating != null ? (
+            <span className="font-semibold text-lime">★ {entry.rating}</span>
+          ) : null}
+        </div>
+        {pct != null ? (
+          <div className="mt-2 h-1 overflow-hidden rounded bg-line">
+            <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+          </div>
+        ) : null}
+      </div>
+    </button>
   );
 }
 

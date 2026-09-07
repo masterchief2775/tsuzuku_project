@@ -451,7 +451,8 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
 
   refreshNextAirings: async () => {
     const watching = get().entries.filter(
-      (e) => e.status === "Watching" && isNextAiringStale(e),
+      (e) =>
+        e.status === "Watching" && (isNextAiringStale(e) || !e.bannerImage),
     );
     if (watching.length === 0) return;
     try {
@@ -469,13 +470,17 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
         return {
           ...e,
           totalEpisodes: media.episodes ?? e.totalEpisodes,
+          bannerImage: media.bannerImage || e.bannerImage || null,
+          image: media.coverImage?.large || e.image,
           nextAiring: media.nextAiringEpisode
             ? {
                 airingAt: media.nextAiringEpisode.airingAt,
                 episode: media.nextAiringEpisode.episode,
                 fetchedAt: now,
               }
-            : { airingAt: 0, episode: 0, fetchedAt: now },
+            : e.nextAiring?.fetchedAt && !isNextAiringStale(e)
+              ? e.nextAiring
+              : { airingAt: 0, episode: 0, fetchedAt: now },
         };
       });
       set({ entries: applyPersist(next, userId, get) });

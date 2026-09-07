@@ -38,7 +38,7 @@ export function EntryCard({
           </span>
         </div>
         <div className="px-3 pt-2.5 pb-3">
-          <div className="mb-1.5 min-h-[34px] text-[13px] leading-snug font-bold">
+          <div className="mb-1.5 line-clamp-2 min-h-[2.6em] text-[13px] leading-snug font-bold">
             <Highlight text={entry.title} query={query} />
           </div>
           <div className="flex justify-between text-[11.5px] text-dim">
@@ -91,7 +91,7 @@ export function EntryRow({
         onClick={() => onOpen(entry.id)}
       >
         <Cover src={entry.image} title={entry.title} className="h-10 w-8 rounded" />
-        <div className="truncate text-[13.5px] font-semibold">
+        <div className="min-w-0 truncate text-[13.5px] font-semibold">
           <Highlight text={entry.title} query={query} />
         </div>
         <span className="rounded-full bg-bg px-2 py-0.5 text-[10px] font-bold text-[var(--accent)]">

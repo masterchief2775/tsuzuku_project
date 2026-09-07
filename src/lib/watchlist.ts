@@ -30,6 +30,8 @@ export type WatchlistEntry = {
   anilistId: number;
   title: string;
   image: string | null;
+  /** AniList landscape banner (for dashboard "En cours", etc.) */
+  bannerImage?: string | null;
   totalEpisodes: number | null;
   genres: string[];
   year: number | null;
@@ -65,6 +67,7 @@ export type AniListMedia = {
   id: number;
   title: { romaji: string | null; english: string | null; native: string | null };
   coverImage: { large: string | null; color: string | null } | null;
+  bannerImage?: string | null;
   episodes: number | null;
   genres: string[] | null;
   seasonYear: number | null;
@@ -235,6 +238,7 @@ function normalizeEntry(e: WatchlistEntry): WatchlistEntry {
     ...e,
     format: e.format ?? null,
     image: e.image || null,
+    bannerImage: e.bannerImage ?? null,
     totalEpisodes: e.totalEpisodes ?? null,
     genres: e.genres || [],
     tags: e.tags || [],
@@ -254,6 +258,7 @@ export function entryFromMedia(media: AniListMedia): WatchlistEntry {
     anilistId: media.id,
     title: mediaTitle(media),
     image: media.coverImage?.large || null,
+    bannerImage: media.bannerImage || null,
     totalEpisodes: media.episodes ?? null,
     genres: media.genres || [],
     year: media.seasonYear ?? null,
@@ -305,6 +310,7 @@ const MEDIA_FIELDS = `
   id
   title { romaji english native }
   coverImage { large color }
+  bannerImage
   episodes
   genres
   seasonYear
@@ -326,7 +332,6 @@ const MEDIA_BY_IDS_GQL = `query ($ids: [Int]) { Page(perPage: 50) { media(id_in:
 const MEDIA_DETAIL_FIELDS = `
   ${MEDIA_FIELDS}
   description(asHtml: false)
-  bannerImage
   season
   siteUrl
   trailer { id site thumbnail }
@@ -614,6 +619,7 @@ export function technicalFieldsFromMedia(media: AniListMedia): Partial<Watchlist
   return {
     title: mediaTitle(media),
     image: media.coverImage?.large || null,
+    bannerImage: media.bannerImage || null,
     totalEpisodes: media.episodes ?? null,
     genres: media.genres || [],
     year: media.seasonYear ?? null,
