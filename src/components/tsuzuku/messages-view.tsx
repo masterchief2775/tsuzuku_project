@@ -10,7 +10,6 @@ import {
   listThread,
   markThreadRead,
   sendMessageToUser,
-  sendPrivateMessage,
   type ConversationSummary,
   type PrivateMessage,
 } from "@/lib/messages";
@@ -127,6 +126,7 @@ export function MessagesView() {
     setThreadMessages([]);
     setThreadLoaded(false);
     lastMessageIdRef.current = null;
+    setBody("");
     setError("");
     refreshThread(userId);
   }
@@ -162,25 +162,6 @@ export function MessagesView() {
       cancelled = true;
     };
   }, [composeUsername, user?.id]);
-
-  async function submitNew(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (sending || !body.trim()) return;
-    setSending(true);
-    setError("");
-    try {
-      const { receiverId } = await sendPrivateMessage({ data: { username: composeUsername, body } });
-      setComposeUsername("");
-      setRecipientResults([]);
-      setBody("");
-      refreshConversations();
-      openThread(receiverId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d'envoyer le message.");
-    } finally {
-      setSending(false);
-    }
-  }
 
   async function submitReply(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -219,8 +200,8 @@ export function MessagesView() {
 
   if (activeUserId) {
     return (
-      <div className="mx-auto flex h-[calc(100dvh-140px)] w-full max-w-2xl animate-fade-up flex-col">
-        <div className="mb-3 flex items-center gap-3">
+      <div className="mx-auto flex h-[calc(100dvh-12rem)] max-h-[calc(100dvh-12rem)] w-full max-w-2xl animate-fade-up flex-col overflow-hidden">
+        <div className="mb-3 flex shrink-0 items-center gap-3">
           <button
             type="button"
             onClick={backToList}
@@ -235,7 +216,7 @@ export function MessagesView() {
           </div>
         </div>
 
-        <div ref={scrollRef} className="ui-panel flex-1 space-y-3 overflow-y-auto p-4">
+        <div ref={scrollRef} className="ui-panel min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           {!threadLoaded ? (
             <p className="py-8 text-center text-sm text-dim">Chargement…</p>
           ) : threadMessages.length === 0 ? (
@@ -273,9 +254,9 @@ export function MessagesView() {
           )}
         </div>
 
-        {error ? <p className="mt-2 text-xs font-semibold text-crimson">{error}</p> : null}
+        {error ? <p className="mt-2 shrink-0 text-xs font-semibold text-crimson">{error}</p> : null}
 
-        <form onSubmit={(event) => void submitReply(event)} className="mt-3 flex w-full min-w-0 items-end gap-2">
+        <form onSubmit={(event) => void submitReply(event)} className="mt-3 flex w-full min-w-0 shrink-0 items-end gap-2">
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
@@ -304,67 +285,50 @@ export function MessagesView() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl animate-fade-up">
-      <div className="mb-6">
+    <div className="mx-auto flex h-[calc(100dvh-12rem)] max-h-[calc(100dvh-12rem)] w-full max-w-2xl animate-fade-up flex-col overflow-hidden">
+      <div className="mb-5 shrink-0">
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Messages</h1>
         <p className="mt-1 text-sm text-dim">Échange en direct avec les utilisateurs de Tsuzuku.</p>
       </div>
 
-      <section className="ui-panel mb-5 p-4 sm:p-5">
+      <section className="ui-panel mb-4 shrink-0 p-4 sm:p-5">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-          <Send className="size-4 text-lime" /> Nouveau message
+          <Send className="size-4 text-lime" /> Nouvelle conversation
         </h2>
-        <form className="space-y-3" onSubmit={(event) => void submitNew(event)}>
-          <div className="relative">
-            <input
-              value={composeUsername}
-              onChange={(event) => setComposeUsername(event.target.value)}
-              className="ui-input"
-              placeholder="Rechercher un destinataire…"
-              aria-label="Rechercher un destinataire"
-              autoComplete="off"
-              required
-            />
-            {recipientResults.length > 0 ? (
-              <div className="absolute top-full right-0 left-0 z-20 mt-1 overflow-hidden rounded-[12px] border border-line bg-raised shadow-xl">
-                {recipientResults.map((profile) => (
-                  <button
-                    key={profile.userId}
-                    type="button"
-                    onClick={() => {
-                      setComposeUsername(profile.username);
-                      setRecipientResults([]);
-                    }}
-                    className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-bg"
-                  >
-                    <span className="min-w-0 truncate text-sm font-semibold">{profile.displayName}</span>
-                    <span className="shrink-0 text-xs text-dim">@{profile.username}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <textarea
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            className="ui-input min-h-20 resize-y"
-            placeholder="Écris ton message…"
-            aria-label="Message"
-            maxLength={2000}
-            required
+        <div className="relative">
+          <input
+            value={composeUsername}
+            onChange={(event) => setComposeUsername(event.target.value)}
+            className="ui-input"
+            placeholder="Rechercher un destinataire…"
+            aria-label="Rechercher un destinataire"
+            autoComplete="off"
           />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-dim">{body.length}/2000</span>
-            <button type="submit" disabled={sending} className="ui-button-primary w-auto px-5 disabled:opacity-60">
-              <Send className="size-4" /> Envoyer
-            </button>
-          </div>
-        </form>
-        {error ? <p className="mt-3 text-xs font-semibold text-crimson">{error}</p> : null}
+          {recipientResults.length > 0 ? (
+            <div className="absolute top-full right-0 left-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-[12px] border border-line bg-raised shadow-xl">
+              {recipientResults.map((profile) => (
+                <button
+                  key={profile.userId}
+                  type="button"
+                  onClick={() => {
+                    setComposeUsername("");
+                    setRecipientResults([]);
+                    openThread(profile.userId, profile);
+                  }}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-bg"
+                >
+                  <span className="min-w-0 truncate text-sm font-semibold">{profile.displayName}</span>
+                  <span className="shrink-0 text-xs text-dim">@{profile.username}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <p className="mt-2 text-xs text-dim">Choisis un destinataire pour ouvrir la conversation.</p>
       </section>
 
-      <section className="ui-panel p-4 sm:p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+      <section className="ui-panel flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+        <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold">
           <Mail className="size-4 text-lime" /> Conversations
         </h2>
         {!conversationsLoaded ? (
@@ -372,7 +336,7 @@ export function MessagesView() {
         ) : conversations.length === 0 ? (
           <p className="py-8 text-center text-sm text-dim">Aucune conversation pour le moment.</p>
         ) : (
-          <div className="divide-y divide-line">
+          <div className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
             {conversations.map((c) => (
               <button
                 key={c.userId}
