@@ -904,9 +904,9 @@ html[data-theme="pride"] .border-lime\/50 {
 html[data-theme="lagtrain"] {
   --color-bg: #0b0d14;
   --color-raised: rgba(18, 22, 34, 0.88);
-  --color-ink: #eef2ff;
-  --color-dim: #a8b0c8;
-  --color-line: rgba(120, 140, 180, 0.35);
+  --color-ink: #f5f7ff;
+  --color-dim: #cbd3ec;
+  --color-line: rgba(140, 160, 200, 0.45);
   --color-lime: #8ec5ff;
   --color-crimson: #ff6b8a;
   --color-status-plan: #9aa7ff;
@@ -918,9 +918,17 @@ html[data-theme="lagtrain"] {
 
 html[data-theme="lagtrain"] body {
   background: #0b0d14;
+  /* Soft dark halo behind every glyph so text stays legible even where it
+     sits directly on the video with no card behind it (footer text, chips,
+     bare labels, etc.) — keeps the MV itself just as visible. */
+  text-shadow:
+    0 1px 3px rgba(3, 5, 10, 0.75),
+    0 0 10px rgba(3, 5, 10, 0.45);
 }
 
-/* Scrim over the video so text stays readable (darker) */
+/* Scrim over the video so text stays readable. Stops are now uniform
+   (no lighter "gap" in the middle band) so contrast doesn't dip wherever
+   the main content happens to sit. */
 html[data-theme="lagtrain"] body::before {
   content: "";
   position: fixed;
@@ -928,13 +936,13 @@ html[data-theme="lagtrain"] body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(6, 8, 14, 0.88) 0%, rgba(6, 8, 14, 0.78) 45%, rgba(6, 8, 14, 0.9) 100%),
-    radial-gradient(ellipse 80% 50% at 50% 20%, rgba(20, 30, 55, 0.2), transparent 60%);
+    linear-gradient(180deg, rgba(5, 7, 13, 0.92) 0%, rgba(5, 7, 13, 0.86) 45%, rgba(5, 7, 13, 0.94) 100%),
+    radial-gradient(ellipse 80% 50% at 50% 20%, rgba(20, 30, 55, 0.14), transparent 60%);
 }
 
 /* Dim the actual YouTube layer */
 html[data-theme="lagtrain"] #tsuzuku-theme-media-host {
-  filter: brightness(0.45) contrast(1.05) saturate(0.9);
+  filter: brightness(0.4) contrast(1.05) saturate(0.9);
 }
 
 html[data-theme="lagtrain"] body > * {
@@ -944,21 +952,21 @@ html[data-theme="lagtrain"] body > * {
 
 html[data-theme="lagtrain"] header,
 html[data-theme="lagtrain"] footer {
-  background: rgba(12, 14, 22, 0.85) !important;
+  background: rgba(10, 12, 19, 0.92) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
 
 html[data-theme="lagtrain"] .bg-raised,
 html[data-theme="lagtrain"] [class*="bg-raised"] {
-  background-color: rgba(18, 22, 34, 0.9) !important;
+  background-color: rgba(16, 20, 32, 0.95) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 html[data-theme="lagtrain"] .bg-bg,
 html[data-theme="lagtrain"] [class*="bg-bg"] {
-  background-color: rgba(12, 14, 22, 0.82) !important;
+  background-color: rgba(10, 12, 19, 0.9) !important;
 }
 
 html[data-theme="lagtrain"] .ambient-bg {
