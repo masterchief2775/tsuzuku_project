@@ -899,3 +899,63 @@ html[data-theme="pride"] .border-lime\/50 {
     transition: none !important;
   }
 }
+
+/* ---- Lagtrain: MV background + readable UI ---- */
+html[data-theme="lagtrain"] {
+  --color-bg: #0b0d14;
+  --color-raised: rgba(18, 22, 34, 0.88);
+  --color-ink: #eef2ff;
+  --color-dim: #a8b0c8;
+  --color-line: rgba(120, 140, 180, 0.35);
+  --color-lime: #8ec5ff;
+  --color-crimson: #ff6b8a;
+  --color-status-plan: #9aa7ff;
+  --color-status-watching: #8ec5ff;
+  --color-status-completed: #6ee7b7;
+  --color-status-hold: #fbbf24;
+  --color-status-dropped: #ff6b8a;
+}
+
+html[data-theme="lagtrain"] body {
+  background: #0b0d14;
+}
+
+/* Scrim over the video so text stays readable */
+html[data-theme="lagtrain"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(8, 10, 18, 0.72) 0%, rgba(8, 10, 18, 0.55) 40%, rgba(8, 10, 18, 0.78) 100%),
+    radial-gradient(ellipse 80% 50% at 50% 20%, rgba(30, 50, 90, 0.25), transparent 60%);
+}
+
+html[data-theme="lagtrain"] body > * {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-theme="lagtrain"] header,
+html[data-theme="lagtrain"] footer {
+  background: rgba(12, 14, 22, 0.85) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-theme="lagtrain"] .bg-raised,
+html[data-theme="lagtrain"] [class*="bg-raised"] {
+  background-color: rgba(18, 22, 34, 0.9) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html[data-theme="lagtrain"] .bg-bg,
+html[data-theme="lagtrain"] [class*="bg-bg"] {
+  background-color: rgba(12, 14, 22, 0.82) !important;
+}
+
+html[data-theme="lagtrain"] .ambient-bg {
+  background: transparent !important;
+}
