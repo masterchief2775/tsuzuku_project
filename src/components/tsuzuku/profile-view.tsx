@@ -743,6 +743,7 @@ export function ProfileView() {
     </>
   );
 
+}
 
 function FavoritesPicker({
   entries,
