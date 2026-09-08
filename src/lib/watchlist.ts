@@ -464,6 +464,7 @@ export function fetchByGenres(
 }
 
 export type RouletteFormatFilter = "all" | "series" | "film" | "ova";
+export type RouletteDiscoveryMode = "random" | "trending" | "popular";
 
 const ROULETTE_FORMATS: Record<Exclude<RouletteFormatFilter, "all">, string[]> = {
   series: ["TV", "TV_SHORT", "ONA"],
@@ -480,14 +481,27 @@ const ROULETTE_SORTS = [
   "START_DATE_DESC",
 ] as const;
 
+/** Fixed sort used for the non-random discovery modes — every page pulled
+ *  stays on this ranking instead of mixing sorts, so "Tendances"/"Populaires"
+ *  actually reflect that ranking rather than a general shuffle. */
+const DISCOVERY_MODE_SORT: Record<Exclude<RouletteDiscoveryMode, "random">, string> = {
+  trending: "TRENDING_DESC",
+  popular: "POPULARITY_DESC",
+};
+
 /**
  * Build a ~50-title AniList pool for the roulette.
- * Uses multiple random pages + mixed sorts so results aren't stuck on the same trending set.
+ * - mode "random" (default): multiple random pages + mixed sorts so results
+ *   aren't stuck on the same trending set.
+ * - mode "trending" / "popular": stays on the first pages of that single
+ *   ranking, so the pool is genuinely made of trending/most-popular titles
+ *   instead of anything AniList has.
  * Format/genre are applied in the GraphQL query (not only client-side) so filters stay full.
  */
 export async function fetchRoulettePool(options: {
   genre?: string | null;
   format?: RouletteFormatFilter;
+  mode?: RouletteDiscoveryMode;
   targetSize?: number;
   signal?: AbortSignal;
 }): Promise<AniListMedia[]> {
@@ -495,6 +509,7 @@ export async function fetchRoulettePool(options: {
   const genre = options.genre && options.genre !== "Tous" ? options.genre : null;
   const format = options.format ?? "all";
   const formatIn = format === "all" ? null : ROULETTE_FORMATS[format];
+  const mode = options.mode ?? "random";
   const signal = options.signal;
 
   const byId = new Map<number, AniListMedia>();
@@ -535,6 +550,30 @@ export async function fetchRoulettePool(options: {
       lastPage: json.data?.Page?.pageInfo?.lastPage ?? 1,
     };
   };
+
+  if (mode !== "random") {
+    // Trending / Popular: walk the first pages of that single ranking only —
+    // no random page jumps, so the pool stays genuinely top-ranked.
+    const sort = DISCOVERY_MODE_SORT[mode];
+    const pagesNeeded = Math.max(1, Math.ceil(target / 50));
+    for (let page = 1; page <= pagesNeeded; page++) {
+      try {
+        const batch = await fetchPage(page, sort);
+        for (const m of batch.media) byId.set(m.id, m);
+        if (batch.media.length === 0) break;
+      } catch {
+        // ignore individual page failures; keep what we have
+      }
+    }
+    // Shuffle client-side so the reel doesn't just spin in ranking order —
+    // it's still a roulette, just drawn from a trending/popular shortlist.
+    const ranked = [...byId.values()];
+    for (let i = ranked.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ranked[i], ranked[j]] = [ranked[j]!, ranked[i]!];
+    }
+    return ranked.slice(0, Math.min(Math.max(target, 50), ranked.length));
+  }
 
   // First probe page to learn lastPage for this filter set
   const probeSort = ROULETTE_SORTS[Math.floor(Math.random() * ROULETTE_SORTS.length)]!;

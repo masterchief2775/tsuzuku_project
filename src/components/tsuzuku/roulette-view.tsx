@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Dices, History, Loader2, Plus, Sparkles, X } from "lucide-react";
+import { Dices, Flame, History, Loader2, Plus, Shuffle, Sparkles, Star, X } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
 import {
   collectFacets,
@@ -11,6 +11,7 @@ import {
   statusMeta,
   type AniListMedia,
   type MediaFormat,
+  type RouletteDiscoveryMode,
   type RouletteFormatFilter,
   type StatusKey,
   type WatchlistEntry,
@@ -89,6 +90,7 @@ export function RouletteView() {
 
   const facets = useMemo(() => collectFacets(entries), [entries]);
   const [source, setSource] = useState<"list" | "anilist">("list");
+  const [discoveryMode, setDiscoveryMode] = useState<RouletteDiscoveryMode>("random");
   const [genre, setGenre] = useState<string>("Tous");
   const [statusScope, setStatusScope] = useState<"watchable" | "all" | StatusKey>("watchable");
   const [formatFilter, setFormatFilter] = useState<RouletteFormatFilter>("all");
@@ -142,10 +144,12 @@ export function RouletteView() {
 
     void (async () => {
       try {
-        // ~50 titres, pages aléatoires, format filtré côté AniList
+        // ~50 titres. En mode aléatoire: pages + tris mélangés. En mode
+        // tendances/populaires: premières pages de ce classement précis.
         const media = await fetchRoulettePool({
           genre,
           format: formatFilter,
+          mode: discoveryMode,
           targetSize: 50,
           signal: ac.signal,
         });
@@ -178,7 +182,7 @@ export function RouletteView() {
     })();
 
     return () => ac.abort();
-  }, [source, genre, formatFilter, poolKey]);
+  }, [source, genre, formatFilter, discoveryMode, poolKey]);
 
   const basePool = source === "list" ? listPool : globalPool;
   const pool = useMemo(() => {
@@ -303,6 +307,37 @@ export function RouletteView() {
           Découverte AniList
         </SourceTab>
       </div>
+
+      {/* Discovery mode (AniList only): random pool, or a shortlist pinned to
+          AniList's current trending / all-time popularity ranking. */}
+      {source === "anilist" ? (
+        <div className="mb-3 flex gap-1.5 rounded-[12px] border border-line bg-raised p-1">
+          <DiscoveryModeTab
+            active={discoveryMode === "random"}
+            disabled={spinning}
+            onClick={() => setDiscoveryMode("random")}
+            icon={<Shuffle className="size-3.5" />}
+          >
+            Aléatoire
+          </DiscoveryModeTab>
+          <DiscoveryModeTab
+            active={discoveryMode === "trending"}
+            disabled={spinning}
+            onClick={() => setDiscoveryMode("trending")}
+            icon={<Flame className="size-3.5" />}
+          >
+            Tendances
+          </DiscoveryModeTab>
+          <DiscoveryModeTab
+            active={discoveryMode === "popular"}
+            disabled={spinning}
+            onClick={() => setDiscoveryMode("popular")}
+            icon={<Star className="size-3.5" />}
+          >
+            Populaires
+          </DiscoveryModeTab>
+        </div>
+      ) : null}
 
       {/* Setup */}
       <div className="mb-3 space-y-3 rounded-[12px] border border-line bg-raised p-4">
@@ -521,6 +556,15 @@ export function RouletteView() {
           item={winner}
           alreadyInList={winner.media ? addedIds.has(winner.media.id) : true}
           poolSize={pool.length}
+          discoveryLabel={
+            source === "anilist"
+              ? discoveryMode === "trending"
+                ? "Tendances AniList"
+                : discoveryMode === "popular"
+                  ? "Populaires AniList"
+                  : "Découverte AniList"
+              : undefined
+          }
           onOpenList={() => {
             if (winner.entry) setActiveEntryId(winner.entry.id);
           }}
@@ -596,6 +640,35 @@ function SourceTab({
   );
 }
 
+function DiscoveryModeTab({
+  active,
+  disabled,
+  onClick,
+  icon,
+  children,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-3 py-1.5 text-[12.5px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        active ? "bg-lime text-bg" : "text-dim hover:text-ink",
+      )}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
 function ConfettiBurst() {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -652,6 +725,7 @@ function WinnerCard({
   item,
   alreadyInList,
   poolSize,
+  discoveryLabel,
   onOpenList,
   onAdd,
   onBump,
@@ -661,6 +735,7 @@ function WinnerCard({
   item: RouletteItem;
   alreadyInList: boolean;
   poolSize: number;
+  discoveryLabel?: string;
   onOpenList: () => void;
   onAdd: () => void;
   onBump: () => void;
@@ -700,7 +775,7 @@ function WinnerCard({
               {meta?.label} · {progressText(item.entry)}
             </>
           ) : (
-            "Découverte AniList"
+            discoveryLabel ?? "Découverte AniList"
           )}
           {item.year ? ` · ${item.year}` : ""}
           {kind ? ` · ${kind}` : ""}
