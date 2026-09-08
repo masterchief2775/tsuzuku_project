@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { PrideMusic } from "@/components/tsuzuku/pride-music";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Tsuzuku";
@@ -33,13 +34,14 @@ export const Route = createRootRoute({
         <HeadContent />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("tsuzuku-theme");var raw=localStorage.getItem("tsuzuku-secret-themes")||"[]";var unlocked={};try{var arr=JSON.parse(raw);for(var i=0;i<arr.length;i++)unlocked[arr[i]]=true;}catch(e){}if(localStorage.getItem("tsuzuku-secret-theme")==="true")unlocked.void=true;var valid={dark:1,light:1,sakura:1,ocean:1,void:1,ember:1,neon:1,aurora:1,manga:1,mono:1};if((t==="void"||t==="ember"||t==="neon"||t==="aurora"||t==="manga"||t==="mono")&&!unlocked[t])t="dark";if(valid[t])document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark");}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("tsuzuku-theme");var raw=localStorage.getItem("tsuzuku-secret-themes")||"[]";var unlocked={};try{var arr=JSON.parse(raw);for(var i=0;i<arr.length;i++)unlocked[arr[i]]=true;}catch(e){}if(localStorage.getItem("tsuzuku-secret-theme")==="true")unlocked.void=true;var valid={dark:1,light:1,sakura:1,ocean:1,void:1,ember:1,neon:1,aurora:1,manga:1,mono:1,"qc-sombre":1,"qc-clair":1,pride:1};var secrets=["void","ember","neon","aurora","manga","mono","qc-sombre","qc-clair","pride"];if(secrets.indexOf(t)>=0&&!unlocked[t])t="dark";if(valid[t])document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark");}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`,
           }}
         />
       </head>
       <body className="bg-bg text-ink antialiased">
         <PreviewHostBridge />
         <AuthProvider>
+          <PrideMusic />
           <Outlet />
         </AuthProvider>
         <Scripts />

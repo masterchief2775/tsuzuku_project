@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const YT_ID = "beINamVRGy4";
 const VOL_KEY = "tsuzuku:pride-music-volume";
 const MUTE_KEY = "tsuzuku:pride-music-muted";
+const TIME_KEY = "tsuzuku:pride-music-time";
 
 declare global {
   interface Window {
@@ -21,9 +22,10 @@ declare global {
           };
         },
       ) => YtPlayer;
-      PlayerState?: { ENDED: number; PLAYING: number };
+      PlayerState?: { ENDED: number; PLAYING: number; PAUSED: number; BUFFERING: number };
     };
     onYouTubeIframeAPIReady?: () => void;
+    __tsuzukuPride?: PrideSingleton;
   }
 }
 
@@ -38,17 +40,51 @@ type YtPlayer = {
   destroy: () => void;
   seekTo: (seconds: number, allowSeek: boolean) => void;
   getCurrentTime: () => number;
+  getPlayerState: () => number;
 };
 
 type PrideAudioState = {
-  volume: number; // 0-100
+  volume: number;
   muted: boolean;
 };
 
-const listeners = new Set<() => void>();
+type PrideSingleton = {
+  player: YtPlayer | null;
+  host: HTMLDivElement | null;
+  desired: PrideAudioState;
+  themeActive: boolean;
+  apiLoading: boolean;
+  loopTimer: number | null;
+  saveTimer: number | null;
+  listeners: Set<() => void>;
+};
 
-function notify() {
-  for (const l of listeners) l();
+function getSingleton(): PrideSingleton {
+  if (typeof window === "undefined") {
+    return {
+      player: null,
+      host: null,
+      desired: { volume: 40, muted: true },
+      themeActive: false,
+      apiLoading: false,
+      loopTimer: null,
+      saveTimer: null,
+      listeners: new Set(),
+    };
+  }
+  if (!window.__tsuzukuPride) {
+    window.__tsuzukuPride = {
+      player: null,
+      host: null,
+      desired: { volume: loadVol(), muted: loadMuted() },
+      themeActive: false,
+      apiLoading: false,
+      loopTimer: null,
+      saveTimer: null,
+      listeners: new Set(),
+    };
+  }
+  return window.__tsuzukuPride;
 }
 
 function loadVol(): number {
@@ -63,35 +99,42 @@ function loadVol(): number {
 
 function loadMuted(): boolean {
   try {
-    return localStorage.getItem(MUTE_KEY) === "1";
+    return localStorage.getItem(MUTE_KEY) !== "0";
   } catch {
     return true;
   }
 }
 
-/** Singleton player — survives route changes / React remounts. */
-const singleton: {
-  player: YtPlayer | null;
-  host: HTMLDivElement | null;
-  apiReady: boolean;
-  desired: PrideAudioState;
-  themeActive: boolean;
-  started: boolean;
-} = {
-  player: null,
-  host: null,
-  apiReady: false,
-  desired: { volume: 40, muted: true },
-  themeActive: false,
-  started: false,
-};
+function loadTime(): number {
+  try {
+    const n = Number(localStorage.getItem(TIME_KEY));
+    if (Number.isFinite(n) && n > 0) return n;
+  } catch {
+    /* */
+  }
+  return 0;
+}
+
+function saveTime(t: number) {
+  try {
+    localStorage.setItem(TIME_KEY, String(Math.floor(t)));
+  } catch {
+    /* */
+  }
+}
+
+function notify() {
+  const s = getSingleton();
+  for (const l of s.listeners) l();
+}
 
 function applyPlayerAudio() {
-  const p = singleton.player;
+  const s = getSingleton();
+  const p = s.player;
   if (!p) return;
   try {
-    p.setVolume(singleton.desired.volume);
-    if (singleton.desired.muted || singleton.desired.volume <= 0) p.mute();
+    p.setVolume(s.desired.volume);
+    if (s.desired.muted || s.desired.volume <= 0) p.mute();
     else p.unMute();
   } catch {
     /* */
@@ -100,39 +143,92 @@ function applyPlayerAudio() {
 
 function ensureHost() {
   if (typeof document === "undefined") return null;
-  if (singleton.host && document.body.contains(singleton.host)) return singleton.host;
-  const host = document.createElement("div");
-  host.id = "tsuzuku-pride-yt-host";
-  host.setAttribute("aria-hidden", "true");
-  Object.assign(host.style, {
-    position: "fixed",
-    width: "1px",
-    height: "1px",
-    left: "-9999px",
-    top: "0",
-    opacity: "0",
-    pointerEvents: "none",
-    overflow: "hidden",
-  });
-  const inner = document.createElement("div");
-  inner.id = "tsuzuku-pride-yt-player";
-  host.appendChild(inner);
-  document.body.appendChild(host);
-  singleton.host = host;
+  const s = getSingleton();
+  if (s.host && document.body.contains(s.host)) return s.host;
+  let host = document.getElementById("tsuzuku-pride-yt-host") as HTMLDivElement | null;
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "tsuzuku-pride-yt-host";
+    host.setAttribute("aria-hidden", "true");
+    Object.assign(host.style, {
+      position: "fixed",
+      width: "1px",
+      height: "1px",
+      left: "-9999px",
+      top: "0",
+      opacity: "0",
+      pointerEvents: "none",
+      overflow: "hidden",
+      zIndex: "-1",
+    });
+    document.body.appendChild(host);
+  }
+  if (!host.querySelector("#tsuzuku-pride-yt-player")) {
+    const inner = document.createElement("div");
+    inner.id = "tsuzuku-pride-yt-player";
+    host.appendChild(inner);
+  }
+  s.host = host;
   return host;
 }
 
+function restartLoop(p: YtPlayer) {
+  try {
+    p.seekTo(0, true);
+    p.playVideo();
+  } catch {
+    /* */
+  }
+}
+
+function startWatchdogs() {
+  const s = getSingleton();
+  if (s.loopTimer != null) return;
+
+  // Poll player state: keep playing while theme is active + loop on end
+  s.loopTimer = window.setInterval(() => {
+    const st = getSingleton();
+    const p = st.player;
+    if (!p || !st.themeActive) return;
+    try {
+      const state = p.getPlayerState();
+      // 0 = ENDED
+      if (state === 0 || state === window.YT?.PlayerState?.ENDED) {
+        restartLoop(p);
+      }
+      // Persist position so a rare rebuild can resume
+      const t = p.getCurrentTime?.();
+      if (typeof t === "number" && t > 1) saveTime(t);
+    } catch {
+      /* */
+    }
+  }, 1500);
+}
+
 function createPlayer() {
+  const s = getSingleton();
   if (!window.YT?.Player) return;
-  if (singleton.player) return;
+  if (s.player) {
+    // Already exists — just ensure playing if needed
+    if (s.themeActive) {
+      try {
+        s.player.playVideo();
+        applyPlayerAudio();
+      } catch {
+        /* */
+      }
+    }
+    return;
+  }
+
   ensureHost();
   const el = document.getElementById("tsuzuku-pride-yt-player");
   if (!el) return;
 
-  singleton.player = new window.YT.Player(el, {
+  s.player = new window.YT.Player(el, {
     videoId: YT_ID,
     playerVars: {
-      autoplay: 0,
+      autoplay: s.themeActive ? 1 : 0,
       controls: 0,
       disablekb: 1,
       fs: 0,
@@ -140,31 +236,35 @@ function createPlayer() {
       playsinline: 1,
       rel: 0,
       loop: 1,
-      playlist: YT_ID,
+      playlist: YT_ID, // required for loop
+      start: Math.floor(loadTime()) || 0,
     },
     events: {
       onReady: (e) => {
-        singleton.player = e.target;
+        const st = getSingleton();
+        st.player = e.target;
         applyPlayerAudio();
-        if (singleton.themeActive) {
+        const resume = loadTime();
+        if (resume > 2) {
           try {
-            e.target.playVideo();
-            singleton.started = true;
+            e.target.seekTo(resume, true);
           } catch {
             /* */
           }
         }
-        notify();
-      },
-      onStateChange: (e) => {
-        // Loop fallback if playlist param ignored
-        if (e.data === window.YT?.PlayerState?.ENDED) {
+        if (st.themeActive) {
           try {
-            e.target.seekTo(0, true);
             e.target.playVideo();
           } catch {
             /* */
           }
+        }
+        startWatchdogs();
+        notify();
+      },
+      onStateChange: (e) => {
+        if (e.data === 0 || e.data === window.YT?.PlayerState?.ENDED) {
+          restartLoop(e.target);
         }
       },
     },
@@ -173,40 +273,51 @@ function createPlayer() {
 
 function loadYoutubeApi() {
   if (typeof window === "undefined") return;
+  const s = getSingleton();
   if (window.YT?.Player) {
-    singleton.apiReady = true;
     createPlayer();
     return;
   }
+  if (s.apiLoading) return;
+  s.apiLoading = true;
   const prev = window.onYouTubeIframeAPIReady;
   window.onYouTubeIframeAPIReady = () => {
-    prev?.();
-    singleton.apiReady = true;
-    createPlayer();
-  };
-  if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-    const s = document.createElement("script");
-    s.src = "https://www.youtube.com/iframe_api";
-    s.async = true;
-    document.head.appendChild(s);
-  }
-}
-
-function setThemeActive(active: boolean) {
-  singleton.themeActive = active;
-  if (active) {
-    loadYoutubeApi();
-    createPlayer();
     try {
-      singleton.player?.playVideo();
-      singleton.started = true;
+      prev?.();
     } catch {
       /* */
     }
+    createPlayer();
+  };
+  if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+    const script = document.createElement("script");
+    script.src = "https://www.youtube.com/iframe_api";
+    script.async = true;
+    document.head.appendChild(script);
+  }
+}
+
+/** Keep theme active flag in sync — never tear down the player. */
+export function setPrideThemeActive(active: boolean) {
+  const s = getSingleton();
+  const was = s.themeActive;
+  s.themeActive = active;
+  if (active) {
+    loadYoutubeApi();
+    createPlayer();
     applyPlayerAudio();
-  } else {
     try {
-      singleton.player?.pauseVideo();
+      s.player?.playVideo();
+    } catch {
+      /* */
+    }
+    startWatchdogs();
+  } else if (was && !active) {
+    // Leaving pride: pause but keep player instance for instant resume
+    try {
+      const t = s.player?.getCurrentTime?.();
+      if (typeof t === "number") saveTime(t);
+      s.player?.pauseVideo();
     } catch {
       /* */
     }
@@ -215,18 +326,19 @@ function setThemeActive(active: boolean) {
 }
 
 function setDesired(partial: Partial<PrideAudioState>) {
-  singleton.desired = { ...singleton.desired, ...partial };
+  const s = getSingleton();
+  s.desired = { ...s.desired, ...partial };
   try {
-    localStorage.setItem(VOL_KEY, String(singleton.desired.volume));
-    localStorage.setItem(MUTE_KEY, singleton.desired.muted ? "1" : "0");
+    localStorage.setItem(VOL_KEY, String(s.desired.volume));
+    localStorage.setItem(MUTE_KEY, s.desired.muted ? "1" : "0");
   } catch {
     /* */
   }
   applyPlayerAudio();
-  if (singleton.themeActive && !singleton.desired.muted && singleton.desired.volume > 0) {
+  if (s.themeActive && !s.desired.muted && s.desired.volume > 0) {
     try {
-      singleton.player?.playVideo();
-      singleton.player?.unMute();
+      s.player?.playVideo();
+      s.player?.unMute();
     } catch {
       /* */
     }
@@ -234,55 +346,70 @@ function setDesired(partial: Partial<PrideAudioState>) {
   notify();
 }
 
-function usePrideTheme(): boolean {
+function readThemeIsPride(): boolean {
+  if (typeof document === "undefined") return false;
+  const t =
+    (document.documentElement.getAttribute("data-theme") as ThemeId) || getStoredTheme();
+  return t === "pride";
+}
+
+function usePrideThemeFlag(): boolean {
   const [active, setActive] = useState(false);
   useEffect(() => {
     const sync = () => {
-      const t = (document.documentElement.getAttribute("data-theme") as ThemeId) || getStoredTheme();
-      const on = t === "pride";
+      const on = readThemeIsPride();
       setActive(on);
-      setThemeActive(on);
+      setPrideThemeActive(on);
     };
     sync();
-    singleton.desired = { volume: loadVol(), muted: loadMuted() };
     const obs = new MutationObserver(sync);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    // Also re-check on visibility (mobile tab switch)
+    const onVis = () => {
+      if (document.visibilityState === "visible" && readThemeIsPride()) {
+        setPrideThemeActive(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       obs.disconnect();
-      // Do NOT destroy the player on unmount — keeps music across navigations
+      document.removeEventListener("visibilitychange", onVis);
+      // Important: do NOT pause/destroy on unmount — root stays mounted
     };
   }, []);
   return active;
 }
 
 function usePrideAudioState(): PrideAudioState {
-  const [state, setState] = useState<PrideAudioState>(() => ({
-    volume: loadVol(),
-    muted: loadMuted(),
-  }));
+  const [state, setState] = useState<PrideAudioState>(() => {
+    if (typeof window === "undefined") return { volume: 40, muted: true };
+    const s = getSingleton();
+    return { ...s.desired };
+  });
   useEffect(() => {
-    const sync = () => setState({ ...singleton.desired });
+    const s = getSingleton();
+    const sync = () => setState({ ...s.desired });
     sync();
-    listeners.add(sync);
+    s.listeners.add(sync);
     return () => {
-      listeners.delete(sync);
+      s.listeners.delete(sync);
     };
   }, []);
   return state;
 }
 
 /**
- * Bootstraps the singleton YouTube player (no UI).
- * Safe to mount once in the app shell.
+ * Mount once at app root. Boots the global YouTube player and keeps it alive
+ * across all route changes (home ↔ profile ↔ friends…).
  */
 export function PrideMusic() {
-  usePrideTheme();
+  usePrideThemeFlag();
   return null;
 }
 
-/** Controls for the footer — far right, only when Pride theme is active. */
+/** Footer controls — far right, only on Pride theme. */
 export function PrideMusicControls({ className }: { className?: string }) {
-  const active = usePrideTheme();
+  const active = usePrideThemeFlag();
   const { volume, muted } = usePrideAudioState();
 
   if (!active) return null;
@@ -301,8 +428,8 @@ export function PrideMusicControls({ className }: { className?: string }) {
           setDesired({ muted: nextMuted });
           if (!nextMuted) {
             try {
-              singleton.player?.playVideo();
-              singleton.player?.unMute();
+              getSingleton().player?.playVideo();
+              getSingleton().player?.unMute();
             } catch {
               /* */
             }
@@ -329,8 +456,8 @@ export function PrideMusicControls({ className }: { className?: string }) {
           setDesired({ volume: v, muted: v <= 0 });
           if (v > 0) {
             try {
-              singleton.player?.playVideo();
-              singleton.player?.unMute();
+              getSingleton().player?.playVideo();
+              getSingleton().player?.unMute();
             } catch {
               /* */
             }

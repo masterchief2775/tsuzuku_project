@@ -15,7 +15,6 @@ import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { NotificationsCenter } from "@/components/tsuzuku/notifications-center";
-import { PrideMusic } from "@/components/tsuzuku/pride-music";
 import { AppToast } from "@/components/tsuzuku/toast";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
@@ -284,7 +283,6 @@ export function AppShell() {
       </main>
 
       <AppFooter />
-      <PrideMusic />
 
       <EntryModal />
       <ImportView open={importOpen} onClose={() => setImportOpen(false)} />
