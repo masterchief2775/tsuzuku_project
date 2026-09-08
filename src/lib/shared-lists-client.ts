@@ -1,17 +1,20 @@
+export type SharedListRole = "owner" | "editor" | "viewer";
+export type SharedItemStatus = "planned" | "watching" | "watched" | "skipped";
+
 export type SharedListSummary = {
   id: string;
   name: string;
   description: string | null;
   ownerId: string;
   updatedAt: string;
-  myRole: string;
+  myRole: SharedListRole | string;
   itemCount: number;
   memberCount: number;
 };
 
 export type SharedListMember = {
   userId: string;
-  role: string;
+  role: SharedListRole | string;
   joinedAt: string;
   displayName: string;
   username: string;
@@ -26,6 +29,11 @@ export type SharedListItem = {
   addedBy: string;
   addedByName: string;
   createdAt: string;
+  status: SharedItemStatus | string;
+  notes: string | null;
+  priority: number;
+  voteCount: number;
+  votedByMe: boolean;
 };
 
 export type SharedListDetail = {
@@ -36,7 +44,9 @@ export type SharedListDetail = {
     ownerId: string;
     createdAt: string;
     updatedAt: string;
-    myRole: string;
+    myRole: SharedListRole | string;
+    inviteEnabled?: boolean;
+    inviteToken?: string | null;
   };
   members: SharedListMember[];
   items: SharedListItem[];
@@ -81,8 +91,8 @@ export async function deleteSharedList(listId: string) {
   return post({ action: "delete", listId });
 }
 
-export async function addSharedListMember(listId: string, userId: string) {
-  return post({ action: "addMember", listId, userId });
+export async function addSharedListMember(listId: string, userId: string, role?: SharedListRole) {
+  return post({ action: "addMember", listId, userId, role: role || "editor" });
 }
 
 export async function removeSharedListMember(listId: string, userId: string) {
@@ -96,6 +106,33 @@ export async function addSharedListItem(
   return post({ action: "addItem", listId, ...input });
 }
 
+export async function addSharedListItemsBulk(
+  listId: string,
+  items: { anilistId: number; title: string; image?: string | null }[],
+) {
+  return post({ action: "addItemsBulk", listId, items });
+}
+
 export async function removeSharedListItem(listId: string, itemId: string) {
   return post({ action: "removeItem", listId, itemId });
+}
+
+export async function setSharedListItemStatus(listId: string, itemId: string, status: SharedItemStatus) {
+  return post({ action: "setItemStatus", listId, itemId, status });
+}
+
+export async function toggleSharedListVote(listId: string, itemId: string) {
+  return post({ action: "toggleVote", listId, itemId });
+}
+
+export async function enableSharedListInvite(listId: string) {
+  return post({ action: "enableInvite", listId }) as Promise<{ ok: true; token: string }>;
+}
+
+export async function disableSharedListInvite(listId: string) {
+  return post({ action: "disableInvite", listId });
+}
+
+export async function joinSharedListByToken(token: string) {
+  return post({ action: "joinByInvite", token }) as Promise<{ ok: true; listId: string }>;
 }

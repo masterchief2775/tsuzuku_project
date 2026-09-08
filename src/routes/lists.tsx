@@ -4,6 +4,7 @@ import { AppShell } from "@/components/tsuzuku/app-shell";
 export const Route = createFileRoute("/lists")({
   validateSearch: (search: Record<string, unknown>) => ({
     id: typeof search.id === "string" && search.id.trim() ? search.id.trim() : undefined,
+    join: typeof search.join === "string" && search.join.trim() ? search.join.trim() : undefined,
   }),
   component: ListsRoute,
 });
