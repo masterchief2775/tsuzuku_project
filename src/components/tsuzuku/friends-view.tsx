@@ -36,6 +36,7 @@ import {
 } from "@/lib/activity-client";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
+import { FriendCompareButton } from "@/components/tsuzuku/friend-compare";
 
 function presenceLabel(friend: FriendProfile): string {
   if (friend.isOnline) return "En ligne";
@@ -424,6 +425,7 @@ export function FriendsView() {
                       </span>
                     </div>
                   </div>
+                  <FriendCompareButton friendUserId={f.userId} friendName={f.displayName} />
                   <button
                     type="button"
                     disabled={busyId === f.userId}

@@ -437,3 +437,160 @@ export const resolveFriendProfiles = createServerFn({ method: "GET" })
     }
     return out;
   });
+
+/** Public projection of a shared title for friend comparison */
+export type CompareTitle = {
+  anilistId: number;
+  title: string;
+  image: string | null;
+  myStatus?: string;
+  theirStatus?: string;
+  myRating?: number | null;
+  theirRating?: number | null;
+};
+
+export type WatchlistComparison = {
+  friend: PublicProfile;
+  myCount: number;
+  theirCount: number;
+  common: CompareTitle[];
+  bothWatching: CompareTitle[];
+  theyFinishedYouDidNot: CompareTitle[];
+  youFinishedTheyDidNot: CompareTitle[];
+  onlyYou: number;
+  onlyThem: number;
+  genreOverlap: { genre: string; both: number }[];
+  compatibility: number;
+};
+
+type RawEntry = {
+  anilistId?: number;
+  title?: string;
+  image?: string | null;
+  status?: string;
+  rating?: number | null;
+  genres?: string[];
+  progress?: number;
+};
+
+function asEntries(raw: unknown): RawEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((e) => e && typeof e === "object") as RawEntry[];
+}
+
+export const compareWatchlists = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => {
+    const friendUserId = String((input as { friendUserId?: string } | null)?.friendUserId || "").trim();
+    if (!friendUserId) throw new Error("Ami requis");
+    return { friendUserId };
+  })
+  .handler(async ({ context, data }): Promise<WatchlistComparison> => {
+    const me = context.userId;
+    const them = data.friendUserId;
+    if (them === me) throw new Error("Impossible de se comparer à soi-même");
+
+    const sql = await getSql();
+    const { isBlockedBetween } = await import("@/lib/blocks.server");
+    if (await isBlockedBetween(me, them)) {
+      throw new Error("Comparaison indisponible");
+    }
+
+    const friendship = await sql<{ id: string }>`
+      select "id" from "friendship"
+      where "status" = 'accepted'
+        and (
+          ("requester_id" = ${me} and "addressee_id" = ${them})
+          or ("requester_id" = ${them} and "addressee_id" = ${me})
+        )
+      limit 1
+    `;
+    if (!friendship[0]) throw new Error("Vous devez être amis pour comparer");
+
+    const friend = await loadProfile(them);
+    if (!friend) throw new Error("Profil introuvable");
+
+    const myRows = await sql<{ entries: unknown }>`
+      select "entries" from "watchlist_state" where "user_id" = ${me} limit 1
+    `;
+    const theirRows = await sql<{ entries: unknown }>`
+      select "entries" from "watchlist_state" where "user_id" = ${them} limit 1
+    `;
+    const mine = asEntries(myRows[0]?.entries).filter((e) => Number(e.anilistId) > 0);
+    const theirs = asEntries(theirRows[0]?.entries).filter((e) => Number(e.anilistId) > 0);
+
+    const myMap = new Map<number, RawEntry>();
+    for (const e of mine) myMap.set(Number(e.anilistId), e);
+    const theirMap = new Map<number, RawEntry>();
+    for (const e of theirs) theirMap.set(Number(e.anilistId), e);
+
+    const commonIds = [...myMap.keys()].filter((id) => theirMap.has(id));
+    const common: CompareTitle[] = commonIds.map((id) => {
+      const a = myMap.get(id)!;
+      const b = theirMap.get(id)!;
+      return {
+        anilistId: id,
+        title: String(a.title || b.title || "Sans titre"),
+        image: (a.image || b.image || null) as string | null,
+        myStatus: a.status,
+        theirStatus: b.status,
+        myRating: typeof a.rating === "number" ? a.rating : null,
+        theirRating: typeof b.rating === "number" ? b.rating : null,
+      };
+    });
+    common.sort((a, b) => a.title.localeCompare(b.title, "fr"));
+
+    const bothWatching = common.filter(
+      (c) => c.myStatus === "Watching" && c.theirStatus === "Watching",
+    );
+    const theyFinishedYouDidNot = common
+      .filter((c) => c.theirStatus === "Completed" && c.myStatus !== "Completed")
+      .slice(0, 40);
+    const youFinishedTheyDidNot = common
+      .filter((c) => c.myStatus === "Completed" && c.theirStatus !== "Completed")
+      .slice(0, 40);
+
+    const onlyYou = mine.filter((e) => !theirMap.has(Number(e.anilistId))).length;
+    const onlyThem = theirs.filter((e) => !myMap.has(Number(e.anilistId))).length;
+
+    const genreCount = (list: RawEntry[]) => {
+      const m = new Map<string, number>();
+      for (const e of list) {
+        for (const g of e.genres || []) {
+          if (typeof g === "string" && g) m.set(g, (m.get(g) || 0) + 1);
+        }
+      }
+      return m;
+    };
+    const myGenres = genreCount(mine);
+    const theirGenres = genreCount(theirs);
+    const genreOverlap: { genre: string; both: number }[] = [];
+    for (const [g, n] of myGenres) {
+      const t = theirGenres.get(g);
+      if (t) genreOverlap.push({ genre: g, both: Math.min(n, t) });
+    }
+    genreOverlap.sort((a, b) => b.both - a.both || a.genre.localeCompare(b.genre, "fr"));
+
+    // Compatibility: Jaccard on anilist ids + boost for shared genres
+    const union = new Set([...myMap.keys(), ...theirMap.keys()]);
+    const jaccard = union.size === 0 ? 0 : commonIds.length / union.size;
+    const genreBoost =
+      genreOverlap.length === 0
+        ? 0
+        : Math.min(0.25, genreOverlap.slice(0, 5).reduce((s, g) => s + 0.05, 0));
+    const compatibility = Math.round(Math.min(100, (jaccard * 100) * 0.85 + genreBoost * 100));
+
+    return {
+      friend,
+      myCount: mine.length,
+      theirCount: theirs.length,
+      common: common.slice(0, 80),
+      bothWatching: bothWatching.slice(0, 30),
+      theyFinishedYouDidNot,
+      youFinishedTheyDidNot,
+      onlyYou,
+      onlyThem,
+      genreOverlap: genreOverlap.slice(0, 8),
+      compatibility,
+    };
+  });
