@@ -4,9 +4,11 @@ import { Cover } from "@/components/tsuzuku/cover";
 import { Recommendations } from "@/components/tsuzuku/recommendations";
 import { ActivityFeed } from "@/components/tsuzuku/activity-feed";
 import {
+  airingOnDay,
   computeStats,
   nextAiringText,
   progressText,
+  startOfDay,
   STATUSES,
   statusMeta,
   upcomingThisWeek,
@@ -123,6 +125,8 @@ export function Dashboard() {
     .sort((a, b) => +new Date(b.addedAt) - +new Date(a.addedAt))
     .slice(0, 6);
   const stats = computeStats(entries);
+  const todayAiring = airingOnDay(entries, startOfDay(new Date()));
+
   const availableCount = watchingAll.filter(isEpisodeAvailable).length;
 
   return (
@@ -142,7 +146,33 @@ export function Dashboard() {
         </h2>
       </header>
 
+      {todayAiring.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => setView("calendar")}
+          className="mb-6 flex w-full items-center gap-3 rounded-[14px] border border-lime/40 bg-lime/10 px-4 py-3 text-left transition hover:border-lime/60"
+        >
+          <CalendarClock className="size-5 shrink-0 text-lime" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold text-lime">
+              {todayAiring.length === 1
+                ? "1 épisode sort aujourd'hui"
+                : `${todayAiring.length} épisodes sortent aujourd'hui`}
+            </div>
+            <div className="truncate text-[12.5px] text-dim">
+              {todayAiring
+                .slice(0, 3)
+                .map((e) => e.title)
+                .join(" · ")}
+              {todayAiring.length > 3 ? "…" : ""}
+            </div>
+          </div>
+          <span className="shrink-0 text-[12px] font-semibold text-lime">Calendrier →</span>
+        </button>
+      ) : null}
+
       {/* 1. Continue watching */}
+
       {featured ? (
         <section className="mb-8">
           <div className="mb-3 flex items-end justify-between gap-3">

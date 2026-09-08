@@ -10,6 +10,7 @@ import { ImportView } from "@/components/tsuzuku/import-view";
 import { ListView } from "@/components/tsuzuku/list-view";
 import { SearchView } from "@/components/tsuzuku/search-view";
 import { SeasonView } from "@/components/tsuzuku/season-view";
+import { CalendarView } from "@/components/tsuzuku/calendar-view";
 import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
@@ -24,6 +25,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { heartbeatPresence } from "@/lib/presence";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
+import { checkAiringReminders } from "@/lib/airing-reminders";
 
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -100,6 +102,14 @@ export function AppShell() {
       window.removeEventListener("offline", off);
     };
   }, [setOnline]);
+
+  // Browser airing reminders (local notifications)
+  useEffect(() => {
+    const tick = () => checkAiringReminders(useWatchlistStore.getState().entries);
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     function onKey(ev: KeyboardEvent) {
@@ -261,6 +271,8 @@ export function AppShell() {
           <SearchView inputRef={searchRef} />
         ) : view === "season" ? (
           <SeasonView />
+        ) : view === "calendar" ? (
+          <CalendarView />
         ) : view === "roulette" ? (
           <RouletteView />
         ) : (

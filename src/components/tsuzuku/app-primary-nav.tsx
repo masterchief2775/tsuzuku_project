@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  CalendarDays,
   Clapperboard,
   Dices,
   Home,
@@ -27,6 +28,7 @@ const ITEMS: NavItem[] = [
   { kind: "route", to: "/friends", label: "Amis", short: "Amis", icon: Users },
   { kind: "route", to: "/lists", label: "Listes partagées", short: "Listes", icon: Library },
   { kind: "route", to: "/messages", label: "Messages", short: "Msg", icon: MessageCircle },
+  { kind: "view", id: "calendar", label: "Calendrier", short: "Cal", icon: CalendarDays },
   { kind: "view", id: "season", label: "Saison", short: "Saison", icon: Clapperboard },
   { kind: "view", id: "roulette", label: "Roulette", short: "Dés", icon: Dices },
   { kind: "view", id: "search", label: "Rechercher", short: "Seek", icon: Search },

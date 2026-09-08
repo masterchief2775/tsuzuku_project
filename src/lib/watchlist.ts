@@ -168,6 +168,48 @@ export function upcomingThisWeek(entries: WatchlistEntry[]): WatchlistEntry[] {
     .sort((a, b) => a.nextAiring!.airingAt - b.nextAiring!.airingAt);
 }
 
+/** All watching entries with a valid next airing (any future window, +1h past). */
+export function upcomingAiring(entries: WatchlistEntry[], withinDays = 28): WatchlistEntry[] {
+  const now = Math.floor(Date.now() / 1000);
+  const until = now + withinDays * 24 * 3600;
+  return entries
+    .filter((e) => {
+      if (e.status !== "Watching" || !e.nextAiring) return false;
+      const at = e.nextAiring.airingAt;
+      if (at <= 0 || e.nextAiring.episode <= 0) return false;
+      return at >= now - 3600 && at <= until;
+    })
+    .sort((a, b) => a.nextAiring!.airingAt - b.nextAiring!.airingAt);
+}
+
+export function airingOnDay(entries: WatchlistEntry[], day: Date): WatchlistEntry[] {
+  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime() / 1000;
+  const end = start + 86400;
+  return upcomingAiring(entries, 60).filter((e) => {
+    const at = e.nextAiring!.airingAt;
+    return at >= start && at < end;
+  });
+}
+
+export function startOfDay(d = new Date()) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+export function addDays(d: Date, n: number) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+/** Format airing time in local TZ, e.g. "14:30" or "mar. 14:30" */
+export function formatAiringTime(airingAt: number, opts?: { withDay?: boolean }) {
+  const d = new Date(airingAt * 1000);
+  const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  if (!opts?.withDay) return time;
+  const day = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+  return `${day} · ${time}`;
+}
+
 export function searchMetaLine(media: AniListMedia) {
   const year = media.seasonYear || "—";
   const kind = mediaKind(media.format, media.episodes);
