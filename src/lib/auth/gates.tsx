@@ -114,15 +114,28 @@ export function UserButton() {
   const label = displayName ?? user.displayName ?? user.primaryEmail ?? "Account";
   return (
     <div className="flex items-center gap-2">
-      <a
-        href={username ? `/u/${encodeURIComponent(username)}` : "/profile"}
-        className="flex cursor-pointer items-center gap-2 rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-lime"
-        title="Voir mon profil public"
-        aria-label="Voir mon profil public"
-      >
-        <ProfileAvatar name={label} src={avatarUrl || user.profileImageUrl} size="sm" />
-        <span className="hidden text-sm font-medium sm:inline">{label}</span>
-      </a>
+      {username ? (
+        <Link
+          to="/u/$username"
+          params={{ username }}
+          className="flex cursor-pointer items-center gap-2 rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-lime"
+          title="Voir mon profil public"
+          aria-label="Voir mon profil public"
+        >
+          <ProfileAvatar name={label} src={avatarUrl || user.profileImageUrl} size="sm" />
+          <span className="hidden text-sm font-medium sm:inline">{label}</span>
+        </Link>
+      ) : (
+        <Link
+          to="/profile"
+          className="flex cursor-pointer items-center gap-2 rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-lime"
+          title="Voir mon profil public"
+          aria-label="Voir mon profil public"
+        >
+          <ProfileAvatar name={label} src={avatarUrl || user.profileImageUrl} size="sm" />
+          <span className="hidden text-sm font-medium sm:inline">{label}</span>
+        </Link>
+      )}
       {authEnabled && (
         <button
           type="button"
