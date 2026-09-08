@@ -48,6 +48,7 @@ function MyProfilePage() {
   const flushSync = useWatchlistStore((s) => s.flushSync);
   const resetSession = useWatchlistStore((s) => s.resetSession);
   const entries = useWatchlistStore((s) => s.entries);
+  const hydrate = useWatchlistStore((s) => s.hydrate);
   const exportJson = useWatchlistStore((s) => s.exportJson);
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
@@ -96,6 +97,11 @@ function MyProfilePage() {
   const [pwdBusy, setPwdBusy] = useState(false);
   const [pwdMsg, setPwdMsg] = useState("");
   const [pwdErr, setPwdErr] = useState("");
+
+
+  useEffect(() => {
+    if (user?.id) hydrate(user.id);
+  }, [user?.id, hydrate]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -574,74 +580,79 @@ function MyProfilePage() {
                   <span className="inline-flex items-center gap-1.5">
                     <Star className="size-4 text-lime" />
                     Top 5 favoris
+                    <span className="text-[11px] font-medium text-dim">
+                      ({favorites.length}/5)
+                    </span>
                   </span>
-                  <label className="flex items-center gap-2 text-xs text-dim">
+                  <span
+                    className="flex items-center gap-2 text-xs text-dim"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
                     <input
                       type="checkbox"
                       checked={showFavorites}
                       onChange={(e) => setShowFavorites(e.target.checked)}
+                      id="show-favorites-toggle"
                     />
-                    Afficher
-                  </label>
+                    <label htmlFor="show-favorites-toggle">Afficher</label>
+                  </span>
                 </summary>
                 <p className="mb-2 text-[11.5px] text-dim">
-                  Choisis jusqu&apos;à 5 titres depuis ta watchlist.
+                  Choisis jusqu&apos;à 5 titres depuis ta watchlist, puis enregistre le profil.
                 </p>
                 <div className="mb-2 flex flex-wrap gap-2">
-                  {favorites.map((f) => (
-                    <span
-                      key={f.anilistId}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-line bg-raised py-1 pr-1.5 pl-1 text-[11.5px]"
-                    >
-                      {f.image ? (
-                        <img src={f.image} alt="" className="size-5 rounded object-cover" />
-                      ) : null}
-                      <span className="max-w-[120px] truncate">{f.title}</span>
-                      <button
-                        type="button"
-                        className="text-dim hover:text-crimson"
-                        onClick={() =>
-                          setFavorites((prev) => prev.filter((x) => x.anilistId !== f.anilistId))
-                        }
+                  {favorites.length === 0 ? (
+                    <span className="text-[12px] text-dim/80">Aucun favori pour l&apos;instant.</span>
+                  ) : (
+                    favorites.map((f, idx) => (
+                      <span
+                        key={f.anilistId}
+                        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-raised py-1 pr-1.5 pl-1 text-[11.5px]"
                       >
-                        <X className="size-3" />
-                      </button>
-                    </span>
-                  ))}
+                        <span className="flex size-5 items-center justify-center rounded-full bg-lime/20 text-[10px] font-bold text-lime">
+                          {idx + 1}
+                        </span>
+                        {f.image ? (
+                          <img src={f.image} alt="" className="size-5 rounded object-cover" />
+                        ) : null}
+                        <span className="max-w-[140px] truncate">{f.title}</span>
+                        <button
+                          type="button"
+                          className="text-dim hover:text-crimson"
+                          aria-label={`Retirer ${f.title}`}
+                          onClick={() =>
+                            setFavorites((prev) => prev.filter((x) => x.anilistId !== f.anilistId))
+                          }
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))
+                  )}
                 </div>
                 {favorites.length < 5 ? (
-                  <select
-                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none"
-                    value=""
-                    onChange={(e) => {
-                      const id = Number(e.target.value);
-                      if (!id) return;
-                      const entry = entries.find((x) => x.anilistId === id);
-                      if (!entry) return;
-                      if (favorites.some((f) => f.anilistId === id)) return;
-                      setFavorites((prev) => [
-                        ...prev,
-                        {
-                          anilistId: entry.anilistId,
-                          title: entry.title,
-                          image: entry.image,
-                        },
-                      ]);
+                  <FavoritesPicker
+                    entries={entries}
+                    favorites={favorites}
+                    onAdd={(entry) => {
+                      setFavorites((prev) => {
+                        if (prev.length >= 5) return prev;
+                        if (prev.some((f) => f.anilistId === entry.anilistId)) return prev;
+                        return [
+                          ...prev,
+                          {
+                            anilistId: entry.anilistId,
+                            title: entry.title,
+                            image: entry.image,
+                          },
+                        ];
+                      });
                     }}
-                  >
-                    <option value="">+ Ajouter depuis ma liste…</option>
-                    {entries
-                      .filter((e) => !favorites.some((f) => f.anilistId === e.anilistId))
-                      .slice()
-                      .sort((a, b) => a.title.localeCompare(b.title, "fr"))
-                      .slice(0, 200)
-                      .map((e) => (
-                        <option key={e.id} value={e.anilistId}>
-                          {e.title}
-                        </option>
-                      ))}
-                  </select>
-                ) : null}
+                  />
+                ) : (
+                  <p className="text-[12px] text-dim">Maximum de 5 favoris atteint.</p>
+                )}
               </details>
 
               <details open className="mt-3 rounded-[10px] border border-line bg-bg/40 p-3">
@@ -813,6 +824,95 @@ function MyProfilePage() {
     </div>
   );
 }
+
+function FavoritesPicker({
+  entries,
+  favorites,
+  onAdd,
+}: {
+  entries: { id: string; anilistId: number; title: string; image: string | null }[];
+  favorites: FavoriteAnime[];
+  onAdd: (entry: { anilistId: number; title: string; image: string | null }) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const favIds = new Set(favorites.map((f) => f.anilistId));
+  const available = entries
+    .filter((e) => !favIds.has(e.anilistId))
+    .slice()
+    .sort((a, b) => a.title.localeCompare(b.title, "fr"));
+  const filtered = (
+    q.trim()
+      ? available.filter((e) => e.title.toLowerCase().includes(q.trim().toLowerCase()))
+      : available
+  ).slice(0, 30);
+
+  if (entries.length === 0) {
+    return (
+      <p className="rounded-[9px] border border-dashed border-line px-3 py-2.5 text-[12.5px] text-dim">
+        Ta watchlist est vide ou pas encore chargée. Ajoute des titres, puis reviens ici.
+      </p>
+    );
+  }
+
+  if (available.length === 0) {
+    return (
+      <p className="text-[12px] text-dim">Tous les titres de ta liste sont déjà dans le top 5.</p>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2 rounded-[9px] border border-line bg-bg px-3 py-2 focus-within:border-lime/50">
+        <Search className="size-3.5 shrink-0 text-dim" />
+        <input
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Rechercher un titre à ajouter…"
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+        />
+        {q ? (
+          <button type="button" onClick={() => setQ("")} aria-label="Effacer">
+            <X className="size-3.5 text-dim" />
+          </button>
+        ) : null}
+      </div>
+      {open ? (
+        <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-[10px] border border-line bg-raised py-1 shadow-lg">
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2 text-[12.5px] text-dim">Aucun titre trouvé</li>
+          ) : (
+            filtered.map((e) => (
+              <li key={e.id}>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-lime/10"
+                  onClick={() => {
+                    onAdd(e);
+                    setQ("");
+                    setOpen(false);
+                  }}
+                >
+                  {e.image ? (
+                    <img src={e.image} alt="" className="size-7 rounded object-cover" />
+                  ) : (
+                    <span className="size-7 rounded bg-bg" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{e.title}</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

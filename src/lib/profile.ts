@@ -517,8 +517,12 @@ export const updateMyProfile = createServerFn({ method: "POST" })
           update "user_profile" set "favorites" = ${json}::jsonb, "updated_at" = current_timestamp
           where "user_id" = ${context.userId}
         `;
-      } catch {
-        /* migration pending */
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Column missing → soft skip; other errors surface to the client
+        if (!/favorites|column|does not exist/i.test(msg)) {
+          throw new Error("Impossible d'enregistrer les favoris : " + msg);
+        }
       }
     }
 
