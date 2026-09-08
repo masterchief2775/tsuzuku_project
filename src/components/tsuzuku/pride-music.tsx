@@ -18,6 +18,13 @@ type ThemeMediaConfig = {
 const THEME_MEDIA: Partial<Record<ThemeId, ThemeMediaConfig>> = {
   pride: { videoId: "beINamVRGy4", mode: "audio" },
   lagtrain: { videoId: "UnIhRpIT7nc", mode: "video" },
+  "lost-umbrella": { videoId: "DeKLpgzh-qQ", mode: "video" },
+};
+
+const THEME_MEDIA_LABEL: Partial<Record<ThemeId, string>> = {
+  pride: "Pride",
+  lagtrain: "Lagtrain",
+  "lost-umbrella": "Lost Umbrella",
 };
 
 const VOL_KEY = "tsuzuku:theme-media-volume";
@@ -506,7 +513,7 @@ export function PrideMusicControls({ className }: { className?: string }) {
 
   if (!theme) return null;
 
-  const label = theme === "lagtrain" ? "Lagtrain" : "Pride";
+  const label = THEME_MEDIA_LABEL[theme] ?? "Musique";
 
   return (
     <div

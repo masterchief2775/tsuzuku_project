@@ -972,3 +972,73 @@ html[data-theme="lagtrain"] [class*="bg-bg"] {
 html[data-theme="lagtrain"] .ambient-bg {
   background: transparent !important;
 }
+
+/* ---- Lost Umbrella: MV background + readable UI ---- */
+html[data-theme="lost-umbrella"] {
+  --color-bg: #0d0f16;
+  --color-raised: rgba(20, 23, 33, 0.88);
+  --color-ink: #f3f5fb;
+  --color-dim: #c6cce3;
+  --color-line: rgba(150, 160, 195, 0.45);
+  --color-lime: #9fb0d9;
+  --color-crimson: #ff7a8a;
+  --color-status-plan: #a7b3e6;
+  --color-status-watching: #9fb0d9;
+  --color-status-completed: #7fd6c2;
+  --color-status-hold: #f2c265;
+  --color-status-dropped: #ff7a8a;
+}
+
+html[data-theme="lost-umbrella"] body {
+  background: #0d0f16;
+  /* Soft dark halo behind every glyph so text stays legible even where it
+     sits directly on the video with no card behind it. */
+  text-shadow:
+    0 1px 3px rgba(4, 5, 9, 0.75),
+    0 0 10px rgba(4, 5, 9, 0.45);
+}
+
+/* Scrim over the video so text stays readable, uniform top-to-bottom. */
+html[data-theme="lost-umbrella"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(6, 7, 12, 0.92) 0%, rgba(6, 7, 12, 0.86) 45%, rgba(6, 7, 12, 0.94) 100%),
+    radial-gradient(ellipse 80% 50% at 50% 20%, rgba(24, 28, 46, 0.14), transparent 60%);
+}
+
+/* Dim the actual YouTube layer */
+html[data-theme="lost-umbrella"] #tsuzuku-theme-media-host {
+  filter: brightness(0.4) contrast(1.05) saturate(0.9);
+}
+
+html[data-theme="lost-umbrella"] body > * {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-theme="lost-umbrella"] header,
+html[data-theme="lost-umbrella"] footer {
+  background: rgba(11, 13, 20, 0.92) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-theme="lost-umbrella"] .bg-raised,
+html[data-theme="lost-umbrella"] [class*="bg-raised"] {
+  background-color: rgba(18, 21, 32, 0.95) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html[data-theme="lost-umbrella"] .bg-bg,
+html[data-theme="lost-umbrella"] [class*="bg-bg"] {
+  background-color: rgba(11, 13, 20, 0.9) !important;
+}
+
+html[data-theme="lost-umbrella"] .ambient-bg {
+  background: transparent !important;
+}
