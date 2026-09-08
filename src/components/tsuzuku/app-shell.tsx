@@ -3,6 +3,7 @@ import { Clapperboard, Dices, Download, Home, Link2, List, Search, ShieldCheck, 
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { FriendsView } from "@/components/tsuzuku/friends-view";
+import { ProfileView } from "@/components/tsuzuku/profile-view";
 import { ListsView } from "@/components/tsuzuku/lists-view";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { EntryModal } from "@/components/tsuzuku/entry-modal";
@@ -259,6 +260,8 @@ export function AppShell() {
               <div key={i} className="h-[76px] animate-pulse rounded-[10px] border border-line bg-raised" />
             ))}
           </div>
+        ) : pathname.startsWith("/profile") ? (
+          <ProfileView />
         ) : pathname.startsWith("/friends") ? (
           <FriendsView />
         ) : pathname.startsWith("/lists") ? (
