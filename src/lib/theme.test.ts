@@ -66,6 +66,7 @@ describe("theme secrets", () => {
     const mono = recordSecretThemeInput("encre");
     const qcSombre = recordSecretThemeInput("qclibre");
     const qcClair = recordSecretThemeInput("duplessis");
+    const pride = recordSecretThemeInput("pride");
 
     assert.equal(ember, "ember");
     assert.equal(neon, "neon");

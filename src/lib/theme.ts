@@ -7,7 +7,8 @@ export type SecretThemeId =
   | "manga"
   | "mono"
   | "qc-sombre"
-  | "qc-clair";
+  | "qc-clair"
+  | "pride";
 export type ThemeId = StandardThemeId | SecretThemeId;
 
 const STORAGE_KEY = "tsuzuku-theme";
@@ -23,6 +24,7 @@ const ALL_SECRET_THEME_IDS: SecretThemeId[] = [
   "mono",
   "qc-sombre",
   "qc-clair",
+  "pride",
 ];
 
 function isSecretThemeId(value: string): value is SecretThemeId {
@@ -38,6 +40,7 @@ export const SECRET_THEME_CODES: Record<SecretThemeId, string> = {
   mono: "encre",
   "qc-sombre": "qclibre",
   "qc-clair": "duplessis",
+  pride: "pride",
 };
 
 const SECRET_THEMES: { id: SecretThemeId; label: string; swatch: [string, string, string] }[] = [
@@ -49,6 +52,7 @@ const SECRET_THEMES: { id: SecretThemeId; label: string; swatch: [string, string
   { id: "mono", label: "Monochrome", swatch: ["#101010", "#f5f5f5", "#353535"] },
   { id: "qc-sombre", label: "Québec sombre", swatch: ["#0a1628", "#3d7cff", "#1a2f4d"] },
   { id: "qc-clair", label: "Québec clair", swatch: ["#f4f7fb", "#003da5", "#ffffff"] },
+  { id: "pride", label: "Pride", swatch: ["#1a0f1f", "#ff2d95", "#ffd400"] },
 ];
 
 export const THEMES: { id: ThemeId; label: string; swatch: [string, string, string] }[] = [
@@ -140,6 +144,7 @@ export function getStoredTheme(): ThemeId {
     "mono",
     "qc-sombre",
     "qc-clair",
+    "pride",
   ];
 
   if (v && isSecretThemeId(v) && !isSecretThemeUnlocked(v)) {

@@ -190,6 +190,115 @@ html[data-theme="qc-clair"] {
   --color-status-dropped: #c62828;
 }
 
+html[data-theme="pride"] {
+  --color-bg: #1a0f24;
+  --color-raised: #2a1638;
+  --color-ink: #fff5fb;
+  --color-dim: #d4a8c8;
+  --color-line: #4a2a55;
+  --color-lime: #ff4fd8;
+  --color-crimson: #ff3b5c;
+  --color-status-plan: #7b68ee;
+  --color-status-watching: #ff4fd8;
+  --color-status-completed: #39ff14;
+  --color-status-hold: #ffd400;
+  --color-status-dropped: #ff3b5c;
+}
+
+/* Full-site rainbow atmosphere — pride only */
+html[data-theme="pride"] body {
+  background-image:
+    radial-gradient(ellipse 120% 80% at 10% 0%, rgba(255, 0, 90, 0.22), transparent 55%),
+    radial-gradient(ellipse 100% 70% at 90% 10%, rgba(255, 200, 0, 0.18), transparent 50%),
+    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(0, 200, 255, 0.16), transparent 55%),
+    linear-gradient(
+      125deg,
+      #1a0f24 0%,
+      #2a1230 25%,
+      #1a2038 50%,
+      #1a0f24 75%,
+      #251028 100%
+    );
+  background-attachment: fixed;
+}
+
+html[data-theme="pride"] .ambient-bg::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.35;
+  background: linear-gradient(
+    90deg,
+    #e40303,
+    #ff8c00,
+    #ffed00,
+    #008026,
+    #24408e,
+    #732982,
+    #e40303
+  );
+  background-size: 300% 100%;
+  animation: pride-rainbow-shift 12s linear infinite;
+  mix-blend-mode: soft-light;
+}
+
+html[data-theme="pride"] .ambient-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes pride-rainbow-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+html[data-theme="pride"] .font-serif,
+html[data-theme="pride"] h1,
+html[data-theme="pride"] h2 {
+  background: linear-gradient(
+    90deg,
+    #ff4d6d,
+    #ff9f1c,
+    #ffd60a,
+    #2ec4b6,
+    #4cc9f0,
+    #b5179e,
+    #ff4d6d
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: pride-text-shift 8s linear infinite;
+}
+
+@keyframes pride-text-shift {
+  to { background-position: 200% center; }
+}
+
+html[data-theme="pride"] .text-lime,
+html[data-theme="pride"] button.bg-lime,
+html[data-theme="pride"] .bg-lime {
+  /* keep contrast on solid lime buttons */
+}
+
+html[data-theme="pride"] a:hover,
+html[data-theme="pride"] .hover\:text-lime:hover {
+  filter: hue-rotate(20deg) saturate(1.4);
+}
+
+html[data-theme="pride"] header {
+  border-image: linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #24408e, #732982) 1;
+}
+
+html[data-theme="pride"] .border-lime\/40,
+html[data-theme="pride"] .border-lime\/30,
+html[data-theme="pride"] .border-lime\/50 {
+  border-color: color-mix(in oklab, #ff4fd8 55%, #ffd400) !important;
+}
+
 @layer base {
   html {
     scrollbar-color: var(--color-lime) var(--color-bg);
