@@ -14,6 +14,7 @@ import { CalendarView } from "@/components/tsuzuku/calendar-view";
 import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
+import { NotificationsCenter } from "@/components/tsuzuku/notifications-center";
 import { AppToast } from "@/components/tsuzuku/toast";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
@@ -201,6 +202,7 @@ export function AppShell() {
             </div>
           </Link>
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <NotificationsCenter />
             <ThemePicker />
             <UserButton />
             <button

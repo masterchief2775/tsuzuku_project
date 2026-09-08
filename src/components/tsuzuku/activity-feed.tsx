@@ -42,6 +42,24 @@ function labelFor(item: ActivityItem) {
       return <>t’a envoyé une demande d’ami</>;
     case "friend_accept":
       return <>a accepté ta demande d’ami</>;
+    case "list_add":
+      return (
+        <>
+          a ajouté <span className="font-semibold text-ink">{item.title}</span> à une liste
+        </>
+      );
+    case "list_join":
+      return (
+        <>
+          a rejoint <span className="font-semibold text-ink">{item.title || "une liste"}</span>
+        </>
+      );
+    case "list_vote":
+      return (
+        <>
+          a voté pour <span className="font-semibold text-ink">{item.title}</span>
+        </>
+      );
     default:
       return null;
   }

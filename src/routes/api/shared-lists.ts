@@ -291,6 +291,26 @@ export const Route = createFileRoute("/api/shared-lists")({
             await sql`
               update "shared_list" set "updated_at" = current_timestamp where "id" = ${list.id}
             `;
+            try {
+              const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+              const owners = await sql<{ user_id: string; name: string }>`
+                select m."user_id", l."name"
+                from "shared_list_member" m
+                join "shared_list" l on l."id" = m."list_id"
+                where m."list_id" = ${list.id} and m."role" = 'owner'
+              `;
+              for (const o of owners) {
+                if (o.user_id === userId) continue;
+                await fanOutToFriends({
+                  actorId: userId,
+                  kind: "list_join",
+                  title: o.name,
+                  onlyRecipientId: o.user_id,
+                });
+              }
+            } catch (err) {
+              console.warn("[shared-lists] notify join failed", err);
+            }
             return Response.json({ ok: true, listId: list.id });
           }
 
@@ -439,6 +459,29 @@ export const Route = createFileRoute("/api/shared-lists")({
             await sql`
               update "shared_list" set "updated_at" = current_timestamp where "id" = ${listId}
             `;
+            try {
+              const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
+              const members = await sql<{ user_id: string }>`
+                select "user_id" from "shared_list_member"
+                where "list_id" = ${listId} and "user_id" != ${userId}
+              `;
+              const listName = (
+                await sql<{ name: string }>`select "name" from "shared_list" where "id" = ${listId} limit 1`
+              )[0]?.name;
+              const notifTitle = listName ? `${title} · ${listName}` : title;
+              for (const m of members) {
+                await fanOutToFriends({
+                  actorId: userId,
+                  kind: "list_add",
+                  title: notifTitle,
+                  anilistId,
+                  image,
+                  onlyRecipientId: m.user_id,
+                });
+              }
+            } catch (err) {
+              console.warn("[shared-lists] notify add failed", err);
+            }
             return Response.json({ ok: true, id });
           }
 

@@ -5,7 +5,10 @@ export type ActivityKind =
   | "completed"
   | "rated"
   | "friend_request"
-  | "friend_accept";
+  | "friend_accept"
+  | "list_add"
+  | "list_join"
+  | "list_vote";
 
 function newId() {
   return `act_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;

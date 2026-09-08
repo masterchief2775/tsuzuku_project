@@ -4,7 +4,7 @@ export type ActivityItem = {
   actorName: string;
   actorUsername: string;
   actorAvatar: string | null;
-  kind: "completed" | "rated" | "friend_request" | "friend_accept";
+  kind: "completed" | "rated" | "friend_request" | "friend_accept" | "list_add" | "list_join" | "list_vote";
   title: string | null;
   anilistId: number | null;
   image: string | null;
