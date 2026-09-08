@@ -16,6 +16,7 @@ import {
   toggleValue,
 } from "@/lib/watchlist";
 import { fetchWatchlistState, saveWatchlistState } from "@/lib/watchlist-sync";
+import { getHabitsSnapshot, recordEpisodesWatched } from "@/lib/watch-habits";
 
 export type ViewId = "dashboard" | "list" | "search" | "season" | "roulette" | "calendar";
 export type LayoutId = "grid" | "list";
@@ -326,16 +327,21 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     let becameWatching = false;
     let completedForActivity: WatchlistEntry | null = null;
     let ratedForActivity: WatchlistEntry | null = null;
+    let progressDelta = 0;
     const next = entries.map((e) => {
       if (e.id !== id) return e;
       const prevStatus = e.status;
       const prevRating = e.rating;
+      const prevProgress = e.progress;
       const merged: WatchlistEntry = {
         ...e,
         ...changes,
         updatedAt: new Date().toISOString(),
       };
       merged.progress = clampProgress(merged.progress, merged.totalEpisodes);
+      if (merged.progress > prevProgress) {
+        progressDelta += merged.progress - prevProgress;
+      }
       if (shouldAutoComplete(merged.status, merged.progress, merged.totalEpisodes)) {
         merged.status = "Completed";
         autoCompletedTitle = merged.title;
@@ -361,6 +367,20 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       return merged;
     });
     set({ entries: applyPersist(next, get().userId, get) });
+    if (progressDelta > 0) {
+      const uid = get().userId;
+      const before = getHabitsSnapshot(uid, get().entries);
+      recordEpisodesWatched(uid, progressDelta);
+      const after = getHabitsSnapshot(uid, get().entries);
+      if (
+        before.weekEpisodes < before.weeklyGoal &&
+        after.weekEpisodes >= after.weeklyGoal
+      ) {
+        showToast({ message: `Objectif hebdo atteint (${after.weeklyGoal} ép.) 🎯` });
+      } else if (after.streak > before.streak && after.streak >= 3) {
+        showToast({ message: `Série : ${after.streak} jours d’affilée 🔥` });
+      }
+    }
     if (autoCompletedTitle) {
       showToast({ message: `« ${autoCompletedTitle} » marqué comme terminé` });
     }

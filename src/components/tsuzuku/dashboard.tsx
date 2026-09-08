@@ -3,6 +3,7 @@ import { EntryCard } from "@/components/tsuzuku/entry-card";
 import { Cover } from "@/components/tsuzuku/cover";
 import { Recommendations } from "@/components/tsuzuku/recommendations";
 import { ActivityFeed } from "@/components/tsuzuku/activity-feed";
+import { HabitsCard } from "@/components/tsuzuku/habits-card";
 import {
   airingOnDay,
   computeStats,
@@ -170,6 +171,8 @@ export function Dashboard() {
           <span className="shrink-0 text-[12px] font-semibold text-lime">Calendrier →</span>
         </button>
       ) : null}
+
+      <HabitsCard />
 
       {/* 1. Continue watching */}
 
