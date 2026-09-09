@@ -1,5 +1,5 @@
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
-import { PrideMusicControls } from "@/components/tsuzuku/pride-music";
+import { PrideMusicControls, P5UiSoundToggle } from "@/components/tsuzuku/pride-music";
 
 export function AppFooter({ publicPage = false }: { publicPage?: boolean }) {
   return (
@@ -13,7 +13,10 @@ export function AppFooter({ publicPage = false }: { publicPage?: boolean }) {
           {publicPage ? "Liste partagée" : "Anime list personnelle"}
         </span>
         {/* Pushed fully to the right */}
-        <PrideMusicControls className="ml-auto" />
+        <div className="ml-auto flex items-center gap-1">
+          <PrideMusicControls className="!ml-0" />
+          <P5UiSoundToggle />
+        </div>
       </div>
     </footer>
   );

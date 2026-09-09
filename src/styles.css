@@ -1044,15 +1044,14 @@ html[data-theme="lost-umbrella"] .ambient-bg {
 }
 
 /* ============================================================
-   PERSONA 5 — Phantom Thieves (UI-safe)
-   Strong identity without breaking layout / menus / icon buttons
+   PERSONA 5 — Phantom Thieves (layout-safe)
    ============================================================ */
 html[data-theme="persona5"] {
   --color-bg: #070707;
-  --color-raised: #121212;
+  --color-raised: #141414;
   --color-ink: #f2f2f2;
-  --color-dim: #9a9a9a;
-  --color-line: #2c2c2c;
+  --color-dim: #a0a0a0;
+  --color-line: #2e2e2e;
   --color-lime: #e60012;
   --color-crimson: #ff2a2a;
   --color-status-plan: #6b8cff;
@@ -1062,13 +1061,11 @@ html[data-theme="persona5"] {
   --color-status-dropped: #ff2a2a;
   --p5-red: #e60012;
   --font-serif: "Bebas Neue", "Impact", "Arial Black", system-ui, sans-serif;
-  overflow-x: hidden;
 }
 
 html[data-theme="persona5"],
 html[data-theme="persona5"] body {
   overflow-x: hidden;
-  max-width: 100vw;
 }
 
 html[data-theme="persona5"] body {
@@ -1078,65 +1075,47 @@ html[data-theme="persona5"] body {
       -18deg,
       transparent 0,
       transparent 36px,
-      rgba(230, 0, 18, 0.035) 36px,
-      rgba(230, 0, 18, 0.035) 37px
+      rgba(230, 0, 18, 0.03) 36px,
+      rgba(230, 0, 18, 0.03) 37px
     ),
-    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(230, 0, 18, 0.14), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 0% 100%, rgba(230, 0, 18, 0.08), transparent 50%);
+    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(230, 0, 18, 0.12), transparent 55%);
   background-attachment: fixed;
 }
 
-/* Corner accent — small, does not affect layout */
+/* Corner accent */
 html[data-theme="persona5"] body::after {
   content: "";
   pointer-events: none;
   position: fixed;
   top: 0;
   right: 0;
-  width: 0;
-  height: 0;
   z-index: 40;
   border-style: solid;
-  border-width: 0 48px 48px 0;
+  border-width: 0 44px 44px 0;
   border-color: transparent var(--p5-red) transparent transparent;
   opacity: 0.9;
 }
 
-/* Watermark centered bottom — not stuck left */
-html[data-theme="persona5"] .ambient-bg {
-  position: relative;
-  overflow-x: clip;
-}
-
+/* Watermark — behind content, does not affect layout */
 html[data-theme="persona5"] .ambient-bg::before {
   content: "TAKE YOUR HEART";
   pointer-events: none;
   position: fixed;
   left: 50%;
-  bottom: 6%;
+  bottom: 5%;
   z-index: 0;
   font-family: "Bebas Neue", Impact, sans-serif;
-  font-size: clamp(2.5rem, 8vw, 5.5rem);
-  line-height: 1;
+  font-size: clamp(2.2rem, 7vw, 4.8rem);
   letter-spacing: 0.12em;
   color: transparent;
-  -webkit-text-stroke: 1.5px rgba(230, 0, 18, 0.14);
+  -webkit-text-stroke: 1.5px rgba(230, 0, 18, 0.12);
   transform: translateX(-50%) skewX(-8deg);
   white-space: nowrap;
   user-select: none;
-  opacity: 0.85;
 }
 
-html[data-theme="persona5"] .ambient-bg > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Titles only — no global card skew */
-html[data-theme="persona5"] .font-serif,
-html[data-theme="persona5"] h1.font-serif,
-html[data-theme="persona5"] h2.font-serif,
-html[data-theme="persona5"] h3.font-serif {
+/* Titles */
+html[data-theme="persona5"] .font-serif {
   font-family: "Bebas Neue", Impact, "Arial Black", system-ui, sans-serif !important;
   font-weight: 400 !important;
   letter-spacing: 0.06em;
@@ -1144,11 +1123,6 @@ html[data-theme="persona5"] h3.font-serif {
   font-style: italic;
 }
 
-html[data-theme="persona5"] h1.font-serif {
-  text-shadow: 2px 2px 0 rgba(230, 0, 18, 0.55);
-}
-
-/* Header / footer: clean solid panels */
 html[data-theme="persona5"] header {
   background: rgba(0, 0, 0, 0.92) !important;
   border-bottom: 2px solid var(--p5-red) !important;
@@ -1159,24 +1133,25 @@ html[data-theme="persona5"] header {
 html[data-theme="persona5"] footer {
   background: rgba(0, 0, 0, 0.92) !important;
   border-top: 2px solid var(--p5-red) !important;
-  backdrop-filter: blur(12px) !important;
 }
 
-/* Cards: red left accent, soft shadow, keep readable radii */
-html[data-theme="persona5"] .bg-raised {
-  background-color: #121212 !important;
-  border-color: #2a2a2a !important;
-  box-shadow: 4px 4px 0 rgba(230, 0, 18, 0.2);
+/* Accent text / borders only — no transforms on cards */
+html[data-theme="persona5"] .text-lime {
+  color: var(--p5-red) !important;
+}
+html[data-theme="persona5"] .fill-lime {
+  fill: var(--p5-red) !important;
+}
+html[data-theme="persona5"] .border-lime\/40,
+html[data-theme="persona5"] .border-lime\/30,
+html[data-theme="persona5"] .border-lime\/50 {
+  border-color: rgba(230, 0, 18, 0.45) !important;
 }
 
-/* Primary solid accent buttons only — not every class containing "lime" */
 html[data-theme="persona5"] button.bg-lime,
-html[data-theme="persona5"] a.bg-lime,
-html[data-theme="persona5"] .bg-lime:not([class*="bg-lime/"]) {
+html[data-theme="persona5"] a.bg-lime {
   background-color: var(--p5-red) !important;
   color: #fff !important;
-  border: 1px solid #fff !important;
-  box-shadow: 3px 3px 0 #000;
 }
 
 html[data-theme="persona5"] button.bg-lime:hover,
@@ -1184,24 +1159,15 @@ html[data-theme="persona5"] a.bg-lime:hover {
   background-color: #ff1a2e !important;
 }
 
-html[data-theme="persona5"] .text-lime {
-  color: var(--p5-red) !important;
-}
-
-html[data-theme="persona5"] .border-lime\/40,
-html[data-theme="persona5"] .border-lime\/30,
-html[data-theme="persona5"] .border-lime\/50 {
-  border-color: rgba(230, 0, 18, 0.45) !important;
-}
-
-/* Do NOT restyle icon buttons / rounded-full globally */
-html[data-theme="persona5"] .rounded-full {
-  /* keep original radius for avatars & icon chips */
-}
-
-/* Nav: slight P5 flavor without breaking width */
-html[data-theme="persona5"] nav a {
-  letter-spacing: 0.04em;
+/* Entry cards: ensure visible, slight P5 edge without breaking grid */
+html[data-theme="persona5"] .group.bg-raised,
+html[data-theme="persona5"] .hover-lift {
+  background-color: #141414 !important;
+  border-color: #333 !important;
+  box-shadow: 3px 3px 0 rgba(230, 0, 18, 0.25);
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
 }
 
 html[data-theme="persona5"] {
@@ -1209,32 +1175,14 @@ html[data-theme="persona5"] {
 }
 html[data-theme="persona5"] ::-webkit-scrollbar-thumb {
   background: var(--p5-red);
-  border-radius: 4px;
   border-color: #111;
 }
-html[data-theme="persona5"] ::-webkit-scrollbar-track {
-  background: #111;
-}
-
 html[data-theme="persona5"] ::selection {
   background: var(--p5-red);
   color: #fff;
 }
 
-/* Dropdown menus: contain overflow, no page-wide horizontal scroll */
-html[data-theme="persona5"] header .relative > div[class*="absolute"],
-html[data-theme="persona5"] .relative > div[class*="absolute"] {
-  max-width: min(100vw - 1rem, 20rem);
-  overflow-x: hidden;
-}
-
-/* Theme picker / menus stay usable */
-html[data-theme="persona5"] header button {
-  border-radius: 8px;
-}
-
 html[data-theme="persona5"] footer .rounded-full {
-  border-radius: 9999px !important;
-  border: 1px solid rgba(230, 0, 18, 0.5) !important;
+  border: 1px solid rgba(230, 0, 18, 0.45) !important;
   background: rgba(0, 0, 0, 0.85) !important;
 }

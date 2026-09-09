@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { getStoredTheme, type ThemeId } from "@/lib/theme";
+import { installP5UiSounds, isP5UiMuted, setP5UiMuted, playP5Ui } from "@/lib/p5-ui-sounds";
 import { cn } from "@/lib/utils";
 
 /**
@@ -502,6 +503,9 @@ function useAudioState(): AudioState {
 /** Boot once at app root */
 export function PrideMusic() {
   useActiveMediaTheme();
+  useEffect(() => {
+    installP5UiSounds();
+  }, []);
   return null;
 }
 
@@ -577,5 +581,49 @@ export function PrideMusicControls({ className }: { className?: string }) {
         {muted ? 0 : volume}%
       </span>
     </div>
+  );
+}
+
+
+/** Mute toggle for synthetic P5 UI SFX — visible only on Persona 5 theme. */
+export function P5UiSoundToggle() {
+  const theme = useActiveMediaTheme();
+  const [muted, setMuted] = useState(() =>
+    typeof window !== "undefined" ? isP5UiMuted() : false,
+  );
+  const [isP5, setIsP5] = useState(false);
+
+  useEffect(() => {
+    const sync = () => {
+      const t =
+        document.documentElement.getAttribute("data-theme") === "persona5";
+      setIsP5(t);
+      setMuted(isP5UiMuted());
+    };
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
+  // theme from media hook may be persona5; also check isP5
+  if (!isP5 && theme !== "persona5") return null;
+
+  return (
+    <button
+      type="button"
+      data-p5-silent="1"
+      onClick={() => {
+        const next = !muted;
+        setP5UiMuted(next);
+        setMuted(next);
+        if (!next) playP5Ui("confirm");
+      }}
+      className="ml-2 rounded-full border border-line/80 bg-raised/95 px-2.5 py-1.5 text-[10.5px] font-bold tracking-wide text-dim uppercase hover:text-lime"
+      title={muted ? "Activer les sons UI" : "Couper les sons UI"}
+      aria-label={muted ? "Activer les sons UI Persona" : "Couper les sons UI Persona"}
+    >
+      {muted ? "UI sfx off" : "UI sfx"}
+    </button>
   );
 }
