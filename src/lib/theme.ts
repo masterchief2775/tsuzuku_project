@@ -10,7 +10,8 @@ export type SecretThemeId =
   | "qc-clair"
   | "pride"
   | "lagtrain"
-  | "lost-umbrella";
+  | "lost-umbrella"
+  | "persona5";
 export type ThemeId = StandardThemeId | SecretThemeId;
 
 const STORAGE_KEY = "tsuzuku-theme";
@@ -29,6 +30,7 @@ const ALL_SECRET_THEME_IDS: SecretThemeId[] = [
   "pride",
   "lagtrain",
   "lost-umbrella",
+  "persona5",
 ];
 
 function isSecretThemeId(value: string): value is SecretThemeId {
@@ -47,6 +49,7 @@ export const SECRET_THEME_CODES: Record<SecretThemeId, string> = {
   pride: "pride",
   lagtrain: "lagtrain",
   "lost-umbrella": "lostumbrella",
+  persona5: "phantom",
 };
 
 const SECRET_THEMES: { id: SecretThemeId; label: string; swatch: [string, string, string] }[] = [
@@ -61,6 +64,7 @@ const SECRET_THEMES: { id: SecretThemeId; label: string; swatch: [string, string
   { id: "pride", label: "Pride", swatch: ["#1a0f1f", "#ff2d95", "#ffd400"] },
   { id: "lagtrain", label: "Lagtrain", swatch: ["#0c0e18", "#7eb6ff", "#2a3148"] },
   { id: "lost-umbrella", label: "Lost Umbrella", swatch: ["#10131c", "#9fb0d9", "#2a2f42"] },
+  { id: "persona5", label: "Persona 5", swatch: ["#0a0a0a", "#e60012", "#ffffff"] },
 ];
 
 export const THEMES: { id: ThemeId; label: string; swatch: [string, string, string] }[] = [
@@ -155,6 +159,7 @@ export function getStoredTheme(): ThemeId {
     "pride",
     "lagtrain",
     "lost-umbrella",
+    "persona5",
   ];
 
   if (v && isSecretThemeId(v) && !isSecretThemeUnlocked(v)) {

@@ -24,7 +24,7 @@ export const Route = createRootRoute({
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@500;600;700;800&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fraunces:wght@500;600&family=Manrope:wght@500;600;700;800&display=swap",
       },
     ],
   }),
@@ -34,7 +34,7 @@ export const Route = createRootRoute({
         <HeadContent />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("tsuzuku-theme");var raw=localStorage.getItem("tsuzuku-secret-themes")||"[]";var unlocked={};try{var arr=JSON.parse(raw);for(var i=0;i<arr.length;i++)unlocked[arr[i]]=true;}catch(e){}if(localStorage.getItem("tsuzuku-secret-theme")==="true")unlocked.void=true;var valid={dark:1,light:1,sakura:1,ocean:1,void:1,ember:1,neon:1,aurora:1,manga:1,mono:1,"qc-sombre":1,"qc-clair":1,pride:1,lagtrain:1,"lost-umbrella":1};var secrets=["void","ember","neon","aurora","manga","mono","qc-sombre","qc-clair","pride","lagtrain","lost-umbrella"];if(secrets.indexOf(t)>=0&&!unlocked[t])t="dark";if(valid[t])document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark");}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("tsuzuku-theme");var raw=localStorage.getItem("tsuzuku-secret-themes")||"[]";var unlocked={};try{var arr=JSON.parse(raw);for(var i=0;i<arr.length;i++)unlocked[arr[i]]=true;}catch(e){}if(localStorage.getItem("tsuzuku-secret-theme")==="true")unlocked.void=true;var valid={dark:1,light:1,sakura:1,ocean:1,void:1,ember:1,neon:1,aurora:1,manga:1,mono:1,"qc-sombre":1,"qc-clair":1,pride:1,lagtrain:1,"lost-umbrella":1,persona5:1};var secrets=["void","ember","neon","aurora","manga","mono","qc-sombre","qc-clair","pride","lagtrain","lost-umbrella","persona5"];if(secrets.indexOf(t)>=0&&!unlocked[t])t="dark";if(valid[t])document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark");}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`,
           }}
         />
       </head>

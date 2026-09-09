@@ -19,12 +19,14 @@ const THEME_MEDIA: Partial<Record<ThemeId, ThemeMediaConfig>> = {
   pride: { videoId: "beINamVRGy4", mode: "audio" },
   lagtrain: { videoId: "UnIhRpIT7nc", mode: "video" },
   "lost-umbrella": { videoId: "DeKLpgzh-qQ", mode: "video" },
+  persona5: { videoId: "woz5qvDdMRM", mode: "audio" },
 };
 
 const THEME_MEDIA_LABEL: Partial<Record<ThemeId, string>> = {
   pride: "Pride",
   lagtrain: "Lagtrain",
   "lost-umbrella": "Lost Umbrella",
+  persona5: "Beneath the Mask",
 };
 
 const VOL_KEY = "tsuzuku:theme-media-volume";

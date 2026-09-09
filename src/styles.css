@@ -1042,3 +1042,267 @@ html[data-theme="lost-umbrella"] [class*="bg-bg"] {
 html[data-theme="lost-umbrella"] .ambient-bg {
   background: transparent !important;
 }
+
+/* ============================================================
+   PERSONA 5 — Phantom Thieves menu aesthetic
+   Black / crimson / white · sharp angles · comic energy
+   ============================================================ */
+html[data-theme="persona5"] {
+  --color-bg: #050505;
+  --color-raised: #111111;
+  --color-ink: #f5f5f5;
+  --color-dim: #a8a8a8;
+  --color-line: #2a2a2a;
+  --color-lime: #e60012;
+  --color-crimson: #ff2a2a;
+  --color-status-plan: #6b8cff;
+  --color-status-watching: #e60012;
+  --color-status-completed: #f5f5f5;
+  --color-status-hold: #f0c14a;
+  --color-status-dropped: #ff2a2a;
+  --p5-red: #e60012;
+  --p5-red-deep: #9b000c;
+  --p5-black: #050505;
+  --p5-panel: #0e0e0e;
+  --font-serif: "Bebas Neue", "Impact", "Arial Black", sans-serif;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}
+
+html[data-theme="persona5"] body {
+  background-color: var(--p5-black);
+  background-image:
+    /* diagonal red slash stripes like the calling card / menu */
+    repeating-linear-gradient(
+      -18deg,
+      transparent 0,
+      transparent 28px,
+      rgba(230, 0, 18, 0.04) 28px,
+      rgba(230, 0, 18, 0.04) 30px
+    ),
+    radial-gradient(ellipse 90% 60% at 100% 0%, rgba(230, 0, 18, 0.18), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, rgba(230, 0, 18, 0.1), transparent 50%),
+    linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+  background-attachment: fixed;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Corner “calling card” triangles */
+html[data-theme="persona5"] body::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  z-index: 50;
+  border-style: solid;
+  border-width: 0 72px 72px 0;
+  border-color: transparent var(--p5-red) transparent transparent;
+  opacity: 0.95;
+}
+
+html[data-theme="persona5"] .ambient-bg {
+  position: relative;
+}
+
+/* Big skewed watermark */
+html[data-theme="persona5"] .ambient-bg::before {
+  content: "TAKE YOUR HEART";
+  pointer-events: none;
+  position: fixed;
+  left: -2%;
+  bottom: 8%;
+  z-index: 0;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(3.5rem, 12vw, 8rem);
+  line-height: 0.85;
+  letter-spacing: 0.06em;
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(230, 0, 18, 0.22);
+  transform: skewX(-12deg) rotate(-6deg);
+  white-space: nowrap;
+  user-select: none;
+}
+
+html[data-theme="persona5"] .ambient-bg::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.07;
+  background-image: radial-gradient(circle, #fff 1px, transparent 1.2px);
+  background-size: 6px 6px;
+  mix-blend-mode: overlay;
+}
+
+html[data-theme="persona5"] .ambient-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Typography ---- */
+html[data-theme="persona5"] .font-serif,
+html[data-theme="persona5"] h1,
+html[data-theme="persona5"] h2,
+html[data-theme="persona5"] h3 {
+  font-family: "Bebas Neue", Impact, "Arial Black", sans-serif !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-style: italic;
+  transform: skewX(-6deg);
+  transform-origin: left center;
+}
+
+html[data-theme="persona5"] h1 {
+  color: #fff;
+  text-shadow:
+    3px 3px 0 var(--p5-red),
+    -1px -1px 0 #000;
+}
+
+/* ---- Header / footer: solid panels with red edge ---- */
+html[data-theme="persona5"] header {
+  background: #000 !important;
+  border-bottom: 3px solid var(--p5-red) !important;
+  backdrop-filter: none !important;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 24px) 100%, 0 100%);
+}
+
+html[data-theme="persona5"] footer {
+  background: #000 !important;
+  border-top: 3px solid var(--p5-red) !important;
+  backdrop-filter: none !important;
+}
+
+/* ---- Cards / raised surfaces: angular “menu box” ---- */
+html[data-theme="persona5"] .bg-raised,
+html[data-theme="persona5"] [class*="bg-raised"],
+html[data-theme="persona5"] .rounded-\[14px\],
+html[data-theme="persona5"] .rounded-\[12px\],
+html[data-theme="persona5"] .rounded-\[10px\],
+html[data-theme="persona5"] .rounded-\[16px\],
+html[data-theme="persona5"] .rounded-lg,
+html[data-theme="persona5"] .rounded-md,
+html[data-theme="persona5"] .rounded-xl {
+  border-radius: 0 !important;
+  background-color: var(--p5-panel) !important;
+  border: 2px solid #1a1a1a !important;
+  border-left: 4px solid var(--p5-red) !important;
+  box-shadow:
+    6px 6px 0 rgba(230, 0, 18, 0.35),
+    0 0 0 1px #000 !important;
+  transform: skewX(-1.5deg);
+}
+
+html[data-theme="persona5"] .bg-raised > *,
+html[data-theme="persona5"] [class*="bg-raised"] > * {
+  transform: skewX(1.5deg);
+}
+
+/* Undo skew on interactive nested content for readability */
+html[data-theme="persona5"] input,
+html[data-theme="persona5"] textarea,
+html[data-theme="persona5"] select,
+html[data-theme="persona5"] button,
+html[data-theme="persona5"] img {
+  transform: none;
+}
+
+/* ---- Primary accent buttons ---- */
+html[data-theme="persona5"] .bg-lime,
+html[data-theme="persona5"] button.bg-lime,
+html[data-theme="persona5"] [class*="bg-lime"] {
+  background: var(--p5-red) !important;
+  color: #fff !important;
+  border-radius: 0 !important;
+  border: 2px solid #fff !important;
+  box-shadow: 4px 4px 0 #000 !important;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-style: italic;
+}
+
+html[data-theme="persona5"] .bg-lime:hover,
+html[data-theme="persona5"] button.bg-lime:hover {
+  background: #ff1a2e !important;
+  box-shadow: 2px 2px 0 #000 !important;
+  translate: 2px 2px;
+}
+
+html[data-theme="persona5"] .text-lime {
+  color: var(--p5-red) !important;
+}
+
+html[data-theme="persona5"] .border-lime\/40,
+html[data-theme="persona5"] .border-lime\/30,
+html[data-theme="persona5"] .border-lime\/50,
+html[data-theme="persona5"] .ring-lime\/25 {
+  border-color: var(--p5-red) !important;
+}
+
+/* ---- Pills / chips ---- */
+html[data-theme="persona5"] .rounded-full {
+  border-radius: 0 !important;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+
+/* ---- Nav links ---- */
+html[data-theme="persona5"] nav a,
+html[data-theme="persona5"] [class*="nav"] a {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-style: italic;
+}
+
+/* ---- Scrollbar ---- */
+html[data-theme="persona5"] {
+  scrollbar-color: var(--p5-red) #000;
+}
+html[data-theme="persona5"] ::-webkit-scrollbar-thumb {
+  background: var(--p5-red);
+  border-radius: 0;
+  border-color: #000;
+}
+html[data-theme="persona5"] ::-webkit-scrollbar-track {
+  background: #000;
+}
+
+/* ---- Modals / dialogs ---- */
+html[data-theme="persona5"] [role="dialog"],
+html[data-theme="persona5"] [class*="modal"] {
+  border-radius: 0 !important;
+  border: 3px solid var(--p5-red) !important;
+  box-shadow: 10px 10px 0 #000 !important;
+}
+
+/* Soft pulse on the red accent corner */
+@keyframes p5-pulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; filter: brightness(1.15); }
+}
+html[data-theme="persona5"] body::after {
+  animation: p5-pulse 2.4s ease-in-out infinite;
+}
+
+/* Selection color */
+html[data-theme="persona5"] ::selection {
+  background: var(--p5-red);
+  color: #fff;
+}
+
+/* Volume control badge in footer — match theme */
+html[data-theme="persona5"] footer .rounded-full {
+  clip-path: none;
+  border-radius: 0 !important;
+  border: 2px solid var(--p5-red) !important;
+  background: #000 !important;
+}
