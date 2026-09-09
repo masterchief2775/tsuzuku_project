@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { getStoredTheme, type ThemeId } from "@/lib/theme";
-import { installP5UiSounds, isP5UiMuted, setP5UiMuted, playP5Ui } from "@/lib/p5-ui-sounds";
+import { installP5UiSounds, isP5UiMuted, setP5UiMuted, playP5Ui, preloadP5UiSounds, unlockP5UiAudio } from "@/lib/p5-ui-sounds";
 import { cn } from "@/lib/utils";
 
 /**
@@ -505,6 +505,9 @@ export function PrideMusic() {
   useActiveMediaTheme();
   useEffect(() => {
     installP5UiSounds();
+    if (document.documentElement.getAttribute("data-theme") === "persona5") {
+      preloadP5UiSounds();
+    }
   }, []);
   return null;
 }
@@ -617,7 +620,10 @@ export function P5UiSoundToggle() {
         const next = !muted;
         setP5UiMuted(next);
         setMuted(next);
-        if (!next) playP5Ui("confirm");
+        if (!next) {
+          unlockP5UiAudio();
+          void playP5Ui("confirm");
+        }
       }}
       className="ml-2 rounded-full border border-line/80 bg-raised/95 px-2.5 py-1.5 text-[10.5px] font-bold tracking-wide text-dim uppercase hover:text-lime"
       title={muted ? "Activer les sons UI" : "Couper les sons UI"}
