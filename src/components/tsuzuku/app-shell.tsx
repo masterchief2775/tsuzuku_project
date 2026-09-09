@@ -30,6 +30,10 @@ import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
 import { checkAiringReminders } from "@/lib/airing-reminders";
 
 export function AppShell() {
+  useEffect(() => {
+    void import("@/lib/p5-ui-sounds").then((m) => m.installP5UiSounds());
+  }, []);
+
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const { user, isPending } = useCurrentUserState();

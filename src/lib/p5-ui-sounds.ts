@@ -1,10 +1,6 @@
 /**
- * Persona 5–style UI sounds.
- *
- * Plays files from /sounds/p5/ when present:
- *   click.wav|mp3|ogg, hover.*, open.*, back.*, confirm.*
- * If you place your own files there (personal use), they are preferred.
- * Otherwise falls back to bundled synthetic WAVs + Web Audio.
+ * Persona 5 UI sounds — must play inside the user-gesture stack (no await before play).
+ * Files: /sounds/p5/{kind}.wav|mp3|ogg and optional /sounds/p5/custom/{kind}.*
  */
 
 export type SoundKind = "click" | "hover" | "open" | "back" | "confirm";
@@ -12,15 +8,18 @@ export type SoundKind = "click" | "hover" | "open" | "back" | "confirm";
 const MUTE_KEY = "tsuzuku:p5-ui-muted";
 const VOL_KEY = "tsuzuku:p5-ui-volume";
 
-const EXTS = ["wav", "ogg", "mp3"] as const;
+const EXTS = ["wav", "mp3", "ogg"] as const;
 const KINDS: SoundKind[] = ["click", "hover", "open", "back", "confirm"];
 
-let unlocked = false;
 let installed = false;
 let lastHover = 0;
-let lastPlay = 0;
-const cache = new Map<string, HTMLAudioElement>();
-const missing = new Set<string>();
+let lastClick = 0;
+
+/** resolved src per kind once found */
+const resolved = new Map<SoundKind, string>();
+/** src known to 404 / unsupported */
+const broken = new Set<string>();
+const audioPool = new Map<string, HTMLAudioElement>();
 
 function isPersona5(): boolean {
   return (
@@ -52,7 +51,7 @@ function volume(): number {
   } catch {
     /* */
   }
-  return 0.55;
+  return 0.7;
 }
 
 export function setP5UiVolume(v: number) {
@@ -63,147 +62,152 @@ export function setP5UiVolume(v: number) {
   }
 }
 
-function candidates(kind: SoundKind): string[] {
-  // Prefer user overrides in /sounds/p5/custom/ then default bundle
-  const list: string[] = [];
-  for (const ext of EXTS) {
-    list.push(`/sounds/p5/custom/${kind}.${ext}`);
-  }
-  for (const ext of EXTS) {
-    list.push(`/sounds/p5/${kind}.${ext}`);
-  }
-  return list;
+function pathsFor(kind: SoundKind): string[] {
+  const out: string[] = [];
+  for (const ext of EXTS) out.push(`/sounds/p5/custom/${kind}.${ext}`);
+  for (const ext of EXTS) out.push(`/sounds/p5/${kind}.${ext}`);
+  return out;
 }
 
-function tryPlayAudio(src: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (missing.has(src)) {
-      resolve(false);
-      return;
-    }
-    let audio = cache.get(src);
-    if (!audio) {
-      audio = new Audio();
-      audio.preload = "auto";
-      audio.src = src;
-      cache.set(src, audio);
-    }
-    audio.pause();
-    audio.currentTime = 0;
-    audio.volume = volume();
-    const p = audio.play();
-    if (p && typeof p.then === "function") {
-      p.then(() => resolve(true)).catch(() => {
-        missing.add(src);
-        resolve(false);
-      });
-    } else {
-      resolve(true);
-    }
-  });
+function getAudio(src: string): HTMLAudioElement {
+  let a = audioPool.get(src);
+  if (!a) {
+    a = new Audio(src);
+    a.preload = "auto";
+    audioPool.set(src, a);
+  }
+  return a;
 }
 
-/** Web Audio fallback if no file plays */
-function playSynth(kind: SoundKind) {
+/** Fire-and-forget play; returns true if play() was invoked without sync throw */
+function playSrcNow(src: string): boolean {
+  if (broken.has(src)) return false;
   try {
-    const AC =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    const ac = new AC();
-    const now = ac.currentTime;
-    const master = ac.createGain();
-    master.gain.value = volume();
-    master.connect(ac.destination);
-
-    const tone = (freq: number, t0: number, dur: number, type: OscillatorType, gain: number) => {
-      const o = ac.createOscillator();
-      const g = ac.createGain();
-      o.type = type;
-      o.frequency.setValueAtTime(freq, t0);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(Math.max(0.001, gain), t0 + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      o.connect(g);
-      g.connect(master);
-      o.start(t0);
-      o.stop(t0 + dur + 0.03);
-    };
-
-    switch (kind) {
-      case "hover":
-        tone(880, now, 0.04, "square", 0.12);
-        tone(1320, now + 0.02, 0.03, "square", 0.08);
-        break;
-      case "open":
-        tone(220, now, 0.08, "sawtooth", 0.16);
-        tone(440, now + 0.05, 0.1, "square", 0.14);
-        tone(880, now + 0.12, 0.12, "square", 0.1);
-        break;
-      case "back":
-        tone(660, now, 0.06, "square", 0.14);
-        tone(330, now + 0.05, 0.1, "triangle", 0.12);
-        break;
-      case "confirm":
-        tone(523, now, 0.07, "square", 0.16);
-        tone(784, now + 0.06, 0.1, "square", 0.14);
-        tone(1046, now + 0.14, 0.14, "triangle", 0.12);
-        break;
-      default:
-        tone(620, now, 0.05, "square", 0.18);
-        tone(930, now + 0.03, 0.06, "square", 0.12);
-        break;
+    const a = getAudio(src);
+    a.pause();
+    try {
+      a.currentTime = 0;
+    } catch {
+      /* */
     }
-    window.setTimeout(() => void ac.close(), 800);
+    a.volume = volume();
+    const p = a.play();
+    if (p && typeof p.then === "function") {
+      p.catch((err: unknown) => {
+        const name = err && typeof err === "object" && "name" in err ? String((err as { name: string }).name) : "";
+        // Do NOT blacklist on autoplay NotAllowedError — only real media errors
+        if (name === "NotSupportedError" || name === "NotFoundError") {
+          broken.add(src);
+          if (resolved.get(KINDS.find((k) => pathsFor(k).includes(src))!) === src) {
+            /* will re-resolve next time */
+          }
+        }
+        // Media load error
+        a.addEventListener(
+          "error",
+          () => {
+            broken.add(src);
+          },
+          { once: true },
+        );
+      });
+    }
+    return true;
   } catch {
-    /* */
+    broken.add(src);
+    return false;
   }
 }
 
-export async function playP5Ui(kind: SoundKind = "click") {
+/**
+ * Resolve best src for a kind without blocking play on first call:
+ * - if already resolved, use it
+ * - else try paths in order until one play() is accepted
+ */
+export function playP5Ui(kind: SoundKind = "click") {
   if (typeof window === "undefined") return;
   if (!isPersona5()) return;
   if (isP5UiMuted()) return;
 
-  const t = performance.now();
-  if (kind === "hover" && t - lastHover < 90) return;
-  if (kind === "hover") lastHover = t;
-  if (kind !== "hover" && t - lastPlay < 30) return;
-  if (kind !== "hover") lastPlay = t;
-
-  unlocked = true;
-
-  for (const src of candidates(kind)) {
-    // Skip probing custom paths that 404 repeatedly after first miss
-    if (missing.has(src)) continue;
-    const ok = await tryPlayAudio(src);
-    if (ok) return;
+  const now = performance.now();
+  if (kind === "hover") {
+    if (now - lastHover < 100) return;
+    lastHover = now;
+  } else {
+    if (now - lastClick < 25) return;
+    lastClick = now;
   }
-  playSynth(kind);
+
+  const known = resolved.get(kind);
+  if (known && !broken.has(known)) {
+    playSrcNow(known);
+    return;
+  }
+
+  // Try each candidate SYNCHRONOUSLY in the gesture stack — no await
+  for (const src of pathsFor(kind)) {
+    if (broken.has(src)) continue;
+    const a = getAudio(src);
+    // If already errored while loading, skip
+    if (a.error) {
+      broken.add(src);
+      continue;
+    }
+    const ok = playSrcNow(src);
+    if (ok) {
+      resolved.set(kind, src);
+      // If this src later fails to load, clear resolution
+      a.addEventListener(
+        "error",
+        () => {
+          broken.add(src);
+          if (resolved.get(kind) === src) resolved.delete(kind);
+        },
+        { once: true },
+      );
+      return;
+    }
+  }
 }
 
-/** Warm the default wav into cache so first click is instant */
 export function preloadP5UiSounds() {
   if (typeof window === "undefined") return;
   for (const kind of KINDS) {
-    const src = `/sounds/p5/${kind}.wav`;
-    if (cache.has(src)) continue;
-    const a = new Audio();
-    a.preload = "auto";
-    a.src = src;
-    cache.set(src, a);
+    for (const src of pathsFor(kind)) {
+      if (broken.has(src)) continue;
+      const a = getAudio(src);
+      a.addEventListener(
+        "error",
+        () => {
+          broken.add(src);
+        },
+        { once: true },
+      );
+      // Prefer first that can load
+      a.addEventListener(
+        "canplaythrough",
+        () => {
+          if (!resolved.has(kind) && !broken.has(src)) resolved.set(kind, src);
+        },
+        { once: true },
+      );
+    }
   }
 }
 
 export function unlockP5UiAudio() {
-  unlocked = true;
-  // Play silent buffer via a tiny audio to satisfy autoplay policies
+  // Play muted tick to unlock — sync in gesture if possible
   try {
-    const a = new Audio("/sounds/p5/click.wav");
+    const src = resolved.get("click") || "/sounds/p5/click.wav";
+    const a = getAudio(src);
+    const prev = a.volume;
     a.volume = 0.001;
     void a.play().then(() => {
       a.pause();
-    }).catch(() => {});
+      a.volume = prev;
+    }).catch(() => {
+      a.volume = prev;
+    });
   } catch {
     /* */
   }
@@ -213,35 +217,34 @@ export function installP5UiSounds() {
   if (typeof window === "undefined" || installed) return;
   installed = true;
 
-  const onTheme = () => {
+  const boot = () => {
     if (isPersona5()) preloadP5UiSounds();
   };
-  onTheme();
-  const obs = new MutationObserver(onTheme);
-  obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-
-  // Unlock audio on first gesture anywhere
-  const unlock = () => {
-    unlockP5UiAudio();
-    document.removeEventListener("pointerdown", unlock, true);
-    document.removeEventListener("keydown", unlock, true);
-  };
-  document.addEventListener("pointerdown", unlock, true);
-  document.addEventListener("keydown", unlock, true);
+  boot();
+  new MutationObserver(boot).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
 
   document.addEventListener(
     "pointerdown",
     (ev) => {
       if (!isPersona5()) return;
-      const target = ev.target;
-      if (!(target instanceof Element)) return;
-      const el = target.closest(
+      const t = ev.target;
+      if (!(t instanceof Element)) return;
+      const el = t.closest(
         "button, a, [role='button'], [role='menuitem'], input[type='submit'], input[type='button'], select, summary, [data-p5-sound]",
       );
       if (!(el instanceof HTMLElement)) return;
       if (el.dataset.p5Silent === "1") return;
-      const kind = (el.dataset.p5Sound as SoundKind | undefined) || "click";
-      void playP5Ui(kind === "hover" ? "click" : kind);
+
+      const raw = el.dataset.p5Sound as SoundKind | undefined;
+      const kind: SoundKind =
+        raw === "hover" || raw === "open" || raw === "back" || raw === "confirm" || raw === "click"
+          ? raw
+          : "click";
+      // Must stay synchronous for autoplay permission
+      playP5Ui(kind);
     },
     true,
   );
@@ -250,14 +253,13 @@ export function installP5UiSounds() {
     "mouseover",
     (ev) => {
       if (!isPersona5()) return;
-      const target = ev.target;
-      if (!(target instanceof Element)) return;
-      const el = target.closest("button, a, [role='button']");
+      const t = ev.target;
+      if (!(t instanceof Element)) return;
+      const el = t.closest("button, a, [role='button']");
       if (!(el instanceof HTMLElement)) return;
       if (el.dataset.p5Silent === "1") return;
-      // only when entering the element itself (not bubbling from children repeatedly)
       if (ev.relatedTarget instanceof Node && el.contains(ev.relatedTarget)) return;
-      void playP5Ui("hover");
+      playP5Ui("hover");
     },
     true,
   );

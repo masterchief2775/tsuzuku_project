@@ -177,4 +177,10 @@ export function applyTheme(id: ThemeId) {
       : id;
   document.documentElement.setAttribute("data-theme", safeId);
   window.localStorage.setItem(STORAGE_KEY, safeId);
+  if (safeId === "persona5") {
+    void import("@/lib/p5-ui-sounds").then((m) => {
+      m.installP5UiSounds();
+      m.preloadP5UiSounds();
+    });
+  }
 }
