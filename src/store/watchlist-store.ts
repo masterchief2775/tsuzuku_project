@@ -17,6 +17,7 @@ import {
 } from "@/lib/watchlist";
 import { fetchWatchlistState, getWatchlistVersion, saveWatchlistPatch } from "@/lib/watchlist-sync";
 import { localNewerThanRemote, mergeWatchlists } from "@/lib/watchlist-merge";
+import { getMyParties, type PartySummary } from "@/lib/party";
 import { getHabitsSnapshot, recordEpisodesWatched } from "@/lib/watch-habits";
 
 export type ViewId = "dashboard" | "list" | "search" | "season" | "roulette" | "calendar";
@@ -104,6 +105,10 @@ type WatchlistState = {
    * device moved the server. Call on tab-visible and online-regain.
    */
   pullRemote: () => Promise<void>;
+  // ---- Active watch parties (global badge) ----
+  /** Open rooms I'm in — refreshed by a slow background poll. */
+  myParties: PartySummary[];
+  refreshParties: () => Promise<void>;
 };
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -286,6 +291,22 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
   online: typeof navigator !== "undefined" ? navigator.onLine : true,
   pendingCount: 0,
   lastSyncedAt: null,
+  myParties: [],
+
+  refreshParties: async () => {
+    const userId = get().userId;
+    if (!userId) {
+      if (get().myParties.length > 0) set({ myParties: [] });
+      return;
+    }
+    try {
+      const rows = await getMyParties();
+      if (get().userId !== userId) return; // switched meanwhile
+      set({ myParties: rows });
+    } catch {
+      // Offline/transient — keep the last known list.
+    }
+  },
 
   hydrate: (userId) => {
     if (get().hydrated && get().userId === userId) return;
@@ -294,7 +315,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     if (get().userId !== userId) {
       pendingUpsert.clear();
       pendingDeleted.clear();
-      set({ pendingCount: 0, lastSyncedAt: null });
+      set({ pendingCount: 0, lastSyncedAt: null, myParties: [] });
     }
     // Show the local copy immediately (instant, works offline) — the server
     // fetch below only ever refines this, it never blocks first paint.
@@ -783,6 +804,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       toast: null,
       pendingCount: 0,
       lastSyncedAt: null,
+      myParties: [],
     });
   },
 }));

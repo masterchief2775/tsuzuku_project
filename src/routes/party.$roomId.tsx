@@ -59,6 +59,9 @@ function PartyRoomPage() {
   const setProgress = useWatchlistStore((s) => s.setProgress);
   const addEntry = useWatchlistStore((s) => s.addEntry);
   const showToast = useWatchlistStore((s) => s.showToast);
+  const hydrate = useWatchlistStore((s) => s.hydrate);
+  const refreshParties = useWatchlistStore((s) => s.refreshParties);
+  const setView = useWatchlistStore((s) => s.setView);
   const [media, setMedia] = useState<AniListMedia | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   const lastSyncedEpisode = useRef<number | null>(null);
@@ -105,6 +108,16 @@ function PartyRoomPage() {
     lastSyncedEpisode.current = null;
     autoAddedRoom.current = null;
   }, [roomId]);
+
+  // The party page can be the entry point (invite link on a cold session):
+  // without hydrate, userId stays null so auto-added entries would neither
+  // persist (wrong localStorage key) nor sync to the server.
+  useEffect(() => {
+    if (user?.id) {
+      hydrate(user.id);
+      void refreshParties();
+    }
+  }, [user?.id, hydrate, refreshParties]);
 
   // Session state: fast poll while open (chat + readiness need it).
   useVisiblePolling(reload, 4000, Boolean(user?.id));
@@ -194,6 +207,7 @@ function PartyRoomPage() {
     try {
       await joinPartyByToken({ data: { token } });
       await reload();
+      await refreshParties();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de rejoindre");
     } finally {
@@ -295,6 +309,35 @@ function PartyRoomPage() {
           </p>
         </div>
       </div>
+
+      {/* Stay in the session while browsing the rest of the site — the header
+          badge (everywhere else) jumps back here until the room closes. */}
+      <nav
+        aria-label="Navigation pendant la session"
+        className="mb-4 flex gap-1 overflow-x-auto rounded-[12px] border border-line bg-raised p-1"
+      >
+        {(
+          [
+            { to: "/", label: "Accueil" },
+            { to: "/", label: "Ma liste", view: "list" as const },
+            { to: "/friends", label: "Amis" },
+            { to: "/lists", label: "Listes" },
+            { to: "/messages", label: "Messages" },
+          ]
+        ).map((item) => (
+          <Link
+            key={item.label}
+            to={item.to}
+            search={item.to === "/lists" ? { id: undefined, join: undefined } : undefined}
+            onClick={() => {
+              if (item.view) window.setTimeout(() => setView(item.view!), 0);
+            }}
+            className="shrink-0 rounded-[8px] px-3 py-1.5 text-xs font-semibold text-dim transition hover:bg-bg hover:text-ink"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
 
       {/* Anime card + list membership */}
       <section className="mb-4 flex gap-3.5 rounded-[14px] border border-line bg-raised p-4">
@@ -536,6 +579,7 @@ function PartyRoomPage() {
               if (!window.confirm("Fermer la session pour tout le monde ? (chat effacé)")) return;
               void (async () => {
                 await closeParty({ data: { roomId } });
+                await refreshParties();
                 void navigate({ to: "/lists", search: { id: undefined, join: undefined } });
               })();
             }}
@@ -551,6 +595,7 @@ function PartyRoomPage() {
             onClick={() => {
               void (async () => {
                 await leaveParty({ data: { roomId } });
+                await refreshParties();
                 void navigate({ to: "/lists", search: { id: undefined, join: undefined } });
               })();
             }}

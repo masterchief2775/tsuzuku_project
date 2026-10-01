@@ -16,6 +16,8 @@ import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { NotificationsCenter } from "@/components/tsuzuku/notifications-center";
+import { PartyBadge } from "@/components/tsuzuku/party-badge";
+import { useVisiblePolling } from "@/lib/polling";
 import { AppToast } from "@/components/tsuzuku/toast";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
@@ -69,6 +71,11 @@ export function AppShell() {
   useEffect(() => {
     if (user?.id) hydrate(user.id);
   }, [hydrate, user?.id]);
+
+  const refreshParties = useWatchlistStore((s) => s.refreshParties);
+  // Slow background poll so the session badge appears/disappears on its own
+  // (join elsewhere, host closes) — 30s visible, 5min hidden.
+  useVisiblePolling(refreshParties, 30_000, Boolean(user?.id));
 
   useEffect(() => {
     if (!user?.id) {
@@ -250,6 +257,7 @@ export function AppShell() {
             </div>
           </Link>
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <PartyBadge />
             <NotificationsCenter />
             <ThemePicker />
             <button

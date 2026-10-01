@@ -172,6 +172,42 @@ export const joinPartyByToken = createServerFn({ method: "POST" })
     return { roomId: room.id };
   });
 
+export type PartySummary = {
+  roomId: string;
+  title: string;
+  episode: number;
+  isHost: boolean;
+  memberCount: number;
+};
+
+/** Open rooms I'm in — drives the global session badge (cheap, no messages). */
+export const getMyParties = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<PartySummary[]> => {
+    const sql = await getSql();
+    const rows = await sql<{
+      room_id: string;
+      title: string;
+      episode: number;
+      host_id: string;
+      member_count: number;
+    }>`
+      select r."id" as room_id, r."title", r."episode", r."host_id",
+        (select count(*)::int from "party_member" m where m."room_id" = r."id") as member_count
+      from "party_room" r
+      join "party_member" me on me."room_id" = r."id" and me."user_id" = ${context.userId}
+      where r."status" = 'open'
+      order by r."created_at" desc
+    `;
+    return rows.map((r) => ({
+      roomId: r.room_id,
+      title: r.title,
+      episode: r.episode,
+      isHost: r.host_id === context.userId,
+      memberCount: r.member_count,
+    }));
+  });
+
 /** Full room state for members (4s visible poll). */
 export const getParty = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
