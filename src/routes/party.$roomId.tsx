@@ -62,6 +62,7 @@ function PartyRoomPage() {
   const [media, setMedia] = useState<AniListMedia | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   const lastSyncedEpisode = useRef<number | null>(null);
+  const autoAddedRoom = useRef<string | null>(null);
 
   const [detail, setDetail] = useState<PartyDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +103,7 @@ function PartyRoomPage() {
     setError("");
     lastMsgId.current = null;
     lastSyncedEpisode.current = null;
+    autoAddedRoom.current = null;
   }, [roomId]);
 
   // Session state: fast poll while open (chat + readiness need it).
@@ -153,6 +155,27 @@ function PartyRoomPage() {
     if (myEntry.progress >= detail.episode) return;
     setProgress(myEntry.id, detail.episode);
   }, [detail, myEntry, setProgress]);
+
+  // Auto-add: a member missing the title gets it in "Watching", already set
+  // to the shared episode (auto-complete applies if caught up to the total).
+  // addEntry is duplicate-safe (false when anilistId present), and the
+  // per-room ref makes the attempt one-shot.
+  useEffect(() => {
+    if (!detail || detail.anilistId == null || !media) return;
+    if (myEntry) return;
+    if (autoAddedRoom.current === detail.roomId) return;
+    autoAddedRoom.current = detail.roomId;
+    const added = addEntry(media);
+    if (!added) return;
+    const fresh = useWatchlistStore
+      .getState()
+      .entries.find((e) => e.anilistId === detail.anilistId);
+    if (fresh) {
+      useWatchlistStore
+        .getState()
+        .updateEntry(fresh.id, { status: "Watching", progress: detail.episode });
+    }
+  }, [detail, media, myEntry, addEntry]);
 
   const syncState = !myEntry
     ? "missing"
