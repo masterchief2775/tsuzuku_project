@@ -46,15 +46,41 @@ function normalizeEntries(raw: unknown): WatchlistEntry[] {
   return value as WatchlistEntry[];
 }
 
+export type WatchlistSnapshot = {
+  entries: WatchlistEntry[] | null;
+  /** Server `updated_at` — lets the client skip a full pull when unchanged. */
+  updatedAt: string | null;
+};
+
+function isoDate(v: string | Date | null | undefined): string | null {
+  if (v == null) return null;
+  return typeof v === "string" ? v : v.toISOString();
+}
+
 export const fetchWatchlistState = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async ({ context }): Promise<WatchlistEntry[] | null> => {
+  .handler(async ({ context }): Promise<WatchlistSnapshot> => {
     const sql = await getSql();
-    const rows = await sql<{ entries: unknown }>`
-      select "entries" from "watchlist_state" where "user_id" = ${context.userId}
+    const rows = await sql<{ entries: unknown; updated_at: string | Date | null }>`
+      select "entries", "updated_at" from "watchlist_state" where "user_id" = ${context.userId}
     `;
-    if (!rows[0]) return null; // no row yet
-    return normalizeEntries(rows[0].entries);
+    if (!rows[0]) return { entries: null, updatedAt: null }; // no row yet
+    return { entries: normalizeEntries(rows[0].entries), updatedAt: isoDate(rows[0].updated_at) };
+  });
+
+/**
+ * Cheap version probe (PK lookup, no JSONB): the client compares `updatedAt`
+ * with its `lastSyncedAt` and only pulls the full list when the server moved
+ * (other device wrote). Costs ~bytes instead of ~500Ko per check.
+ */
+export const getWatchlistVersion = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<{ updatedAt: string | null }> => {
+    const sql = await getSql();
+    const rows = await sql<{ updated_at: string | Date | null }>`
+      select "updated_at" from "watchlist_state" where "user_id" = ${context.userId}
+    `;
+    return { updatedAt: isoDate(rows[0]?.updated_at) };
   });
 
 export const saveWatchlistState = createServerFn({ method: "POST" })
@@ -70,7 +96,7 @@ export const saveWatchlistState = createServerFn({ method: "POST" })
     }
     return { entries: parsed.data.entries as WatchlistEntry[] };
   })
-  .handler(async ({ data, context }): Promise<{ ok: true; count: number }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; count: number; updatedAt: string | null }> => {
     const sql = await getSql();
     if (data.entries.length > MAX_FULL_ENTRIES) {
       throw new Error("Watchlist trop volumineuse pour un sync complet");
@@ -81,15 +107,16 @@ export const saveWatchlistState = createServerFn({ method: "POST" })
     if (json.length > MAX_JSON_BYTES) {
       throw new Error("Payload watchlist trop volumineux");
     }
-    await sql`
+    const rows = await sql<{ updated_at: string | Date | null }>`
       insert into "watchlist_state" ("user_id", "entries", "updated_at")
       values (${context.userId}, ${json}::jsonb, current_timestamp)
       on conflict ("user_id")
       do update set
         "entries" = excluded."entries",
         "updated_at" = excluded."updated_at"
+      returning "updated_at"
     `;
-    return { ok: true, count: data.entries.length };
+    return { ok: true, count: data.entries.length, updatedAt: isoDate(rows[0]?.updated_at) };
   });
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -139,7 +166,7 @@ export const saveWatchlistPatch = createServerFn({ method: "POST" })
     }
     return { upsert, deletedIds };
   })
-  .handler(async ({ data, context }): Promise<{ ok: true; total: number; applied: number }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; total: number; applied: number; updatedAt: string | null }> => {
     const sql = await getSql();
     const rows = await sql<{ entries: unknown }>`
       select "entries" from "watchlist_state" where "user_id" = ${context.userId}
@@ -178,13 +205,14 @@ export const saveWatchlistPatch = createServerFn({ method: "POST" })
     if (json.length > MAX_JSON_BYTES) {
       throw new Error("Watchlist résultante trop volumineuse");
     }
-    await sql`
+    const saved = await sql<{ updated_at: string | Date | null }>`
       insert into "watchlist_state" ("user_id", "entries", "updated_at")
       values (${context.userId}, ${json}::jsonb, current_timestamp)
       on conflict ("user_id")
       do update set
         "entries" = excluded."entries",
         "updated_at" = excluded."updated_at"
+      returning "updated_at"
     `;
-    return { ok: true, total: merged.length, applied };
+    return { ok: true, total: merged.length, applied, updatedAt: isoDate(saved[0]?.updated_at) };
   });

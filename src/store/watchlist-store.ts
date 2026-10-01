@@ -15,7 +15,7 @@ import {
   technicalFieldsFromMedia,
   toggleValue,
 } from "@/lib/watchlist";
-import { fetchWatchlistState, saveWatchlistPatch } from "@/lib/watchlist-sync";
+import { fetchWatchlistState, getWatchlistVersion, saveWatchlistPatch } from "@/lib/watchlist-sync";
 import { getHabitsSnapshot, recordEpisodesWatched } from "@/lib/watch-habits";
 
 export type ViewId = "dashboard" | "list" | "search" | "season" | "roulette" | "calendar";
@@ -93,7 +93,27 @@ type WatchlistState = {
   flushSync: () => Promise<void>;
   /** Clear in-memory state on sign-out so next login always re-hydrates. */
   resetSession: () => void;
+  // ---- Sync status (point 3: visible queue + multi-device) ----
+  /** Dirty entries + deleted ids not yet uploaded. Drives the header badge. */
+  pendingCount: number;
+  /** Server `updated_at` of the last successful push/pull. Null until first sync. */
+  lastSyncedAt: string | null;
+  /**
+   * Pull-if-newer: cheap version probe, full fetch + merge only when another
+   * device moved the server. Call on tab-visible and online-regain.
+   */
+  pullRemote: () => Promise<void>;
 };
+
+/** Local entries the server lacks, or that are newer than the server copy. */
+function localNewerThanRemote(local: WatchlistEntry[], remote: WatchlistEntry[]): WatchlistEntry[] {
+  const remoteByAnilist = new Map(remote.map((e) => [e.anilistId, e]));
+  return local.filter((e) => {
+    const r = remoteByAnilist.get(e.anilistId);
+    if (!r) return true;
+    return +new Date(e.updatedAt || e.addedAt || 0) > +new Date(r.updatedAt || r.addedAt || 0);
+  });
+}
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -109,7 +129,10 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null;
 // the whole list (~500Ko for 300 entries) — the single biggest Neon egress
 // saver in the app.
 const SYNC_DEBOUNCE_MS = 1200;
+/** One-shot retry after a failed push — closes the gap when the user makes no further edits. */
+const SYNC_RETRY_MS = 30_000;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let syncInFlight: Promise<unknown> | null = null;
 let syncQueued = false;
 let lastSyncErrorAt = 0;
@@ -117,6 +140,12 @@ let lastSyncErrorAt = 0;
 const pendingUpsert = new Map<string, WatchlistEntry>();
 /** Ids removed since the last successful push. Cleared only on success. */
 const pendingDeleted = new Set<string>();
+
+function syncPendingCount() {
+  useWatchlistStore.setState({
+    pendingCount: pendingUpsert.size + pendingDeleted.size,
+  });
+}
 
 function markDirty(upsert: WatchlistEntry[] = [], deleted: string[] = []) {
   for (const e of upsert) {
@@ -127,6 +156,26 @@ function markDirty(upsert: WatchlistEntry[] = [], deleted: string[] = []) {
     pendingUpsert.delete(id);
     pendingDeleted.add(id);
   }
+  syncPendingCount();
+}
+
+function clearRetry() {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+}
+
+function scheduleRetry(get: () => WatchlistState) {
+  if (retryTimer) return;
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    // Still offline or nothing left to send → stay quiet; online regain and
+    // tab visibility both trigger their own flush.
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    if (pendingUpsert.size === 0 && pendingDeleted.size === 0) return;
+    void pushToServer(get);
+  }, SYNC_RETRY_MS);
 }
 
 function scheduleSync(get: () => WatchlistState) {
@@ -168,11 +217,14 @@ async function pushToServer(get: () => WatchlistState) {
   const userId = get().userId;
   syncInFlight = (async () => {
     try {
-      await saveWatchlistPatch({ data: { upsert, deletedIds } });
+      const result = await saveWatchlistPatch({ data: { upsert, deletedIds } });
       for (const e of upsert) {
         if (pendingUpsert.get(e.id) === e) pendingUpsert.delete(e.id);
       }
       for (const id of deletedIds) pendingDeleted.delete(id);
+      syncPendingCount();
+      clearRetry();
+      if (result?.updatedAt) useWatchlistStore.setState({ lastSyncedAt: result.updatedAt });
       if (import.meta.env.DEV) {
         console.info("[watchlist] patch synced", upsert.length, "upsert +", deletedIds.length, "deleted for", userId);
       }
@@ -180,13 +232,15 @@ async function pushToServer(get: () => WatchlistState) {
       console.error("[watchlist] server sync failed", err);
       const now = Date.now();
       // Rate-limit the toast so a flapping network does not spam. Dirty sets
-      // are intentionally KEPT so the next scheduleSync/setOnline retries them.
+      // are intentionally KEPT and a 30s retry is scheduled, so the queue
+      // drains even if the user makes no further edits.
       if (now - lastSyncErrorAt > 8000) {
         lastSyncErrorAt = now;
         get().showToast({
           message: "Synchronisation impossible — enregistré sur cet appareil seulement",
         });
       }
+      scheduleRetry(get);
       throw err;
     }
   })()
@@ -258,6 +312,8 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
   selectionMode: false,
   selectedIds: [],
   online: typeof navigator !== "undefined" ? navigator.onLine : true,
+  pendingCount: 0,
+  lastSyncedAt: null,
 
   hydrate: (userId) => {
     if (get().hydrated && get().userId === userId) return;
@@ -266,6 +322,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     if (get().userId !== userId) {
       pendingUpsert.clear();
       pendingDeleted.clear();
+      set({ pendingCount: 0, lastSyncedAt: null });
     }
     // Show the local copy immediately (instant, works offline) — the server
     // fetch below only ever refines this, it never blocks first paint.
@@ -273,8 +330,10 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     set({ entries: local, hydrated: true, userId });
     void (async () => {
       try {
-        const remote = await fetchWatchlistState();
+        const snapshot = await fetchWatchlistState();
         if (get().userId !== userId) return; // user changed while this was in flight
+        const remote = snapshot.entries;
+        if (snapshot.updatedAt) set({ lastSyncedAt: snapshot.updatedAt });
 
         if (remote == null) {
           // No server row yet: seed from local if we have anything (patch with
@@ -290,14 +349,15 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
           markDirty(local);
           await flushSyncNow(get);
         } else if (remote.length > 0) {
-          // Prefer the richer side when both exist (e.g. offline edits on this device).
-          const merged = mergeWatchlists(local, remote);
+          // Merge wins per-entry by updatedAt (offline edits on this device
+          // survive), then push back anything the server lacks or has older —
+          // the old length-only check missed same-ids-newer-local edits.
+          const merged = mergeWatchlists(local, remote).filter((e) => !pendingDeleted.has(e.id));
           set({ entries: merged });
           persistEntries(merged, userId);
-          // If merge kept local-only items, push just those so other devices see them.
-          if (merged.length !== remote.length) {
-            const remoteIds = new Set(remote.map((e) => e.anilistId));
-            markDirty(merged.filter((e) => !remoteIds.has(e.anilistId)));
+          const stale = localNewerThanRemote(merged, remote);
+          if (stale.length > 0) {
+            markDirty(stale);
             await flushSyncNow(get);
           }
         } else {
@@ -309,6 +369,45 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       }
       if (get().userId === userId) void get().refreshNextAirings();
     })();
+  },
+
+  pullRemote: async () => {
+    const userId = get().userId;
+    if (!userId || !get().hydrated) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    try {
+      const { updatedAt } = await getWatchlistVersion();
+      if (!updatedAt) return; // no server row yet — nothing to pull
+      // ISO UTC strings compare chronologically. Equal = our own last push
+      // (pushes store the returned updatedAt), so skip the ~500Ko fetch.
+      const last = get().lastSyncedAt;
+      if (last && updatedAt <= last) return;
+      if (get().userId !== userId) return;
+      const snapshot = await fetchWatchlistState();
+      if (get().userId !== userId || !snapshot.entries) return;
+      if (snapshot.updatedAt) set({ lastSyncedAt: snapshot.updatedAt });
+      const before = get().entries;
+      const merged = mergeWatchlists(before, snapshot.entries).filter(
+        (e) => !pendingDeleted.has(e.id),
+      );
+      const changed =
+        merged.length !== before.length ||
+        merged.some(
+          (e, i) => e.id !== before[i]?.id || e.updatedAt !== before[i]?.updatedAt,
+        );
+      if (!changed) return;
+      set({ entries: merged });
+      persistEntries(merged, userId);
+      // Offline edits made here while the other device wrote still win locally
+      // and must be pushed back.
+      const stale = localNewerThanRemote(merged, snapshot.entries);
+      if (stale.length > 0) {
+        markDirty(stale);
+        scheduleSync(get);
+      }
+    } catch {
+      // Offline or transient — the 30s retry and next tab-visible cover it.
+    }
   },
 
   setView: (view) => set({ view }),
@@ -682,7 +781,11 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
   setOnline: (online) => {
     set({ online });
     if (online && get().userId) {
-      void flushSyncNow(get);
+      // Push local queue first, then pull whatever moved server-side meanwhile.
+      void (async () => {
+        await flushSyncNow(get);
+        await get().pullRemote();
+      })();
     }
   },
 
@@ -695,6 +798,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       clearTimeout(syncTimer);
       syncTimer = null;
     }
+    clearRetry();
     pendingUpsert.clear();
     pendingDeleted.clear();
     set({
@@ -705,6 +809,8 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       selectedIds: [],
       selectionMode: false,
       toast: null,
+      pendingCount: 0,
+      lastSyncedAt: null,
     });
   },
 }));

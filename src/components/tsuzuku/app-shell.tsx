@@ -43,6 +43,7 @@ export function AppShell() {
   const setView = useWatchlistStore((s) => s.setView);
   const exportJson = useWatchlistStore((s) => s.exportJson);
   const online = useWatchlistStore((s) => s.online);
+  const pendingCount = useWatchlistStore((s) => s.pendingCount);
   const setOnline = useWatchlistStore((s) => s.setOnline);
   const searchRef = useRef<HTMLInputElement>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -83,7 +84,8 @@ export function AppShell() {
     };
   }, [user?.id]);
 
-  // Persist pending edits when the tab is backgrounded or closed.
+  // Persist pending edits when the tab is backgrounded or closed; pull remote
+  // changes when it comes back (cheap version probe first — see pullRemote).
   useEffect(() => {
     const flush = () => {
       const state = useWatchlistStore.getState();
@@ -92,7 +94,12 @@ export function AppShell() {
       }
     };
     const onVis = () => {
-      if (document.visibilityState === "hidden") flush();
+      const state = useWatchlistStore.getState();
+      if (document.visibilityState === "hidden") {
+        if (state.userId) flush();
+      } else if (state.userId && navigator.onLine) {
+        void state.pullRemote();
+      }
     };
     window.addEventListener("pagehide", flush);
     document.addEventListener("visibilitychange", onVis);
@@ -200,6 +207,14 @@ export function AppShell() {
         <div className="bg-amber-500/15 px-4 py-2 text-center text-[12.5px] font-semibold text-amber-200">
           Mode hors-ligne — ta liste locale reste utilisable ; les changements se synchroniseront au
           retour du réseau.
+        </div>
+      ) : pendingCount > 0 ? (
+        <div
+          className="bg-sky-500/15 px-4 py-2 text-center text-[12.5px] font-semibold text-sky-200"
+          role="status"
+          aria-live="polite"
+        >
+          {pendingCount} modification{pendingCount > 1 ? "s" : ""} en attente de synchronisation…
         </div>
       ) : null}
       <header className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4">
