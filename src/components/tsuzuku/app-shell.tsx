@@ -65,7 +65,12 @@ export function AppShell() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const beat = () => void heartbeatPresence().catch(() => undefined);
+    // Skips hidden tabs: a background tab no longer writes presence to Neon
+    // every 60s. Refetch fires on visibility return instead.
+    const beat = () => {
+      if (document.visibilityState !== "visible") return;
+      void heartbeatPresence().catch(() => undefined);
+    };
     const onVisible = () => {
       if (document.visibilityState === "visible") beat();
     };

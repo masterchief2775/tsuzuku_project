@@ -36,6 +36,7 @@ import {
 } from "@/lib/activity-client";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
+import { useVisiblePolling } from "@/lib/polling";
 import { FriendCompareButton } from "@/components/tsuzuku/friend-compare";
 
 function presenceLabel(friend: FriendProfile): string {
@@ -92,10 +93,12 @@ export function FriendsView() {
   useEffect(() => {
     if (!user?.id) return;
     setLoading(true);
-    void reload();
-    const id = window.setInterval(() => void reload(), 45_000);
-    return () => window.clearInterval(id);
-  }, [user?.id, reload]);
+    // Initial fetch runs through the shared poller below (immediate call).
+  }, [user?.id]);
+
+  // Was 45s × 4 queries (friends + requests + blocked + activity) in every
+  // tab — now 90s visible, 5min hidden.
+  useVisiblePolling(reload, 90_000, Boolean(user?.id));
 
   useEffect(() => {
     if (searchQ.trim().length < 2) {

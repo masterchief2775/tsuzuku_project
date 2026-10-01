@@ -5,7 +5,6 @@ import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import {
-  getUnreadMessageCount,
   listConversations,
   listThread,
   markThreadRead,
@@ -13,9 +12,10 @@ import {
   type ConversationSummary,
   type PrivateMessage,
 } from "@/lib/messages";
+import { getBadgeCounts } from "@/lib/activity-client";
 
-const THREAD_POLL_MS = 3000;
-const LIST_POLL_MS = 8000;
+const THREAD_POLL_MS = 4000;
+const LIST_POLL_MS = 15000;
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
@@ -369,17 +369,22 @@ export function MessagesView() {
   );
 }
 
-/** Exported for the nav badge (app-primary-nav.tsx) — same short polling helper, standalone. */
+/**
+ * Shared badge cache (60s visible poll, one query for all counts).
+ * Previously a standalone 15s poller mounted twice (nav + bell) — the top
+ * per-user Neon read in the app. Kept as a compat export.
+ */
 export function useUnreadMessageCount() {
+  const { user } = useCurrentUserState();
   const [count, setCount] = useState(0);
   usePolling(
     () => {
-      void getUnreadMessageCount()
-        .then(setCount)
+      void getBadgeCounts()
+        .then((b) => setCount(b.unreadMessages))
         .catch(() => {});
     },
-    15000,
-    true,
+    60000,
+    Boolean(user?.id),
   );
   return count;
 }

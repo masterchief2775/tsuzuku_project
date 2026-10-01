@@ -23,23 +23,27 @@ export const Route = createFileRoute("/api/activity")({
         const sql = await getSql();
 
         if (url.searchParams.get("counts") === "1") {
+          // Single round-trip badge: activity + friend requests + unread
+          // messages. Lets the header/nav share ONE 60s poller instead of
+          // three separate ones (was: badge 30s + message count 15s × 2 mounts).
           let unreadActivity = 0;
           let pendingFriendRequests = 0;
+          let unreadMessages = 0;
           try {
-            const a = await sql<{ n: string }>`
-              select count(*)::text as n from "friend_activity"
-              where "recipient_id" = ${userId} and "read_at" is null
+            const rows = await sql<{ unread_activity: string; pending_requests: string; unread_messages: string }>`
+              select
+                (select count(*)::text from "friend_activity"
+                  where "recipient_id" = ${userId} and "read_at" is null) as unread_activity,
+                (select count(*)::text from "friendship"
+                  where "addressee_id" = ${userId} and "status" = 'pending') as pending_requests,
+                (select count(*)::text from "private_message"
+                  where "receiver_id" = ${userId} and "read_at" is null) as unread_messages
             `;
-            unreadActivity = Number(a[0]?.n || 0);
+            unreadActivity = Number(rows[0]?.unread_activity || 0);
+            pendingFriendRequests = Number(rows[0]?.pending_requests || 0);
+            unreadMessages = Number(rows[0]?.unread_messages || 0);
           } catch { /* */ }
-          try {
-            const f = await sql<{ n: string }>`
-              select count(*)::text as n from "friendship"
-              where "addressee_id" = ${userId} and "status" = 'pending'
-            `;
-            pendingFriendRequests = Number(f[0]?.n || 0);
-          } catch { /* */ }
-          return Response.json({ unreadActivity, pendingFriendRequests });
+          return Response.json({ unreadActivity, pendingFriendRequests, unreadMessages });
         }
 
         const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 20));

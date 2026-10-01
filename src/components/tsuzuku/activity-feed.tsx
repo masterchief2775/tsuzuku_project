@@ -8,6 +8,7 @@ import {
   markActivityRead,
   type ActivityItem,
 } from "@/lib/activity-client";
+import { useVisiblePolling } from "@/lib/polling";
 import { cn } from "@/lib/utils";
 
 function formatWhen(iso: string) {
@@ -89,10 +90,10 @@ export function ActivityFeed({ compact = true }: { compact?: boolean }) {
       return;
     }
     setLoading(true);
-    void reload();
-    const id = window.setInterval(() => void reload(), 45_000);
-    return () => window.clearInterval(id);
-  }, [user?.id, reload]);
+  }, [user?.id]);
+
+  // Was 45s in all tabs (hidden included) — now 90s visible, 5min hidden.
+  useVisiblePolling(reload, 90_000, Boolean(user?.id));
 
   useEffect(() => {
     if (!user?.id || items.length === 0) return;

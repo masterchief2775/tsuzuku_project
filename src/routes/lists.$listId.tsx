@@ -15,6 +15,7 @@ import {
   type SharedListDetail,
 } from "@/lib/shared-lists-client";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { useVisiblePolling } from "@/lib/polling";
 
 export const Route = createFileRoute("/lists/$listId")({
   component: ListDetailPage,
@@ -50,10 +51,11 @@ function ListDetailPage() {
       return;
     }
     setLoading(true);
-    void reload();
-    const id = window.setInterval(() => void reload(), 45_000);
-    return () => window.clearInterval(id);
-  }, [user?.id, reload]);
+    // Initial fetch runs through the shared poller below (immediate call).
+  }, [user?.id]);
+
+  // Was 45s in all tabs — now 90s visible, 5min hidden.
+  useVisiblePolling(reload, 90_000, Boolean(user?.id));
 
   useEffect(() => {
     if (!user?.id) return;

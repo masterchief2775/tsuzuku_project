@@ -85,6 +85,37 @@ function toSql(run: Run): Sql {
   return sql;
 }
 
+/**
+ * Shared `pg.Pool` options tuned for serverless (Vercel) + Neon/self-hosted.
+ * Each function instance holds its own pool, so `max` must stay tiny —
+ * otherwise N warm instances × 10 connections exhausts `max_connections`
+ * (Neon pooler absorbs it, a self-hosted Pi does not). Short idle timeout
+ * releases connections back fast; short connection timeout fails fast
+ * instead of hanging a request on a saturated DB.
+ */
+export function pgPoolOptions(connectionString: string | undefined): {
+  connectionString: string | undefined;
+  max: number;
+  idleTimeoutMillis: number;
+  connectionTimeoutMillis: number;
+  keepAlive: boolean;
+  ssl?: { rejectUnauthorized: boolean };
+} {
+  const url = connectionString ?? "";
+  // Neon / managed hosts require TLS; a self-hosted Pi typically uses a
+  // self-signed cert — accept it (`sslmode=require` semantics) but only when
+  // the URL asks for TLS, so plain local Postgres keeps working without SSL.
+  const needsSsl = /sslmode=(require|prefer|verify-ca|verify-full)|neon\.tech|supabase\.co|render\.com/i.test(url);
+  return {
+    connectionString,
+    max: 3,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
+    ...(needsSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+  };
+}
+
 function createNeonSql(): Promise<Sql> {
   globalRef.__pgSqlPromise__ ??= (async () => {
     // Regular Postgres driver: node-postgres (`pg`) — works directly with Neon's
@@ -93,7 +124,7 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
-    const pool = new Pool({ connectionString: databaseUrl });
+    const pool = new Pool(pgPoolOptions(databaseUrl));
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];

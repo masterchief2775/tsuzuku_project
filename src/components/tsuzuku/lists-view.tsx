@@ -47,6 +47,7 @@ import {
   type AniListMedia,
 } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { useVisiblePolling } from "@/lib/polling";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -157,10 +158,11 @@ function ListsIndex() {
       return;
     }
     setLoading(true);
-    void reload();
-    const t = window.setInterval(() => void reload(), 30_000);
-    return () => window.clearInterval(t);
-  }, [user?.id, reload]);
+    // Initial fetch runs through the shared poller below (immediate call).
+  }, [user?.id]);
+
+  // Was 30s in all tabs — now 60s visible, 5min hidden.
+  useVisiblePolling(reload, 60_000, Boolean(user?.id));
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -322,10 +324,12 @@ function ListDetail({ listId }: { listId: string }) {
       return;
     }
     setLoading(true);
-    void reload();
-    const t = window.setInterval(() => void reload(), 15_000);
-    return () => window.clearInterval(t);
-  }, [user?.id, reload]);
+    // Initial fetch runs through the shared poller below (immediate call).
+  }, [user?.id]);
+
+  // Was 15s in all tabs (the hottest poller in the app) — now 60s visible,
+  // 5min hidden. Edits already refetch explicitly after each mutation.
+  useVisiblePolling(reload, 60_000, Boolean(user?.id));
 
   useEffect(() => {
     if (!user?.id) return;

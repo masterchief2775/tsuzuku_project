@@ -15,7 +15,7 @@ import {
   technicalFieldsFromMedia,
   toggleValue,
 } from "@/lib/watchlist";
-import { fetchWatchlistState, saveWatchlistState } from "@/lib/watchlist-sync";
+import { fetchWatchlistState, saveWatchlistPatch } from "@/lib/watchlist-sync";
 import { getHabitsSnapshot, recordEpisodesWatched } from "@/lib/watch-habits";
 
 export type ViewId = "dashboard" | "list" | "search" | "season" | "roulette" | "calendar";
@@ -103,11 +103,31 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null;
 // never waits on the network. A failed push is logged and surfaced once via
 // toast — it does NOT roll back the local change, since the local copy (and
 // the next successful push) remains the source of truth.
-const SYNC_DEBOUNCE_MS = 400;
+//
+// Incremental patches: only entries touched since the last successful push
+// are uploaded (`saveWatchlistPatch`). A +1 episode sends ~2Ko instead of
+// the whole list (~500Ko for 300 entries) — the single biggest Neon egress
+// saver in the app.
+const SYNC_DEBOUNCE_MS = 1200;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncInFlight: Promise<unknown> | null = null;
 let syncQueued = false;
 let lastSyncErrorAt = 0;
+/** Entries changed since the last successful push, by id. Cleared only on success. */
+const pendingUpsert = new Map<string, WatchlistEntry>();
+/** Ids removed since the last successful push. Cleared only on success. */
+const pendingDeleted = new Set<string>();
+
+function markDirty(upsert: WatchlistEntry[] = [], deleted: string[] = []) {
+  for (const e of upsert) {
+    pendingDeleted.delete(e.id);
+    pendingUpsert.set(e.id, e);
+  }
+  for (const id of deleted) {
+    pendingUpsert.delete(id);
+    pendingDeleted.add(id);
+  }
+}
 
 function scheduleSync(get: () => WatchlistState) {
   if (syncTimer) clearTimeout(syncTimer);
@@ -133,20 +153,34 @@ async function flushSyncNow(get: () => WatchlistState): Promise<void> {
 
 async function pushToServer(get: () => WatchlistState) {
   if (!get().userId) return;
+  // Nothing changed since the last successful push — skip the request entirely.
+  // This alone kills the no-op full uploads (e.g. hydrate + AniList refresh
+  // with identical data).
+  if (pendingUpsert.size === 0 && pendingDeleted.size === 0) return;
   if (syncInFlight) {
     syncQueued = true;
     return;
   }
-  const entries = get().entries;
+  // Snapshot the dirty sets: entries touched during the flight stay pending
+  // for the next pass instead of being silently dropped.
+  const upsert = [...pendingUpsert.values()];
+  const deletedIds = [...pendingDeleted];
   const userId = get().userId;
   syncInFlight = (async () => {
     try {
-      const result = await saveWatchlistState({ data: { entries } });
-      console.info("[watchlist] synced", result?.count ?? entries.length, "entries for", userId);
+      await saveWatchlistPatch({ data: { upsert, deletedIds } });
+      for (const e of upsert) {
+        if (pendingUpsert.get(e.id) === e) pendingUpsert.delete(e.id);
+      }
+      for (const id of deletedIds) pendingDeleted.delete(id);
+      if (import.meta.env.DEV) {
+        console.info("[watchlist] patch synced", upsert.length, "upsert +", deletedIds.length, "deleted for", userId);
+      }
     } catch (err) {
       console.error("[watchlist] server sync failed", err);
       const now = Date.now();
-      // Rate-limit the toast so a flapping network does not spam
+      // Rate-limit the toast so a flapping network does not spam. Dirty sets
+      // are intentionally KEPT so the next scheduleSync/setOnline retries them.
       if (now - lastSyncErrorAt > 8000) {
         lastSyncErrorAt = now;
         get().showToast({
@@ -173,8 +207,12 @@ function applyPersist(
   entries: WatchlistEntry[],
   userId: string | null,
   get: () => WatchlistState,
+  dirty?: { upsert?: WatchlistEntry[]; deleted?: string[] },
 ) {
   persistEntries(entries, userId);
+  if (dirty && (dirty.upsert?.length || dirty.deleted?.length)) {
+    markDirty(dirty.upsert ?? [], dirty.deleted ?? []);
+  }
   scheduleSync(get);
   return entries;
 }
@@ -223,6 +261,12 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
 
   hydrate: (userId) => {
     if (get().hydrated && get().userId === userId) return;
+    // User switch without sign-out: drop the previous account's pending patch
+    // so it can never be uploaded under the new userId.
+    if (get().userId !== userId) {
+      pendingUpsert.clear();
+      pendingDeleted.clear();
+    }
     // Show the local copy immediately (instant, works offline) — the server
     // fetch below only ever refines this, it never blocks first paint.
     const local = loadEntries(userId);
@@ -233,20 +277,29 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
         if (get().userId !== userId) return; // user changed while this was in flight
 
         if (remote == null) {
-          // No server row yet: seed from local if we have anything.
-          if (local.length > 0) await flushSyncNow(get);
+          // No server row yet: seed from local if we have anything (patch with
+          // all local entries doubles as an INSERT server-side).
+          if (local.length > 0) {
+            markDirty(local);
+            await flushSyncNow(get);
+          }
         } else if (remote.length === 0 && local.length > 0) {
           // Server has an empty row but this device has data — push local up
           // instead of wiping the user's list (common after a failed first sync).
           set({ entries: local });
+          markDirty(local);
           await flushSyncNow(get);
         } else if (remote.length > 0) {
           // Prefer the richer side when both exist (e.g. offline edits on this device).
           const merged = mergeWatchlists(local, remote);
           set({ entries: merged });
           persistEntries(merged, userId);
-          // If merge kept local-only items, push so other devices see them.
-          if (merged.length !== remote.length) await flushSyncNow(get);
+          // If merge kept local-only items, push just those so other devices see them.
+          if (merged.length !== remote.length) {
+            const remoteIds = new Set(remote.map((e) => e.anilistId));
+            markDirty(merged.filter((e) => !remoteIds.has(e.anilistId)));
+            await flushSyncNow(get);
+          }
         } else {
           // both empty
           set({ entries: [] });
@@ -316,7 +369,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       return false;
     }
     const entry = entryFromMedia(media);
-    set({ entries: applyPersist([entry, ...entries], get().userId, get) });
+    set({ entries: applyPersist([entry, ...entries], get().userId, get, { upsert: [entry] }) });
     showToast({ message: `« ${entry.title} » ajouté` });
     return true;
   },
@@ -366,7 +419,12 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       }
       return merged;
     });
-    set({ entries: applyPersist(next, get().userId, get) });
+    const changed = next.find((e) => e.id === id) ?? null;
+    set({
+      entries: applyPersist(next, get().userId, get, {
+        upsert: changed ? [changed] : [],
+      }),
+    });
     if (progressDelta > 0) {
       const uid = get().userId;
       const before = getHabitsSnapshot(uid, get().entries);
@@ -422,7 +480,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     const entry = entries[index];
     const next = entries.filter((e) => e.id !== id);
     set({
-      entries: applyPersist(next, get().userId, get),
+      entries: applyPersist(next, get().userId, get, { deleted: [id] }),
       activeEntryId: null,
       lastDeleted: { entry, index },
     });
@@ -440,7 +498,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     const idx = Math.min(lastDeleted.index, next.length);
     next.splice(idx, 0, lastDeleted.entry);
     set({
-      entries: applyPersist(next, get().userId, get),
+      entries: applyPersist(next, get().userId, get, { upsert: [lastDeleted.entry] }),
       lastDeleted: null,
       activeEntryId: lastDeleted.entry.id,
     });
@@ -481,13 +539,14 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       const byId = new Map(mediaList.map((m) => [m.id, m]));
       const now = new Date().toISOString();
       const { entries, userId } = get();
+      const changed: WatchlistEntry[] = [];
       const next = entries.map((e) => {
         if (e.status !== "Watching") return e;
         const media = byId.get(e.anilistId);
         if (!media) return e;
         // airingAt: 0 + episode: 0 = "no upcoming ep", but fetchedAt stamps
         // the cache so isNextAiringStale stays false for 6h.
-        return {
+        const updated: WatchlistEntry = {
           ...e,
           totalEpisodes: media.episodes ?? e.totalEpisodes,
           bannerImage: media.bannerImage || e.bannerImage || null,
@@ -502,8 +561,21 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
               ? e.nextAiring
               : { airingAt: 0, episode: 0, fetchedAt: now },
         };
+        // Diff the technical fields: identical refresh = no server push.
+        // Without this, every hydrate re-uploaded the whole list to Neon.
+        if (
+          updated.totalEpisodes !== e.totalEpisodes ||
+          updated.bannerImage !== e.bannerImage ||
+          updated.image !== e.image ||
+          JSON.stringify(updated.nextAiring) !== JSON.stringify(e.nextAiring)
+        ) {
+          changed.push(updated);
+          return updated;
+        }
+        return e;
       });
-      set({ entries: applyPersist(next, userId, get) });
+      if (changed.length === 0) return;
+      set({ entries: applyPersist(next, userId, get, { upsert: changed }) });
     } catch (err) {
       console.error("[watchlist] nextAiring refresh failed", err);
     }
@@ -515,7 +587,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     const existing = new Set(entries.map((e) => e.anilistId));
     const fresh = incoming.filter((e) => !existing.has(e.anilistId));
     if (fresh.length === 0) return;
-    set({ entries: applyPersist([...fresh, ...entries], userId, get) });
+    set({ entries: applyPersist([...fresh, ...entries], userId, get, { upsert: fresh }) });
     // Refresh airing dates for newly imported Watching titles
     void get().refreshNextAirings();
   },
@@ -555,8 +627,9 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       }
       return updated;
     });
+    const touched = next.filter((e) => idSet.has(e.id));
     set({
-      entries: applyPersist(next, userId, get),
+      entries: applyPersist(next, userId, get, { upsert: touched }),
       selectedIds: [],
       selectionMode: false,
     });
@@ -575,7 +648,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     const next = entries.filter((e) => !idSet.has(e.id));
     const n = selectedIds.length;
     set({
-      entries: applyPersist(next, userId, get),
+      entries: applyPersist(next, userId, get, { deleted: [...idSet] }),
       selectedIds: [],
       selectionMode: false,
       activeEntryId: null,
@@ -590,13 +663,16 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     if (selectedIds.length === 0) return;
     const idSet = new Set(selectedIds);
     const now = new Date().toISOString();
+    const touched: WatchlistEntry[] = [];
     const next = entries.map((e) => {
       if (!idSet.has(e.id)) return e;
       if (e.tags.includes(t)) return e;
-      return { ...e, tags: [...e.tags, t], updatedAt: now };
+      const updated = { ...e, tags: [...e.tags, t], updatedAt: now };
+      touched.push(updated);
+      return updated;
     });
     set({
-      entries: applyPersist(next, userId, get),
+      entries: applyPersist(next, userId, get, { upsert: touched }),
       selectedIds: [],
       selectionMode: false,
     });
@@ -619,6 +695,8 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       clearTimeout(syncTimer);
       syncTimer = null;
     }
+    pendingUpsert.clear();
+    pendingDeleted.clear();
     set({
       entries: [],
       hydrated: false,

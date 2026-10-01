@@ -15,7 +15,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
-import { useUnreadMessageCount } from "@/components/tsuzuku/messages-view";
+import { useBadgeCounts } from "@/lib/activity-client";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
 
 type NavItem =
@@ -40,7 +41,8 @@ export function AppPrimaryNav({ className }: { className?: string }) {
   const setView = useWatchlistStore((s) => s.setView);
   const [mobileOpen, setMobileOpen] = useState(false);
   const onHome = pathname === "/" || pathname === "";
-  const unreadMessages = useUnreadMessageCount();
+  // Shared cache: zero extra queries when NotificationsCenter already polls.
+  const { unreadMessages } = useBadgeCounts(useCurrentUserState().user?.id);
 
   return (
     <nav

@@ -3,12 +3,12 @@ import { Link } from "@tanstack/react-router";
 import { Bell, CheckCheck, Loader2, MessageCircle, UserPlus } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import {
-  fetchActivityBadge,
   fetchFriendActivity,
+  invalidateBadgeCache,
   markActivityRead,
+  useBadgeCounts,
   type ActivityItem,
 } from "@/lib/activity-client";
-import { useUnreadMessageCount } from "@/components/tsuzuku/messages-view";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
 
@@ -68,26 +68,21 @@ function labelFor(item: ActivityItem) {
 
 export function NotificationsCenter() {
   const { user } = useCurrentUserState();
-  const unreadMessages = useUnreadMessageCount();
+  // Shared 60s-visible badge poller (one Neon query for all three counts,
+  // cached across header mounts) — replaces the old 30s badge interval plus
+  // the separate 15s message-count poller.
+  const {
+    unreadActivity,
+    pendingFriendRequests: pendingFriends,
+    unreadMessages,
+    reload: reloadBadge,
+  } = useBadgeCounts(user?.id);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<ActivityItem[]>([]);
-  const [unreadActivity, setUnreadActivity] = useState(0);
-  const [pendingFriends, setPendingFriends] = useState(0);
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const badgeCount = unreadActivity + pendingFriends + unreadMessages;
-
-  const reloadBadge = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const b = await fetchActivityBadge();
-      setUnreadActivity(b.unreadActivity);
-      setPendingFriends(b.pendingFriendRequests);
-    } catch {
-      /* */
-    }
-  }, [user?.id]);
 
   const reloadList = useCallback(async () => {
     if (!user?.id) return;
@@ -95,17 +90,11 @@ export function NotificationsCenter() {
     try {
       const list = await fetchFriendActivity(25);
       setItems(list);
-      await reloadBadge();
+      invalidateBadgeCache();
+      reloadBadge();
     } finally {
       setLoading(false);
     }
-  }, [user?.id, reloadBadge]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    void reloadBadge();
-    const id = window.setInterval(() => void reloadBadge(), 30_000);
-    return () => window.clearInterval(id);
   }, [user?.id, reloadBadge]);
 
   useEffect(() => {
@@ -124,7 +113,8 @@ export function NotificationsCenter() {
   async function onMarkAllRead() {
     await markActivityRead();
     setItems((prev) => prev.map((i) => ({ ...i, readAt: i.readAt || new Date().toISOString() })));
-    setUnreadActivity(0);
+    invalidateBadgeCache();
+    reloadBadge();
   }
 
   if (!user) return null;
