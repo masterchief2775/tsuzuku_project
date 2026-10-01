@@ -9,6 +9,7 @@ import {
   listThread,
   markThreadRead,
   sendMessageToUser,
+  setTyping,
   type ConversationSummary,
   type PrivateMessage,
 } from "@/lib/messages";
@@ -66,6 +67,10 @@ export function MessagesView() {
   const [activeProfile, setActiveProfile] = useState<ConversationSummary | PublicProfile | null>(null);
   const [threadMessages, setThreadMessages] = useState<OptimisticMessage[]>([]);
   const [threadLoaded, setThreadLoaded] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const typingAt = useRef(0);
 
   const [composeUsername, setComposeUsername] = useState("");
   const [recipientResults, setRecipientResults] = useState<PublicProfile[]>([]);
@@ -87,16 +92,22 @@ export function MessagesView() {
 
   const refreshThread = useCallback((withUserId: string) => {
     void listThread({ data: { withUserId } })
-      .then((rows) => {
+      .then((page) => {
+        const rows = page.messages;
         setThreadMessages((current) => {
           // Drop any optimistic temp messages once the real one has landed —
           // matched by sender+body, since the server assigns the real id.
           const pendingStillUnconfirmed = current.filter(
             (m) => m.pending && !rows.some((r) => r.senderId === m.senderId && r.body === m.body),
           );
-          return [...rows, ...pendingStillUnconfirmed];
+          const confirmed = new Set(rows.map((r) => r.id));
+          const keptPending = pendingStillUnconfirmed.filter((m) => !confirmed.has(m.id));
+          const keptOld = current.filter((m) => !m.pending && !confirmed.has(m.id));
+          return [...keptOld, ...rows, ...keptPending];
         });
         setThreadLoaded(true);
+        setHasMore(page.hasMore);
+        setPeerTyping(page.peerTyping);
         const last = rows[rows.length - 1];
         if (last && last.id !== lastMessageIdRef.current) {
           lastMessageIdRef.current = last.id;
@@ -110,6 +121,36 @@ export function MessagesView() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Impossible de charger la conversation."));
   }, [refreshConversations]);
+
+  const loadMore = useCallback(
+    async (withUserId: string) => {
+      const oldest = threadMessages.find((m) => !m.pending);
+      if (!oldest || loadingMore) return;
+      setLoadingMore(true);
+      try {
+        const page = await listThread({ data: { withUserId, beforeId: oldest.id } });
+        setThreadMessages((current) => {
+          const known = new Set(current.map((m) => m.id));
+          const fresh = page.messages.filter((m) => !known.has(m.id));
+          return [...fresh, ...current];
+        });
+        setHasMore(page.hasMore);
+      } catch {
+        /* keep current page */
+      } finally {
+        setLoadingMore(false);
+      }
+    },
+    [threadMessages, loadingMore],
+  );
+
+  // Keystroke heartbeat, throttled: at most one typing row refresh per 2.5s.
+  const pokeTyping = useCallback((withUserId: string) => {
+    const now = Date.now();
+    if (now - typingAt.current < 2500) return;
+    typingAt.current = now;
+    void setTyping({ data: { withUserId } }).catch(() => {});
+  }, []);
 
   // Conversation list: kept fresh in the background whenever no thread is open.
   usePolling(refreshConversations, LIST_POLL_MS, activeUserId === null);
@@ -125,6 +166,8 @@ export function MessagesView() {
     setActiveProfile(profile ?? conversations.find((c) => c.userId === userId) ?? null);
     setThreadMessages([]);
     setThreadLoaded(false);
+    setHasMore(false);
+    setPeerTyping(false);
     lastMessageIdRef.current = null;
     setBody("");
     setError("");
@@ -222,7 +265,20 @@ export function MessagesView() {
           ) : threadMessages.length === 0 ? (
             <p className="py-8 text-center text-sm text-dim">Dis bonjour 👋</p>
           ) : (
-            threadMessages.map((message, i) => {
+            <>
+              {hasMore ? (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    disabled={loadingMore}
+                    onClick={() => activeUserId && void loadMore(activeUserId)}
+                    className="text-xs font-semibold text-dim hover:text-lime disabled:opacity-50"
+                  >
+                    {loadingMore ? "Chargement…" : "Charger les messages précédents"}
+                  </button>
+                </div>
+              ) : null}
+              {threadMessages.map((message, i) => {
               const mine = message.senderId === user?.id;
               const prev = threadMessages[i - 1];
               const showDay = !prev || formatDay(prev.createdAt) !== formatDay(message.createdAt);
@@ -250,7 +306,13 @@ export function MessagesView() {
                   </div>
                 </div>
               );
-            })
+            })}
+            {peerTyping ? (
+              <p className="text-xs text-dim italic" role="status">
+                {activeName} est en train d’écrire…
+              </p>
+            ) : null}
+            </>
           )}
         </div>
 
@@ -259,7 +321,10 @@ export function MessagesView() {
         <form onSubmit={(event) => void submitReply(event)} className="mt-3 flex w-full min-w-0 shrink-0 items-end gap-2">
           <textarea
             value={body}
-            onChange={(event) => setBody(event.target.value)}
+            onChange={(event) => {
+              setBody(event.target.value);
+              if (activeUserId && event.target.value.trim()) pokeTyping(activeUserId);
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();

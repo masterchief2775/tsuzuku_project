@@ -83,7 +83,7 @@ function JoinByInvite({ token }: { token: string }) {
     setBusy(true);
     void joinSharedListByToken(token)
       .then((res) => {
-        void navigate({ to: "/lists", search: { id: res.listId } });
+        void navigate({ to: "/lists", search: { id: res.listId, join: undefined } });
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Invitation invalide");
@@ -116,7 +116,7 @@ function JoinByInvite({ token }: { token: string }) {
       <p className="text-sm text-crimson">{error || "Impossible de rejoindre"}</p>
       <button
         type="button"
-        onClick={() => void navigate({ to: "/lists", search: {} })}
+        onClick={() => void navigate({ to: "/lists", search: { id: undefined, join: undefined } })}
         className="mt-4 text-sm font-semibold text-lime"
       >
         Retour aux listes
@@ -137,7 +137,7 @@ function ListsIndex() {
     const id = await createList(name);
     if (id) {
       setName("");
-      void navigate({ to: "/lists", search: { id } });
+      void navigate({ to: "/lists", search: { id, join: undefined } });
     }
   }
 
@@ -208,7 +208,7 @@ function ListsIndex() {
             <li key={l.id}>
               <Link
                 to="/lists"
-                search={{ id: l.id }}
+                search={{ id: l.id, join: undefined }}
                 className="flex items-center gap-3 rounded-[12px] border border-line bg-raised px-4 py-3 transition hover:border-lime/40"
               >
                 <div className="min-w-0 flex-1">
@@ -347,7 +347,7 @@ function ListDetail({ listId }: { listId: string }) {
         <p className="text-dim">Liste introuvable ou accès refusé.</p>
         <button
           type="button"
-          onClick={() => void navigate({ to: "/lists", search: {} })}
+          onClick={() => void navigate({ to: "/lists", search: { id: undefined, join: undefined } })}
           className="mt-3 text-sm font-semibold text-lime"
         >
           Retour aux listes
@@ -370,7 +370,7 @@ function ListDetail({ listId }: { listId: string }) {
       <div className="mb-5 flex items-start gap-3">
         <button
           type="button"
-          onClick={() => void navigate({ to: "/lists", search: {} })}
+          onClick={() => void navigate({ to: "/lists", search: { id: undefined, join: undefined } })}
           className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
           aria-label="Retour aux listes"
         >
@@ -407,7 +407,7 @@ function ListDetail({ listId }: { listId: string }) {
                 if (!window.confirm("Supprimer cette liste pour tout le monde ?")) return;
                 void run(async () => {
                   await deleteSharedList(list.id);
-                  void navigate({ to: "/lists", search: {} });
+                  void navigate({ to: "/lists", search: { id: undefined, join: undefined } });
                 });
               }}
               className="rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson"

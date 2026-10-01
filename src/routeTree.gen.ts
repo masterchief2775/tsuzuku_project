@@ -19,6 +19,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ApiActivityRouteImport } from './routes/api/activity'
 import { Route as ApiSharedListsRouteImport } from './routes/api/shared-lists'
 import { Route as ListsListIdRouteImport } from './routes/lists.$listId'
+import { Route as PartyRoomIdRouteImport } from './routes/party.$roomId'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -73,6 +74,11 @@ const ListsListIdRoute = ListsListIdRouteImport.update({
   path: '/$listId',
   getParentRoute: () => ListsRoute,
 } as any)
+const PartyRoomIdRoute = PartyRoomIdRouteImport.update({
+  id: '/party/$roomId',
+  path: '/party/$roomId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ShareTokenRoute = ShareTokenRouteImport.update({
   id: '/share/$token',
   path: '/share/$token',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
   '/lists/$listId': typeof ListsListIdRoute
+  '/party/$roomId': typeof PartyRoomIdRoute
   '/share/$token': typeof ShareTokenRoute
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
   '/lists/$listId': typeof ListsListIdRoute
+  '/party/$roomId': typeof PartyRoomIdRoute
   '/share/$token': typeof ShareTokenRoute
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
   '/lists/$listId': typeof ListsListIdRoute
+  '/party/$roomId': typeof PartyRoomIdRoute
   '/share/$token': typeof ShareTokenRoute
   '/u/$username': typeof UUsernameRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/api/activity'
     | '/api/shared-lists'
     | '/lists/$listId'
+    | '/party/$roomId'
     | '/share/$token'
     | '/u/$username'
     | '/api/auth/$'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/api/activity'
     | '/api/shared-lists'
     | '/lists/$listId'
+    | '/party/$roomId'
     | '/share/$token'
     | '/u/$username'
     | '/api/auth/$'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/api/activity'
     | '/api/shared-lists'
     | '/lists/$listId'
+    | '/party/$roomId'
     | '/share/$token'
     | '/u/$username'
     | '/api/auth/$'
@@ -193,6 +205,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ApiActivityRoute: typeof ApiActivityRoute
   ApiSharedListsRoute: typeof ApiSharedListsRoute
+  PartyRoomIdRoute: typeof PartyRoomIdRoute
   ShareTokenRoute: typeof ShareTokenRoute
   UUsernameRoute: typeof UUsernameRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ListsListIdRouteImport
       parentRoute: typeof ListsRoute
     }
+    '/party/$roomId': {
+      id: '/party/$roomId'
+      path: '/party/$roomId'
+      fullPath: '/party/$roomId'
+      preLoaderRoute: typeof PartyRoomIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/share/$token': {
       id: '/share/$token'
       path: '/share/$token'
@@ -314,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ApiActivityRoute: ApiActivityRoute,
   ApiSharedListsRoute: ApiSharedListsRoute,
+  PartyRoomIdRoute: PartyRoomIdRoute,
   ShareTokenRoute: ShareTokenRoute,
   UUsernameRoute: UUsernameRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

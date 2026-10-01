@@ -112,7 +112,11 @@ function ListDetailPage() {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <p className="text-dim">Liste introuvable ou accès refusé.</p>
-        <Link to="/lists" className="mt-3 inline-block text-sm text-lime">
+        <Link
+          to="/lists"
+          search={{ id: undefined, join: undefined }}
+          className="mt-3 inline-block text-sm text-lime"
+        >
           Retour aux listes
         </Link>
       </div>
@@ -127,6 +131,7 @@ function ListDetailPage() {
       <div className="mb-6 flex items-start gap-3">
         <Link
           to="/lists"
+          search={{ id: undefined, join: undefined }}
           className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
         >
           <ArrowLeft className="size-4" />

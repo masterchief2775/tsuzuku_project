@@ -3,6 +3,7 @@ import { EntryCard } from "@/components/tsuzuku/entry-card";
 import { Cover } from "@/components/tsuzuku/cover";
 import { Recommendations } from "@/components/tsuzuku/recommendations";
 import { ActivityFeed } from "@/components/tsuzuku/activity-feed";
+import { WeeklyDigest } from "@/components/tsuzuku/weekly-digest";
 import { HabitsCard } from "@/components/tsuzuku/habits-card";
 import {
   airingOnDay,
@@ -200,6 +201,10 @@ export function Dashboard() {
       ) : null}
 
       <HabitsCard />
+
+      <div className="mb-8">
+        <WeeklyDigest />
+      </div>
 
       {/* 1. Continue watching */}
 

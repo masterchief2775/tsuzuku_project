@@ -141,35 +141,115 @@ export const getUnreadMessageCount = createServerFn({ method: "GET" })
     return rows[0]?.n ?? 0;
   });
 
-/** Full history with one contact, oldest first. Polled while a thread is open. */
+export type ThreadPage = {
+  messages: PrivateMessage[];
+  /** True when older messages exist (pass `beforeId` = oldest id to page). */
+  hasMore: boolean;
+  /** Peer typed within the last 5s. */
+  peerTyping: boolean;
+};
+
+const threadQueryInput = lenientObject({
+  withUserId: requiredString("withUserId manquant", 128),
+  beforeId: z.string().max(128).optional(),
+  limit: z
+    .unknown()
+    .optional()
+    .transform((v) => Math.min(100, Math.max(1, Number(v) || 50))),
+});
+
+/** Thread history, newest page first internally, returned oldest-first. Polled while open. */
 export const listThread = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(zValidator(withUserIdInput))
-  .handler(async ({ data, context }): Promise<PrivateMessage[]> => {
+  .validator(zValidator(threadQueryInput))
+  .handler(async ({ data, context }): Promise<ThreadPage> => {
     const sql = await getSql();
-    const rows = await sql<{
-      id: string;
-      sender_id: string;
-      receiver_id: string;
-      body: string;
-      created_at: string | Date;
-      read_at: string | Date | null;
-    }>`
-      select "id", "sender_id", "receiver_id", "body", "created_at", "read_at"
-      from "private_message"
-      where ("sender_id" = ${context.userId} and "receiver_id" = ${data.withUserId})
-         or ("sender_id" = ${data.withUserId} and "receiver_id" = ${context.userId})
-      order by "created_at" asc
-      limit 300
+    const me = context.userId;
+    const peer = data.withUserId;
+    // Cursor anchor for pagination (created_at + id tiebreak — same-ms sends exist).
+    let anchor: { created_at: string | Date; id: string } | null = null;
+    if (data.beforeId) {
+      const found = await sql<{ created_at: string | Date; id: string }>`
+        select "created_at", "id" from "private_message" where "id" = ${data.beforeId} limit 1
+      `;
+      if (found[0]) anchor = found[0];
+    }
+    const rows = anchor
+      ? await sql<{
+          id: string;
+          sender_id: string;
+          receiver_id: string;
+          body: string;
+          created_at: string | Date;
+          read_at: string | Date | null;
+        }>`
+          select "id", "sender_id", "receiver_id", "body", "created_at", "read_at"
+          from "private_message"
+          where (("sender_id" = ${me} and "receiver_id" = ${peer})
+             or ("sender_id" = ${peer} and "receiver_id" = ${me}))
+            and ("created_at", "id") < (${anchor.created_at}::timestamptz, ${anchor.id})
+          order by "created_at" desc, "id" desc
+          limit ${data.limit + 1}
+        `
+      : await sql<{
+          id: string;
+          sender_id: string;
+          receiver_id: string;
+          body: string;
+          created_at: string | Date;
+          read_at: string | Date | null;
+        }>`
+          select "id", "sender_id", "receiver_id", "body", "created_at", "read_at"
+          from "private_message"
+          where ("sender_id" = ${me} and "receiver_id" = ${peer})
+             or ("sender_id" = ${peer} and "receiver_id" = ${me})
+          order by "created_at" desc, "id" desc
+          limit ${data.limit + 1}
+        `;
+    const hasMore = rows.length > data.limit;
+    const page = (hasMore ? rows.slice(0, data.limit) : rows).reverse();
+    let peerTyping = false;
+    try {
+      const t = await sql<{ n: string }>`
+        select count(*)::text as n from "message_typing"
+        where "typer_id" = ${peer} and "with_id" = ${me}
+          and "updated_at" > (current_timestamp - interval '5 seconds')
+      `;
+      peerTyping = Number(t[0]?.n || 0) > 0;
+    } catch {
+      /* typing table missing (old DB) — just report false */
+    }
+    return {
+      messages: page.map((r) => ({
+        id: r.id,
+        senderId: r.sender_id,
+        receiverId: r.receiver_id,
+        body: r.body,
+        createdAt: iso(r.created_at),
+        readAt: r.read_at ? iso(r.read_at) : null,
+      })),
+      hasMore,
+      peerTyping,
+    };
+  });
+
+/** Keystroke heartbeat (client throttles to ~1 per 2.5s while typing). */
+export const setTyping = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(zValidator(withUserIdInput))
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    if (data.withUserId === context.userId) return { ok: true };
+    if (await isBlockedBetween(context.userId, data.withUserId)) {
+      throw new Error("Impossible d’envoyer un message à cet utilisateur");
+    }
+    const sql = await getSql();
+    await sql`
+      insert into "message_typing" ("typer_id", "with_id", "updated_at")
+      values (${context.userId}, ${data.withUserId}, current_timestamp)
+      on conflict ("typer_id", "with_id")
+      do update set "updated_at" = current_timestamp
     `;
-    return rows.map((r) => ({
-      id: r.id,
-      senderId: r.sender_id,
-      receiverId: r.receiver_id,
-      body: r.body,
-      createdAt: iso(r.created_at),
-      readAt: r.read_at ? iso(r.read_at) : null,
-    }));
+    return { ok: true };
   });
 
 /** Send within an already-open thread (recipient id already known — no username round-trip). */

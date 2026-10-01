@@ -42,9 +42,26 @@ export async function fanOutToFriends(input: {
     const recipients = input.onlyRecipientId
       ? [input.onlyRecipientId]
       : await friendIdsOf(input.actorId);
+    // Batch-load notification prefs: recipients who turned this kind off are
+    // skipped (no row = all kinds on).
+    const prefsByUser = new Map<string, Record<string, boolean>>();
+    if (recipients.length > 0) {
+      try {
+        const prefRows = await sql<{ user_id: string } & Record<string, boolean>>`
+          select "user_id", "completed", "rated", "friend_request", "friend_accept",
+            "list_add", "list_join", "list_vote"
+          from "notification_prefs"
+          where "user_id" = any(${recipients}::text[])
+        `;
+        for (const r of prefRows) prefsByUser.set(r.user_id, r);
+      } catch {
+        /* prefs table missing (old DB) — treat everyone as opted in */
+      }
+    }
     for (const recipientId of recipients) {
       if (recipientId === input.actorId) continue;
       if (await isBlockedBetween(input.actorId, recipientId)) continue;
+      if (prefsByUser.get(recipientId)?.[input.kind] === false) continue;
       try {
         const dup = await sql<{ n: string }>`
           select count(*)::text as n from "friend_activity"

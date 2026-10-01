@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  Clapperboard,
   ExternalLink,
   Film,
   Minus,
@@ -11,6 +12,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
+import { createParty } from "@/lib/party";
 import { Cover } from "@/components/tsuzuku/cover";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { cn } from "@/lib/utils";
@@ -546,6 +548,8 @@ export function EntryModal() {
             {refreshingId === entry.id ? "Mise à jour…" : "Mettre à jour les infos AniList"}
           </button>
 
+          <StartPartyButton entry={entry} />
+
           {confirming ? (
             <div className="mt-2 flex gap-2">
               <button
@@ -577,6 +581,45 @@ export function EntryModal() {
         </div>
       </div>
     </div>
+  );
+}
+
+function StartPartyButton({ entry }: { entry: { title: string; anilistId: number; image: string | null; progress: number } }) {
+  const navigate = useNavigate();
+  const setActiveEntryId = useWatchlistStore((s) => s.setActiveEntryId);
+  const showToast = useWatchlistStore((s) => s.showToast);
+  const [busy, setBusy] = useState(false);
+
+  async function start() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { roomId } = await createParty({
+        data: {
+          title: entry.title,
+          anilistId: entry.anilistId,
+          image: entry.image,
+          episode: Math.max(1, (entry.progress || 0) + 1),
+        },
+      });
+      setActiveEntryId(null);
+      void navigate({ to: "/party/$roomId", params: { roomId } });
+    } catch (err) {
+      showToast({ message: err instanceof Error ? err.message : "Session impossible" });
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => void start()}
+      className="mb-3 flex w-full items-center justify-center gap-2 rounded-[9px] border border-lime/40 bg-lime/10 py-2.5 text-[13px] font-semibold text-lime transition hover:bg-lime/15 disabled:opacity-50"
+    >
+      <Clapperboard className="size-4" />
+      {busy ? "Création…" : "Démarrer une session synchro"}
+    </button>
   );
 }
 

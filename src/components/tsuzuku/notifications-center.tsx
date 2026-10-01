@@ -9,6 +9,13 @@ import {
   useBadgeCounts,
   type ActivityItem,
 } from "@/lib/activity-client";
+import {
+  getNotifPrefs,
+  setNotifPrefs,
+  NOTIF_KINDS,
+  type NotifKind,
+  type NotifPrefs,
+} from "@/lib/activity";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +29,16 @@ function formatWhen(iso: string) {
   if (h < 24) return `il y a ${h} h`;
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
+
+const PREF_LABELS: Record<NotifKind, string> = {
+  completed: "Titres terminés",
+  rated: "Notes",
+  friend_request: "Demandes d’ami",
+  friend_accept: "Acceptations",
+  list_add: "Ajouts aux listes",
+  list_join: "Arrivées dans les listes",
+  list_vote: "Votes",
+};
 
 function labelFor(item: ActivityItem) {
   switch (item.kind) {
@@ -115,6 +132,32 @@ export function NotificationsCenter() {
     setItems((prev) => prev.map((i) => ({ ...i, readAt: i.readAt || new Date().toISOString() })));
     invalidateBadgeCache();
     reloadBadge();
+  }
+
+  const [prefs, setPrefs] = useState<NotifPrefs | null>(null);
+
+  useEffect(() => {
+    if (!open || prefs) return;
+    let cancelled = false;
+    void getNotifPrefs()
+      .then((p) => {
+        if (!cancelled) setPrefs(p);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, prefs]);
+
+  async function togglePref(kind: NotifKind) {
+    if (!prefs) return;
+    const next = { ...prefs, [kind]: !prefs[kind] };
+    setPrefs(next); // optimistic
+    try {
+      setPrefs(await setNotifPrefs({ data: { [kind]: next[kind] } }));
+    } catch {
+      setPrefs(prefs); // revert
+    }
   }
 
   if (!user) return null;
@@ -252,6 +295,36 @@ export function NotificationsCenter() {
             )}
           </div>
 
+          <details className="border-t border-line px-3.5 py-2">
+            <summary className="cursor-pointer text-[12px] font-semibold text-dim hover:text-lime">
+              Types d’alertes
+            </summary>
+            <ul className="mt-2 space-y-1.5 pb-1">
+              {NOTIF_KINDS.map((kind) => (
+                <li key={kind} className="flex items-center justify-between gap-2 text-[12.5px]">
+                  <span className="text-dim">{PREF_LABELS[kind]}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={prefs?.[kind] ?? true}
+                    aria-label={PREF_LABELS[kind]}
+                    onClick={() => void togglePref(kind)}
+                    className={cn(
+                      "relative h-5 w-9 shrink-0 rounded-full transition",
+                      prefs?.[kind] ?? true ? "bg-lime" : "bg-line",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 size-4 rounded-full bg-white transition-all",
+                        prefs?.[kind] ?? true ? "left-[18px]" : "left-0.5",
+                      )}
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
           <div className="border-t border-line px-3.5 py-2">
             <Link
               to="/friends"

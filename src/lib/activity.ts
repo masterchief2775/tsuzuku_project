@@ -2,6 +2,28 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { lenientObject, z, zValidator } from "@/lib/validation";
 
+export const NOTIF_KINDS = [
+  "completed",
+  "rated",
+  "friend_request",
+  "friend_accept",
+  "list_add",
+  "list_join",
+  "list_vote",
+] as const;
+export type NotifKind = (typeof NOTIF_KINDS)[number];
+export type NotifPrefs = Record<NotifKind, boolean>;
+
+const ALL_ON: NotifPrefs = {
+  completed: true,
+  rated: true,
+  friend_request: true,
+  friend_accept: true,
+  list_add: true,
+  list_join: true,
+  list_vote: true,
+};
+
 const publishActivityInput = lenientObject({
   kind: z.enum(["completed", "rated"], { message: "Type d’activité invalide" }),
   // Mirrors the old manual behavior: coerce to string, trim, cap at 200, required.
@@ -155,6 +177,119 @@ export const getActivityBadge = createServerFn({ method: "GET" })
       /* */
     }
     return { unreadActivity, pendingFriendRequests };
+  });
+
+async function readPrefs(userId: string): Promise<NotifPrefs> {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  try {
+    const rows = await sql<Record<string, boolean>>`
+      select "completed", "rated", "friend_request", "friend_accept",
+        "list_add", "list_join", "list_vote"
+      from "notification_prefs" where "user_id" = ${userId} limit 1
+    `;
+    if (!rows[0]) return { ...ALL_ON };
+    return { ...ALL_ON, ...rows[0] };
+  } catch {
+    return { ...ALL_ON };
+  }
+}
+
+export const getNotifPrefs = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<NotifPrefs> => readPrefs(context.userId));
+
+const notifPrefsInput = lenientObject({
+  completed: z.boolean().optional(),
+  rated: z.boolean().optional(),
+  friend_request: z.boolean().optional(),
+  friend_accept: z.boolean().optional(),
+  list_add: z.boolean().optional(),
+  list_join: z.boolean().optional(),
+  list_vote: z.boolean().optional(),
+});
+
+export const setNotifPrefs = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(zValidator(notifPrefsInput))
+  .handler(async ({ context, data }): Promise<NotifPrefs> => {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    // Keys come from the fixed NOTIF_KINDS allowlist — never raw user input —
+    // so interpolating them as identifiers is safe; values stay parameterized.
+    const cols = NOTIF_KINDS.filter((k) => data[k] !== undefined);
+    if (cols.length === 0) return readPrefs(context.userId);
+    const colList = cols.map((c) => `"${c}"`).join(", ");
+    const placeholders = cols.map((_, i) => `$${i + 2}`).join(", ");
+    const setClause = cols.map((c) => `"${c}" = excluded."${c}"`).join(", ");
+    await sql.query(
+      `insert into "notification_prefs" ("user_id", ${colList}) ` +
+        `values ($1, ${placeholders}) on conflict ("user_id") do update set ${setClause}`,
+      [context.userId, ...cols.map((c) => data[c])],
+    );
+    return readPrefs(context.userId);
+  });
+
+export type DigestItem = {
+  actorId: string;
+  actorName: string;
+  actorAvatar: string | null;
+  kind: string;
+  count: number;
+  sampleTitle: string | null;
+  sampleImage: string | null;
+  lastAt: string;
+};
+
+/** "Cette semaine chez tes amis" — grouped, read-only rollup (no extra writes). */
+export const getWeeklyDigest = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<DigestItem[]> => {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    try {
+      const rows = await sql<{
+        actor_id: string;
+        kind: string;
+        n: number;
+        last_at: string | Date;
+        sample_title: string | null;
+        sample_image: string | null;
+        display_name: string | null;
+        username: string | null;
+        avatar_url: string | null;
+        name: string | null;
+        user_image: string | null;
+      }>`
+        select a."actor_id", a."kind", count(*)::int as n,
+          max(a."created_at") as last_at,
+          (array_agg(a."title" order by a."created_at" desc))[1] as sample_title,
+          (array_agg(a."image" order by a."created_at" desc))[1] as sample_image,
+          p."display_name", p."username", p."avatar_url",
+          u."name", u."image" as user_image
+        from "friend_activity" a
+        join "user" u on u."id" = a."actor_id"
+        left join "user_profile" p on p."user_id" = a."actor_id"
+        where a."recipient_id" = ${context.userId}
+          and a."created_at" > (current_timestamp - interval '7 days')
+        group by a."actor_id", a."kind",
+          p."display_name", p."username", p."avatar_url", u."name", u."image"
+        order by last_at desc
+        limit 20
+      `;
+      return rows.map((r) => ({
+        actorId: r.actor_id,
+        actorName: r.display_name || r.name || r.username || "Ami",
+        actorAvatar: r.avatar_url || r.user_image || null,
+        kind: r.kind,
+        count: r.n,
+        sampleTitle: r.sample_title,
+        sampleImage: r.sample_image,
+        lastAt: typeof r.last_at === "string" ? r.last_at : r.last_at.toISOString(),
+      }));
+    } catch {
+      return [];
+    }
   });
 
 export const markActivityRead = createServerFn({ method: "POST" })
