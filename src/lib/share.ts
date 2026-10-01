@@ -20,7 +20,18 @@ export type PublicShareEntry = {
 export type PublicSharePayload = {
   entries: PublicShareEntry[];
   count: number;
+  /** Owner display name — feeds the share-card title (og:title via document title). */
+  ownerName: string | null;
 };
+
+/** Card/tab title for a shared list (unit-tested). */
+export function shareCardTitle(data: PublicSharePayload | null): string {
+  if (!data) return "Liste partagée · Tsuzuku";
+  const count = `${data.count} titre${data.count > 1 ? "s" : ""}`;
+  return data.ownerName
+    ? `Liste de ${data.ownerName} — ${count} · Tsuzuku`
+    : `Liste partagée — ${count} · Tsuzuku`;
+}
 
 function toPublic(entries: WatchlistEntry[]): PublicShareEntry[] {
   return entries.map((e) => ({
@@ -99,5 +110,23 @@ export const fetchPublicShare = createServerFn({ method: "GET" })
     `;
     const entries = stateRows[0]?.entries ?? [];
     const pub = toPublic(entries);
-    return { entries: pub, count: pub.length };
+    let ownerName: string | null = null;
+    try {
+      const prof = await sql<{
+        display_name: string | null;
+        username: string | null;
+        name: string | null;
+      }>`
+        select p."display_name", p."username", u."name"
+        from "user_profile" p
+        join "user" u on u."id" = p."user_id"
+        where p."user_id" = ${share.user_id}
+        limit 1
+      `;
+      const p = prof[0];
+      ownerName = p?.display_name || p?.name || p?.username || null;
+    } catch {
+      /* name stays null — title falls back to a generic label */
+    }
+    return { entries: pub, count: pub.length, ownerName };
   });

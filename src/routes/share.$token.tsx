@@ -3,22 +3,51 @@ import { createFileRoute } from "@tanstack/react-router";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { Cover } from "@/components/tsuzuku/cover";
-import { fetchPublicShare, type PublicShareEntry } from "@/lib/share";
+import { fetchPublicShare, shareCardTitle, type PublicShareEntry, type PublicSharePayload } from "@/lib/share";
 import { STATUSES, progressText } from "@/lib/watchlist";
 
 export const Route = createFileRoute("/share/$token")({
+  // SSR loader purely so crawlers (no JS) see a real <title> — the platform
+  // OG injector derives og:title (+ the card image text) from it, since it
+  // strips per-page og:* metas.
+  loader: async ({ params }): Promise<PublicSharePayload | null> =>
+    fetchPublicShare({ data: { token: params.token } }).catch(() => null),
+  head: ({ loaderData }) => ({
+    meta: [{ title: shareCardTitle(loaderData ?? null) }],
+  }),
   component: PublicSharePage,
 });
 
 function PublicSharePage() {
   const { token } = Route.useParams();
-  const [entries, setEntries] = useState<PublicShareEntry[] | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const loaderData = Route.useLoaderData();
+  const [entries, setEntries] = useState<PublicShareEntry[] | null>(
+    loaderData?.entries ?? null,
+  );
+  const [ownerName, setOwnerName] = useState<string | null>(loaderData?.ownerName ?? null);
+  const [error, setError] = useState(loaderData ? "" : "");
+  const [loading, setLoading] = useState(!loaderData);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      // Loader data (SSR + SPA navigations): sync state + tab title, no fetch.
+      if (loaderData !== undefined) {
+        if (cancelled) return;
+        if (loaderData) {
+          setEntries(loaderData.entries);
+          setOwnerName(loaderData.ownerName);
+          setError("");
+          document.title = shareCardTitle(loaderData);
+        } else {
+          setEntries(null);
+          setOwnerName(null);
+          setError("Ce lien de partage est invalide ou a été désactivé.");
+          document.title = shareCardTitle(null);
+        }
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const data = await fetchPublicShare({ data: { token } });
@@ -28,7 +57,9 @@ function PublicSharePage() {
           setEntries(null);
         } else {
           setEntries(data.entries);
+          setOwnerName(data.ownerName);
           setError("");
+          document.title = shareCardTitle(data);
         }
       } catch (err) {
         if (!cancelled) setError((err as Error).message);
@@ -39,7 +70,7 @@ function PublicSharePage() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, loaderData]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
@@ -48,7 +79,9 @@ function PublicSharePage() {
           <BrandMark />
           <div>
             <div className="font-serif text-xl font-semibold">Tsuzuku</div>
-            <div className="text-xs text-dim">Liste partagée · lecture seule</div>
+            <div className="text-xs text-dim">
+              {ownerName ? `Liste de ${ownerName} · lecture seule` : "Liste partagée · lecture seule"}
+            </div>
           </div>
         </div>
       </header>

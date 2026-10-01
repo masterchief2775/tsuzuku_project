@@ -42,11 +42,20 @@ import {
   updateMyProfile,
   type PublicProfile,
 } from "@/lib/profile";
+import { profileCardTitle } from "@/lib/profile-mapping";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { UserButton, writeAvatarCache } from "@/lib/auth/gates";
 
 export const Route = createFileRoute("/u/$username")({
+  // SSR loader so crawlers (no JS) see a real <title> — the platform OG
+  // injector derives og:title (+ the card image text) from it, since it
+  // strips per-page og:* metas. Public variant: no session needed.
+  loader: async ({ params }): Promise<PublicProfile | null> =>
+    getProfileByUsername({ data: { username: params.username } }).catch(() => null),
+  head: ({ loaderData }) => ({
+    meta: [{ title: profileCardTitle(loaderData ?? null, "") }],
+  }),
   component: PublicProfilePage,
 });
 
@@ -200,6 +209,10 @@ function PublicProfilePage() {
       cancelled = true;
     };
   }, [username, loadRelation, user?.id]);
+
+  useEffect(() => {
+    if (profile !== undefined) document.title = profileCardTitle(profile, username);
+  }, [profile, username]);
 
   async function doAction(fn: () => Promise<unknown>, msg: string) {
     setBusy(true);

@@ -89,7 +89,6 @@ export type PublicProfile = {
 };
 
 const USERNAME_RE = /^[a-z0-9][a-z0-9_]{2,23}$/;
-const MAX_FAVORITES = 5;
 
 function slugifyUsername(raw: string): string {
   return raw
@@ -130,59 +129,18 @@ export type ProfileRow = {
   image: string | null;
 };
 
-function parseFavorites(raw: unknown): FavoriteAnime[] {
-  if (!Array.isArray(raw)) return [];
-  const out: FavoriteAnime[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const o = item as Record<string, unknown>;
-    const anilistId = Number(o.anilistId);
-    if (!Number.isFinite(anilistId) || anilistId <= 0) continue;
-    const title = typeof o.title === "string" ? o.title.slice(0, 200) : "";
-    if (!title) continue;
-    const image = typeof o.image === "string" ? o.image : null;
-    out.push({ anilistId, title, image });
-    if (out.length >= MAX_FAVORITES) break;
-  }
-  return out;
-}
+// Pure projections live in `profile-mapping.ts` (unit-tested); re-exported
+// here so existing `import { mapRow } from "@/lib/profile"` sites keep working.
+import {
+  MAX_FAVORITES,
+  mapRow,
+  normalizeVisibility,
+  parseFavorites,
+  sanitizeFavorites,
+  sanitizeUrl,
+} from "@/lib/profile-mapping";
 
-function normalizeVisibility(row: ProfileRow): ProfileVisibility {
-  const v = row.visibility;
-  if (v === "public" || v === "friends" || v === "private") return v;
-  return row.is_public ? "public" : "private";
-}
-
-export function mapRow(
-  row: ProfileRow,
-  opts?: {
-    isOwner?: boolean;
-    listCount?: number;
-    stats?: ProfileStats | null;
-    isFriend?: boolean;
-  },
-): PublicProfile {
-  const visibility = normalizeVisibility(row);
-  return {
-    userId: row.user_id,
-    username: row.username,
-    displayName: row.display_name || row.name || row.username,
-    bio: row.bio || "",
-    avatarUrl: row.avatar_url || row.image || null,
-    isPublic: visibility === "public",
-    visibility,
-    showStats: row.show_stats !== false,
-    showFavorites: row.show_favorites !== false,
-    favorites: parseFavorites(row.favorites),
-    anilistUrl: row.anilist_url || null,
-    malUrl: row.mal_url || null,
-    stats: opts?.stats ?? null,
-    email: opts?.isOwner ? row.email : undefined,
-    listCount: opts?.listCount,
-    isOwner: opts?.isOwner,
-    isFriend: opts?.isFriend,
-  };
-}
+export { MAX_FAVORITES, mapRow, normalizeVisibility, parseFavorites, sanitizeFavorites, sanitizeUrl };
 
 async function getPresence(userId: string): Promise<Pick<PublicProfile, "isOnline" | "lastSeen">> {
   try {
@@ -362,28 +320,6 @@ async function areFriends(a: string, b: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function sanitizeUrl(raw: string | null | undefined, hosts: string[]): string | null {
-  if (raw == null) return null;
-  const s = raw.trim();
-  if (!s) return null;
-  try {
-    const u = new URL(s.startsWith("http") ? s : `https://${s}`);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-    const host = u.hostname.toLowerCase();
-    if (!hosts.some((h) => host === h || host.endsWith(`.${h}`))) {
-      throw new Error(`URL non autorisée (attendu : ${hosts.join(", ")})`);
-    }
-    return u.toString().slice(0, 300);
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("URL non")) throw err;
-    throw new Error("URL invalide");
-  }
-}
-
-function sanitizeFavorites(input: unknown): FavoriteAnime[] {
-  return parseFavorites(input).slice(0, MAX_FAVORITES);
 }
 
 export const getMyProfile = createServerFn({ method: "GET" })

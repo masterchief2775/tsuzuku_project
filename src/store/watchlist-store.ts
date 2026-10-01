@@ -16,6 +16,7 @@ import {
   toggleValue,
 } from "@/lib/watchlist";
 import { fetchWatchlistState, getWatchlistVersion, saveWatchlistPatch } from "@/lib/watchlist-sync";
+import { localNewerThanRemote, mergeWatchlists } from "@/lib/watchlist-merge";
 import { getHabitsSnapshot, recordEpisodesWatched } from "@/lib/watch-habits";
 
 export type ViewId = "dashboard" | "list" | "search" | "season" | "roulette" | "calendar";
@@ -104,16 +105,6 @@ type WatchlistState = {
    */
   pullRemote: () => Promise<void>;
 };
-
-/** Local entries the server lacks, or that are newer than the server copy. */
-function localNewerThanRemote(local: WatchlistEntry[], remote: WatchlistEntry[]): WatchlistEntry[] {
-  const remoteByAnilist = new Map(remote.map((e) => [e.anilistId, e]));
-  return local.filter((e) => {
-    const r = remoteByAnilist.get(e.anilistId);
-    if (!r) return true;
-    return +new Date(e.updatedAt || e.addedAt || 0) > +new Date(r.updatedAt || r.addedAt || 0);
-  });
-}
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -271,25 +262,6 @@ function applyPersist(
   return entries;
 }
 
-
-/** Union by anilistId — keep the most recently updated entry when both sides have it. */
-function mergeWatchlists(local: WatchlistEntry[], remote: WatchlistEntry[]): WatchlistEntry[] {
-  const map = new Map<number, WatchlistEntry>();
-  for (const e of remote) map.set(e.anilistId, e);
-  for (const e of local) {
-    const existing = map.get(e.anilistId);
-    if (!existing) {
-      map.set(e.anilistId, e);
-      continue;
-    }
-    const localT = +new Date(e.updatedAt || e.addedAt || 0);
-    const remoteT = +new Date(existing.updatedAt || existing.addedAt || 0);
-    if (localT >= remoteT) map.set(e.anilistId, e);
-  }
-  return [...map.values()].sort(
-    (a, b) => +new Date(b.updatedAt || b.addedAt) - +new Date(a.updatedAt || a.addedAt),
-  );
-}
 
 export const useWatchlistStore = create<WatchlistState>((set, get) => ({
   entries: [],

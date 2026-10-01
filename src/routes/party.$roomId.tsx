@@ -9,13 +9,20 @@ import {
   LogOut,
   Minus,
   Plus,
+  RefreshCw,
   Send,
   XCircle,
 } from "lucide-react";
+import { Cover } from "@/components/tsuzuku/cover";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useVisiblePolling } from "@/lib/polling";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import {
+  fetchMediaById,
+  searchMetaLine,
+  type AniListMedia,
+} from "@/lib/watchlist";
 import {
   closeParty,
   getParty,
@@ -50,7 +57,11 @@ function PartyRoomPage() {
   const { user, isPending } = useCurrentUserState();
   const entries = useWatchlistStore((s) => s.entries);
   const setProgress = useWatchlistStore((s) => s.setProgress);
+  const addEntry = useWatchlistStore((s) => s.addEntry);
   const showToast = useWatchlistStore((s) => s.showToast);
+  const [media, setMedia] = useState<AniListMedia | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const lastSyncedEpisode = useRef<number | null>(null);
 
   const [detail, setDetail] = useState<PartyDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,6 +101,7 @@ function PartyRoomPage() {
     setDetail(null);
     setError("");
     lastMsgId.current = null;
+    lastSyncedEpisode.current = null;
   }, [roomId]);
 
   // Session state: fast poll while open (chat + readiness need it).
@@ -98,6 +110,55 @@ function PartyRoomPage() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [detail?.messages.length]);
+
+  // Anime card data (cover, genres, episode count) for the room header.
+  useEffect(() => {
+    const anilistId = detail?.anilistId;
+    if (!anilistId) {
+      setMedia(null);
+      return;
+    }
+    let cancelled = false;
+    setMediaLoading(true);
+    void fetchMediaById(anilistId)
+      .then((m) => {
+        if (!cancelled) setMedia(m);
+      })
+      .catch(() => {
+        if (!cancelled) setMedia(null);
+      })
+      .finally(() => {
+        if (!cancelled) setMediaLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [detail?.anilistId]);
+
+  // Auto-sync: members behind the shared cursor catch up automatically —
+  // on join (latecomers) and whenever the host moves the cursor. Never
+  // downgrades someone ahead, never touches Completed, and never self-bumps
+  // the host on room creation (armed silently on first load).
+  const myEntry =
+    detail?.anilistId != null
+      ? entries.find((e) => e.anilistId === detail.anilistId)
+      : undefined;
+  useEffect(() => {
+    if (!detail) return;
+    const firstLoad = lastSyncedEpisode.current === null;
+    lastSyncedEpisode.current = detail.episode;
+    if (firstLoad && detail.isHost) return;
+    if (!myEntry) return;
+    if (myEntry.status === "Completed") return;
+    if (myEntry.progress >= detail.episode) return;
+    setProgress(myEntry.id, detail.episode);
+  }, [detail, myEntry, setProgress]);
+
+  const syncState = !myEntry
+    ? "missing"
+    : myEntry.status === "Completed" || (detail && myEntry.progress >= detail.episode)
+      ? "synced"
+      : "behind";
 
   async function join() {
     const token = search.join?.trim();
@@ -127,19 +188,6 @@ function PartyRoomPage() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function applyEpisodeToMyList() {
-    if (!detail) return;
-    const entry = detail.anilistId != null
-      ? entries.find((e) => e.anilistId === detail.anilistId)
-      : undefined;
-    if (!entry) {
-      showToast({ message: "Ajoute d’abord ce titre à ta watchlist" });
-      return;
-    }
-    setProgress(entry.id, detail.episode);
-    showToast({ message: `Progression calée sur l’épisode ${detail.episode}` });
   }
 
   async function sendChat(e: React.FormEvent) {
@@ -225,6 +273,54 @@ function PartyRoomPage() {
         </div>
       </div>
 
+      {/* Anime card + list membership */}
+      <section className="mb-4 flex gap-3.5 rounded-[14px] border border-line bg-raised p-4">
+        {media || detail.image ? (
+          <Cover
+            src={media?.coverImage?.large ?? detail.image}
+            title={detail.title}
+            className="h-28 w-20 shrink-0 rounded-lg"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[15px] font-bold">{detail.title}</h2>
+          <p className="mt-0.5 text-xs text-dim">
+            {mediaLoading ? "Chargement…" : media ? searchMetaLine(media) : "Session synchro"}
+          </p>
+          {media && (media.genres || []).length > 0 ? (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {(media.genres || []).slice(0, 3).map((g) => (
+                <span
+                  key={g}
+                  className="rounded-full border border-line bg-bg px-2 py-0.5 text-[10.5px] text-dim"
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-2.5">
+            {myEntry ? (
+              <p className="text-xs text-dim">
+                Dans ta liste · ép. {myEntry.progress}
+                {myEntry.totalEpisodes ? `/${myEntry.totalEpisodes}` : ""}
+              </p>
+            ) : media ? (
+              <button
+                type="button"
+                onClick={() => addEntry(media)}
+                className="inline-flex items-center gap-1.5 rounded-[9px] bg-lime px-3.5 py-1.5 text-xs font-bold text-bg transition hover:brightness-105"
+              >
+                <Plus className="size-3.5" />
+                Ajouter à ma liste
+              </button>
+            ) : (
+              <p className="text-xs text-dim">Ajoute ce titre depuis la recherche pour le suivre.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Shared episode cursor */}
       <section className="mb-4 rounded-[14px] border border-lime/30 bg-lime/5 p-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -298,13 +394,21 @@ function PartyRoomPage() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={applyEpisodeToMyList}
-            className="ml-auto text-xs font-semibold text-lime hover:underline"
-          >
-            Appliquer à ma liste
-          </button>
+          <span className="ml-auto text-xs font-semibold text-dim" role="status">
+            {syncState === "synced" ? (
+              <span className="inline-flex items-center gap-1 text-lime">
+                <Check className="size-3.5" />
+                Synchro OK
+              </span>
+            ) : syncState === "behind" ? (
+              <span className="inline-flex items-center gap-1">
+                <RefreshCw className="size-3.5 animate-spin" />
+                Synchro…
+              </span>
+            ) : (
+              "Pas dans ta liste"
+            )}
+          </span>
         </div>
       </section>
 

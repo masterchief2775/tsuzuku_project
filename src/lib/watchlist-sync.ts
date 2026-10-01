@@ -3,6 +3,12 @@ import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { WatchlistEntry } from "@/lib/watchlist";
 import { lenientObject, z } from "@/lib/validation";
+import {
+  MAX_PATCH_ENTRIES,
+  mergeWatchlistPatch,
+  normalizeEntries,
+  sanitizePatchEntries,
+} from "@/lib/watchlist-patch";
 
 /**
  * Watchlist sync server functions.
@@ -10,9 +16,9 @@ import { lenientObject, z } from "@/lib/validation";
  * (`saveWatchlistPatch`) after each change (see scheduleSync/pushToServer in
  * the store) — a +1 episode sends ~2Ko instead of the whole ~500Ko list.
  * `saveWatchlistState` (full overwrite) is kept for initial seeding compat.
+ * Pure merge/normalize core lives in `watchlist-patch.ts` (unit-tested).
  */
 
-const MAX_PATCH_ENTRIES = 200;
 const MAX_FULL_ENTRIES = 5000;
 /** Rough JSONB safety cap — rejects runaway payloads before they hit Neon. */
 const MAX_JSON_BYTES = 3_000_000;
@@ -30,21 +36,6 @@ const patchEnvelopeInput = lenientObject({
   upsert: z.unknown().optional(),
   deletedIds: z.unknown().optional(),
 });
-
-function normalizeEntries(raw: unknown): WatchlistEntry[] {
-  if (raw == null) return [];
-  // Guard against double-encoded JSONB (string stored inside jsonb)
-  let value: unknown = raw;
-  if (typeof value === "string") {
-    try {
-      value = JSON.parse(value);
-    } catch {
-      return [];
-    }
-  }
-  if (!Array.isArray(value)) return [];
-  return value as WatchlistEntry[];
-}
 
 export type WatchlistSnapshot = {
   entries: WatchlistEntry[] | null;
@@ -119,28 +110,6 @@ export const saveWatchlistState = createServerFn({ method: "POST" })
     return { ok: true, count: data.entries.length, updatedAt: isoDate(rows[0]?.updated_at) };
   });
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === "object" && !Array.isArray(v);
-}
-
-function sanitizePatchEntries(raw: unknown): WatchlistEntry[] {
-  if (!Array.isArray(raw)) throw new Error("Invalid patch: 'upsert' must be an array");
-  if (raw.length > MAX_PATCH_ENTRIES) {
-    throw new Error("Patch trop volumineux — utilise un sync complet");
-  }
-  const out: WatchlistEntry[] = [];
-  for (const item of raw) {
-    if (!isRecord(item)) throw new Error("Invalid patch entry");
-    const id = typeof item.id === "string" ? item.id.slice(0, 80) : "";
-    const anilistId = Number(item.anilistId);
-    if (!id || !Number.isFinite(anilistId) || anilistId <= 0) {
-      throw new Error("Invalid patch entry: id/anilistId requis");
-    }
-    out.push(item as WatchlistEntry);
-  }
-  return out;
-}
-
 /**
  * Incremental sync: merge `upsert` entries into the stored array by `id`
  * (fallback dedup by `anilistId` for legacy duplicates) and drop `deletedIds`.
@@ -172,35 +141,7 @@ export const saveWatchlistPatch = createServerFn({ method: "POST" })
       select "entries" from "watchlist_state" where "user_id" = ${context.userId}
     `;
     const current = normalizeEntries(rows[0]?.entries);
-    const deleted = new Set(data.deletedIds);
-    const byId = new Map(current.map((e) => [e.id, e]));
-    let applied = 0;
-    for (const entry of data.upsert) {
-      byId.set(entry.id, entry);
-      applied += 1;
-    }
-    // Legacy guard: same anilistId twice (old full-overwrite duplicates) —
-    // keep the most recently updated one.
-    const seenAnilist = new Map<number, WatchlistEntry>();
-    const merged: WatchlistEntry[] = [];
-    for (const entry of byId.values()) {
-      if (deleted.has(entry.id)) {
-        applied += 1;
-        continue;
-      }
-      const prev = seenAnilist.get(entry.anilistId);
-      if (!prev) {
-        seenAnilist.set(entry.anilistId, entry);
-        merged.push(entry);
-        continue;
-      }
-      const t = +new Date(entry.updatedAt || entry.addedAt || 0);
-      const pt = +new Date(prev.updatedAt || prev.addedAt || 0);
-      const keep = t >= pt ? entry : prev;
-      seenAnilist.set(entry.anilistId, keep);
-      const idx = merged.indexOf(prev);
-      if (keep !== prev && idx >= 0) merged[idx] = keep;
-    }
+    const { merged, applied } = mergeWatchlistPatch(current, data.upsert, data.deletedIds);
     const json = JSON.stringify(merged);
     if (json.length > MAX_JSON_BYTES) {
       throw new Error("Watchlist résultante trop volumineuse");
