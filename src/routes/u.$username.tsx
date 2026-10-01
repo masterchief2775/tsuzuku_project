@@ -2,14 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Check,
-  Download,
   ExternalLink,
-  Link2,
   Loader2,
   MessageCircle,
   Star,
   ShieldCheck,
-  Upload,
   Ban,
   Camera,
   Save,
@@ -22,6 +19,7 @@ import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { ImportView } from "@/components/tsuzuku/import-view";
+import { ListActionsMenu } from "@/components/tsuzuku/list-actions-menu";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { AppToast } from "@/components/tsuzuku/toast";
@@ -289,33 +287,11 @@ function PublicProfilePage() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemePicker />
             <UserButton />
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
-              aria-label="Partager la liste"
-              title="Liste publique"
-            >
-              <Link2 className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
-              aria-label="Importer une liste MAL ou AniList"
-              title="Importer MAL / AniList"
-            >
-              <Upload className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={exportJson}
-              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
-              aria-label="Exporter la watchlist en JSON"
-              title="Exporter JSON"
-            >
-              <Download className="size-4" />
-            </button>
+            <ListActionsMenu
+              onShare={() => setShareOpen(true)}
+              onImport={() => setImportOpen(true)}
+              onExport={() => exportJson()}
+            />
           </div>
         </div>
         <div className="mt-2.5 flex w-full items-center gap-2">

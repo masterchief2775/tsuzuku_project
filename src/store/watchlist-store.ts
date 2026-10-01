@@ -112,6 +112,7 @@ type WatchlistState = {
 };
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
+const toastQueue: Exclude<ToastState, null>[] = [];
 
 // ---- Server sync ---------------------------------------------------------
 // localStorage stays the instant, offline-safe write; the server call is
@@ -439,19 +440,34 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     }),
   setActiveEntryId: (activeEntryId) => set({ activeEntryId }),
 
+  // U2 — FIFO queue: concurrent toasts (bulk result + sync error, undo +
+  // auto-complete…) no longer overwrite each other; each shows ~4s in turn.
   showToast: (toast) => {
+    if (get().toast) {
+      toastQueue.push(toast);
+      // Safety valve: never hoard more than a handful of stale toasts.
+      if (toastQueue.length > 4) toastQueue.splice(0, toastQueue.length - 4);
+      return;
+    }
     if (toastTimer) clearTimeout(toastTimer);
     set({ toast });
     toastTimer = setTimeout(() => {
-      set({ toast: null });
-      toastTimer = null;
+      get().clearToast();
     }, 4200);
   },
 
   clearToast: () => {
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = null;
-    set({ toast: null });
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
+    const next = toastQueue.shift() ?? null;
+    set({ toast: next });
+    if (next) {
+      toastTimer = setTimeout(() => {
+        get().clearToast();
+      }, 4200);
+    }
   },
 
   addEntry: (media) => {
@@ -791,6 +807,11 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       clearTimeout(syncTimer);
       syncTimer = null;
     }
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
+    toastQueue.length = 0;
     clearRetry();
     pendingUpsert.clear();
     pendingDeleted.clear();

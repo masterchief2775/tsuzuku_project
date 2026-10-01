@@ -13,8 +13,6 @@ import {
   X,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
-import { ImportView } from "@/components/tsuzuku/import-view";
-import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useProfileEditor } from "@/components/tsuzuku/use-profile-editor";
@@ -76,8 +74,6 @@ export function ProfileView() {
     removeAccount,
   } = editor;
 
-  const [importOpen, setImportOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (isPending) {
@@ -529,8 +525,6 @@ export function ProfileView() {
           </>
         )}
       </div>
-      <ImportView open={importOpen} onClose={() => setImportOpen(false)} />
-      <ShareSettings open={shareOpen} onClose={() => setShareOpen(false)} />
     </>
   );
 

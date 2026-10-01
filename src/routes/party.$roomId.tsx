@@ -13,6 +13,7 @@ import {
   Send,
   XCircle,
 } from "lucide-react";
+import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { Cover } from "@/components/tsuzuku/cover";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -61,7 +62,6 @@ function PartyRoomPage() {
   const showToast = useWatchlistStore((s) => s.showToast);
   const hydrate = useWatchlistStore((s) => s.hydrate);
   const refreshParties = useWatchlistStore((s) => s.refreshParties);
-  const setView = useWatchlistStore((s) => s.setView);
   const [media, setMedia] = useState<AniListMedia | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   const lastSyncedEpisode = useRef<number | null>(null);
@@ -312,32 +312,9 @@ function PartyRoomPage() {
 
       {/* Stay in the session while browsing the rest of the site — the header
           badge (everywhere else) jumps back here until the room closes. */}
-      <nav
-        aria-label="Navigation pendant la session"
-        className="mb-4 flex gap-1 overflow-x-auto rounded-[12px] border border-line bg-raised p-1"
-      >
-        {(
-          [
-            { to: "/", label: "Accueil" },
-            { to: "/", label: "Ma liste", view: "list" as const },
-            { to: "/friends", label: "Amis" },
-            { to: "/lists", label: "Listes" },
-            { to: "/messages", label: "Messages" },
-          ]
-        ).map((item) => (
-          <Link
-            key={item.label}
-            to={item.to}
-            search={item.to === "/lists" ? { id: undefined, join: undefined } : undefined}
-            onClick={() => {
-              if (item.view) window.setTimeout(() => setView(item.view!), 0);
-            }}
-            className="shrink-0 rounded-[8px] px-3 py-1.5 text-xs font-semibold text-dim transition hover:bg-bg hover:text-ink"
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="mb-4">
+        <AppPrimaryNav />
+      </div>
 
       {/* Anime card + list membership */}
       <section className="mb-4 flex gap-3.5 rounded-[14px] border border-line bg-raised p-4">

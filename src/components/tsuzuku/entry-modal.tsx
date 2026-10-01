@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Clapperboard,
@@ -30,6 +30,7 @@ import {
   type AniListMediaDetail,
 } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
 
 const SEASON_LABELS: Record<string, string> = {
   WINTER: "Hiver",
@@ -119,6 +120,9 @@ export function EntryModal() {
     return () => document.removeEventListener("keydown", onKey);
   }, [activeEntryId, setActiveEntryId]);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, entry !== null);
+
   if (!entry) return null;
 
   const meta = statusMeta(entry.status);
@@ -181,10 +185,12 @@ export function EntryModal() {
       }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="entry-modal-title"
-        className="relative max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-xl border border-line bg-raised shadow-2xl"
+        className="relative max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-xl border border-line bg-raised shadow-2xl outline-none"
         style={{ ["--accent" as string]: meta.color }}
       >
         {detail?.bannerImage ? (

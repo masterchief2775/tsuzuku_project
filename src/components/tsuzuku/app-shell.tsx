@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, Keyboard, Link2, ShieldCheck, Upload } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { ListActionsMenu } from "@/components/tsuzuku/list-actions-menu";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { FriendsView } from "@/components/tsuzuku/friends-view";
 import { ProfileView } from "@/components/tsuzuku/profile-view";
 import { ListsView } from "@/components/tsuzuku/lists-view";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouter, useRouterState, useSearch } from "@tanstack/react-router";
 import { EntryModal } from "@/components/tsuzuku/entry-modal";
 import { ImportView } from "@/components/tsuzuku/import-view";
 import { ListView } from "@/components/tsuzuku/list-view";
@@ -27,6 +28,8 @@ import { getAdminStatus } from "@/lib/admin";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { heartbeatPresence } from "@/lib/presence";
+import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
+import { isViewId, viewTitle } from "@/lib/view-nav";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { checkAiringReminders } from "@/lib/airing-reminders";
 
@@ -51,6 +54,8 @@ export function AppShell() {
   const [shareOpen, setShareOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const helpDialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(helpDialogRef, helpOpen);
 
   // Lets deep views (e.g. the empty dashboard) open the import dialog without
   // lifting its state into the store: `dispatchEvent(new CustomEvent("tsuzuku:open-import"))`.
@@ -71,6 +76,40 @@ export function AppShell() {
   useEffect(() => {
     if (user?.id) hydrate(user.id);
   }, [hydrate, user?.id]);
+
+  // N1 — views (and the open entry) in the URL: `/?v=list&entry=xyz`
+  // survives refresh, drives back/forward (back closes an open fiche) and is
+  // shareable. URL is read on search change; store writes push a history
+  // entry. Both directions no-op when already in sync, so no loop is possible.
+  const router = useRouter();
+  const urlSearch = useSearch({ strict: false }) as { v?: unknown; entry?: unknown };
+  const onHome = pathname === "/" || pathname === "";
+  const urlView = onHome && isViewId(urlSearch.v) ? urlSearch.v : null;
+  const urlEntry =
+    onHome && typeof urlSearch.entry === "string" && urlSearch.entry ? urlSearch.entry : null;
+  useEffect(() => {
+    const st = useWatchlistStore.getState();
+    if (urlView && st.view !== urlView) st.setView(urlView);
+    if ((st.activeEntryId ?? null) !== urlEntry) st.setActiveEntryId(urlEntry);
+  }, [urlView, urlEntry]);
+  useEffect(() => {
+    return useWatchlistStore.subscribe((s, prev) => {
+      if (s.view === prev.view && s.activeEntryId === prev.activeEntryId) return;
+      if (router.state.location.pathname !== "/") return;
+      const params = new URLSearchParams(router.state.location.search);
+      if (params.get("v") === s.view && (params.get("entry") ?? null) === (s.activeEntryId ?? null)) {
+        return;
+      }
+      const next = new URLSearchParams();
+      next.set("v", s.view);
+      if (s.activeEntryId) next.set("entry", s.activeEntryId);
+      router.history.push(`/?${next.toString()}`);
+    });
+  }, [router]);
+  // Tab title follows the view on home (share/profile routes set their own).
+  useEffect(() => {
+    if (onHome) document.title = viewTitle(view);
+  }, [view, onHome]);
 
   const refreshParties = useWatchlistStore((s) => s.refreshParties);
   // Slow background poll so the session badge appears/disappears on its own
@@ -247,6 +286,12 @@ export function AppShell() {
           {pendingCount} modification{pendingCount > 1 ? "s" : ""} en attente de synchronisation…
         </div>
       ) : null}
+      <a
+        href="#contenu"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:rounded-[8px] focus:bg-lime focus:px-3 focus:py-2 focus:text-sm focus:font-bold focus:text-bg"
+      >
+        Aller au contenu
+      </a>
       <header className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           <Link to="/" className="flex items-center gap-3" onClick={() => setView("dashboard")}>
@@ -260,43 +305,15 @@ export function AppShell() {
             <PartyBadge />
             <NotificationsCenter />
             <ThemePicker />
-            <button
-              type="button"
-              onClick={() => setHelpOpen(true)}
-              className="rounded-sm border border-line bg-raised p-2 text-dim hover:text-ink"
-              aria-label="Raccourcis clavier"
-              title="Raccourcis clavier (?)"
-            >
-              <Keyboard className="size-4" />
-            </button>
             <UserButton />
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
-              aria-label="Partager la liste"
-              title="Liste publique"
-            >
-              <Link2 className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
-              aria-label="Importer une liste MAL ou AniList"
-              title="Importer MAL / AniList"
-            >
-              <Upload className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={exportJson}
-              className="hidden rounded-sm border border-line bg-raised p-2 sm:inline-flex"
-              aria-label="Exporter la watchlist en JSON"
-              title="Exporter JSON"
-            >
-              <Download className="size-4" />
-            </button>
+            {/* N4+U1: one overflow menu on every screen (was 4 icon buttons,
+                3 of them desktop-only, hiding share/export from phones). */}
+            <ListActionsMenu
+              onShare={() => setShareOpen(true)}
+              onImport={() => setImportOpen(true)}
+              onExport={() => exportJson()}
+              onHelp={() => setHelpOpen(true)}
+            />
           </div>
         </div>
         <div className="mt-2.5 flex w-full min-w-0 items-center gap-2">
@@ -317,7 +334,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-7">
+      <main id="contenu" className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-7">
         {!hydrated ? (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -360,10 +377,12 @@ export function AppShell() {
           onClick={() => setHelpOpen(false)}
         >
           <div
+            ref={helpDialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label="Raccourcis clavier"
-            className="w-full max-w-sm rounded-[14px] border border-line bg-raised p-5 shadow-xl"
+            className="w-full max-w-sm rounded-[14px] border border-line bg-raised p-5 shadow-xl outline-none"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-serif text-base font-medium">Raccourcis clavier</h2>
