@@ -28,6 +28,8 @@ export function ProfileAvatar({
       <img
         src={src}
         alt=""
+        loading="lazy"
+        decoding="async"
         className={cn("rounded-full object-cover border border-line bg-raised", dims, className)}
       />
     );

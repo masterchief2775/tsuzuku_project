@@ -1,4 +1,4 @@
-import { CalendarClock, Play, Plus, Search, Star } from "lucide-react";
+import { CalendarClock, Dices, Play, Plus, Search, Star, Upload } from "lucide-react";
 import { EntryCard } from "@/components/tsuzuku/entry-card";
 import { Cover } from "@/components/tsuzuku/cover";
 import { Recommendations } from "@/components/tsuzuku/recommendations";
@@ -90,11 +90,12 @@ export function Dashboard() {
 
   if (entries.length === 0) {
     return (
-      <div className="px-5 py-20 text-center">
+      <div className="px-5 py-14 text-center sm:py-20">
         <div className="font-serif text-5xl text-line">見</div>
-        <h2 className="font-serif mt-1 text-xl font-medium">Ta watchlist est vide</h2>
-        <p className="mt-1 mb-5 text-sm text-dim">
-          Cherche un titre et commence à construire ta liste.
+        <h2 className="font-serif mt-1 text-xl font-medium">Bienvenue sur Tsuzuku</h2>
+        <p className="mx-auto mt-1 mb-6 max-w-md text-sm text-dim">
+          Trois façons de commencer — choisis celle qui te ressemble, tu pourras
+          tout changer plus tard.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
@@ -108,11 +109,37 @@ export function Dashboard() {
           <button
             type="button"
             className="inline-flex items-center gap-2 rounded-[9px] border border-line bg-raised px-[18px] py-[11px] text-sm font-semibold text-ink"
-            onClick={() => setView("season")}
+            onClick={() => window.dispatchEvent(new CustomEvent("tsuzuku:open-import"))}
           >
-            Voir la saison
+            <Upload className="size-4" />
+            Importer MAL / AniList
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-[9px] border border-line bg-raised px-[18px] py-[11px] text-sm font-semibold text-ink"
+            onClick={() => setView("roulette")}
+          >
+            <Dices className="size-4" />
+            Roulette découverte
           </button>
         </div>
+        <ol className="mx-auto mt-8 grid max-w-lg gap-2 text-left sm:grid-cols-3">
+          {[
+            { n: "1", t: "Ajoute tes titres en cours" },
+            { n: "2", t: "Marque ta progression au fil des épisodes" },
+            { n: "3", t: "Invite tes amis et comparez vos listes" },
+          ].map((s) => (
+            <li
+              key={s.n}
+              className="flex items-center gap-2.5 rounded-[10px] border border-line bg-raised px-3 py-2.5 text-[12.5px] text-dim"
+            >
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-lime/20 text-[11px] font-bold text-lime">
+                {s.n}
+              </span>
+              {s.t}
+            </li>
+          ))}
+        </ol>
       </div>
     );
   }
@@ -426,6 +453,8 @@ function ContinueHero({
               alt=""
               className="size-full object-cover object-center transition duration-500 group-hover:scale-[1.03]"
               loading="eager"
+              decoding="async"
+              fetchPriority="high"
             />
           ) : (
             <div className="size-full bg-bg" />

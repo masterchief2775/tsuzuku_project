@@ -11,7 +11,7 @@ function TitleRow({ item, meta }: { item: CompareTitle; meta?: string }) {
   return (
     <li className="flex items-center gap-2.5 py-1.5">
       {item.image ? (
-        <img src={item.image} alt="" className="h-10 w-7 rounded object-cover" />
+        <img src={item.image} alt="" loading="lazy" decoding="async" className="h-10 w-7 rounded object-cover" />
       ) : (
         <div className="h-10 w-7 rounded bg-line" />
       )}

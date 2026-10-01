@@ -168,6 +168,8 @@ export function ActivityFeed({ compact = true }: { compact?: boolean }) {
                 <img
                   src={item.image}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
                   className="h-11 w-8 shrink-0 rounded object-cover"
                 />
               ) : null}

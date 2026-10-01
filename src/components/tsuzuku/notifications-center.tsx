@@ -237,13 +237,15 @@ export function NotificationsCenter() {
                       </p>
                       <p className="mt-0.5 text-[11px] text-dim">{formatWhen(item.createdAt)}</p>
                     </div>
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt=""
-                        className="h-11 w-8 shrink-0 rounded object-cover"
-                      />
-                    ) : null}
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="h-11 w-8 shrink-0 rounded object-cover"
+                        />
+                      ) : null}
                   </li>
                 ))}
               </ul>

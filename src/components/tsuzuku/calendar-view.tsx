@@ -287,7 +287,7 @@ export function CalendarView() {
                     className="flex w-full items-center gap-3 rounded-[12px] border border-line bg-raised px-3 py-2.5 text-left transition hover:border-lime/35"
                   >
                     {e.image ? (
-                      <img src={e.image} alt="" className="h-12 w-9 rounded object-cover" />
+                      <img src={e.image} alt="" loading="lazy" decoding="async" className="h-12 w-9 rounded object-cover" />
                     ) : (
                       <div className="h-12 w-9 rounded bg-line" />
                     )}

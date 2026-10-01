@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Clapperboard, Dices, Download, Home, Link2, List, Search, ShieldCheck, Upload } from "lucide-react";
+import { Download, Keyboard, Link2, ShieldCheck, Upload } from "lucide-react";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { FriendsView } from "@/components/tsuzuku/friends-view";
@@ -25,8 +25,7 @@ import { getAdminStatus } from "@/lib/admin";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { heartbeatPresence } from "@/lib/presence";
-import { cn } from "@/lib/utils";
-import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
+import { useWatchlistStore } from "@/store/watchlist-store";
 import { checkAiringReminders } from "@/lib/airing-reminders";
 
 export function AppShell() {
@@ -48,7 +47,24 @@ export function AppShell() {
   const searchRef = useRef<HTMLInputElement>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Lets deep views (e.g. the empty dashboard) open the import dialog without
+  // lifting its state into the store: `dispatchEvent(new CustomEvent("tsuzuku:open-import"))`.
+  useEffect(() => {
+    const open = () => setImportOpen(true);
+    const openHelp = () => setHelpOpen(true);
+    const closeHelp = () => setHelpOpen(false);
+    window.addEventListener("tsuzuku:open-import", open);
+    window.addEventListener("tsuzuku:open-help", openHelp);
+    window.addEventListener("tsuzuku:close-help", closeHelp);
+    return () => {
+      window.removeEventListener("tsuzuku:open-import", open);
+      window.removeEventListener("tsuzuku:open-help", openHelp);
+      window.removeEventListener("tsuzuku:close-help", closeHelp);
+    };
+  }, []);
 
   useEffect(() => {
     if (user?.id) hydrate(user.id);
@@ -138,6 +154,7 @@ export function AppShell() {
         tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable;
 
       if (ev.key === "Escape") {
+        window.dispatchEvent(new CustomEvent("tsuzuku:close-help"));
         if (state.activeEntryId) {
           state.setActiveEntryId(null);
           ev.preventDefault();
@@ -153,6 +170,12 @@ export function AppShell() {
           state.setView("search");
           requestAnimationFrame(() => searchRef.current?.focus());
         }
+        return;
+      }
+
+      if (ev.key === "?" && !typing) {
+        ev.preventDefault();
+        window.dispatchEvent(new CustomEvent("tsuzuku:open-help"));
         return;
       }
 
@@ -229,6 +252,15 @@ export function AppShell() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <NotificationsCenter />
             <ThemePicker />
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              className="rounded-sm border border-line bg-raised p-2 text-dim hover:text-ink"
+              aria-label="Raccourcis clavier"
+              title="Raccourcis clavier (?)"
+            >
+              <Keyboard className="size-4" />
+            </button>
             <UserButton />
             <button
               type="button"
@@ -314,6 +346,45 @@ export function AppShell() {
       <EntryModal />
       <ImportView open={importOpen} onClose={() => setImportOpen(false)} />
       <ShareSettings open={shareOpen} onClose={() => setShareOpen(false)} />
+      {helpOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-bg/70 p-4 backdrop-blur-sm"
+          onClick={() => setHelpOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Raccourcis clavier"
+            className="w-full max-w-sm rounded-[14px] border border-line bg-raised p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-serif text-base font-medium">Raccourcis clavier</h2>
+            <ul className="mt-3 space-y-2 text-sm text-dim">
+              {[
+                ["/", "Rechercher (ou filtrer la liste)"],
+                ["+", "Épisode suivant sur la fiche ouverte"],
+                ["-", "Épisode précédent sur la fiche ouverte"],
+                ["Échap", "Fermer la fiche / ce panneau"],
+                ["?", "Ouvrir cette aide"],
+              ].map(([key, label]) => (
+                <li key={key} className="flex items-center justify-between gap-3">
+                  <span>{label}</span>
+                  <kbd className="rounded-[6px] border border-line bg-bg px-2 py-0.5 font-mono text-[11px] text-ink">
+                    {key}
+                  </kbd>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setHelpOpen(false)}
+              className="mt-4 w-full rounded-[9px] border border-line bg-bg px-4 py-2 text-sm font-semibold hover:text-lime"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      ) : null}
       <AppToast />
     </div>
   );

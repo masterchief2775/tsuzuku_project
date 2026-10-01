@@ -376,7 +376,7 @@ export function FriendsView() {
                     </p>
                   </div>
                   {a.image ? (
-                    <img src={a.image} alt="" className="h-11 w-8 rounded object-cover" />
+                    <img src={a.image} alt="" loading="lazy" decoding="async" className="h-11 w-8 rounded object-cover" />
                   ) : null}
                 </li>
               ))}

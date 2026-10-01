@@ -13,18 +13,26 @@ import {
 } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
 
-const searchCache = new Map<string, AniListMedia[]>();
+/** Search results cache with a 10 min TTL — AniList data goes stale
+ * (airing schedules, rankings), the old cache never expired in-session. */
+const SEARCH_CACHE_TTL_MS = 10 * 60_000;
+const searchCache = new Map<string, { at: number; value: AniListMedia[] }>();
 
 function cacheGetLocal(key: string) {
-  if (!searchCache.has(key)) return undefined;
-  const v = searchCache.get(key)!;
+  const hit = searchCache.get(key);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at > SEARCH_CACHE_TTL_MS) {
+    searchCache.delete(key);
+    return undefined;
+  }
+  // LRU refresh.
   searchCache.delete(key);
-  searchCache.set(key, v);
-  return v;
+  searchCache.set(key, hit);
+  return hit.value;
 }
 function cacheSetLocal(key: string, value: AniListMedia[]) {
   searchCache.delete(key);
-  searchCache.set(key, value);
+  searchCache.set(key, { at: Date.now(), value });
   if (searchCache.size > CACHE_LIMIT) searchCache.delete(searchCache.keys().next().value!);
 }
 

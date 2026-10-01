@@ -190,6 +190,7 @@ export function EntryModal() {
             <img
               src={detail.bannerImage}
               alt=""
+              decoding="async"
               className="h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-raised via-raised/40 to-transparent" />

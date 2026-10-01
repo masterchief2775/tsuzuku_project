@@ -326,7 +326,7 @@ export function ProfileView() {
                           {idx + 1}
                         </span>
                         {f.image ? (
-                          <img src={f.image} alt="" className="size-5 rounded object-cover" />
+                          <img src={f.image} alt="" loading="lazy" decoding="async" className="size-5 rounded object-cover" />
                         ) : null}
                         <span className="max-w-[140px] truncate">{f.title}</span>
                         <button
@@ -609,7 +609,7 @@ function FavoritesPicker({
                   }}
                 >
                   {e.image ? (
-                    <img src={e.image} alt="" className="size-7 rounded object-cover" />
+                    <img src={e.image} alt="" loading="lazy" decoding="async" className="size-7 rounded object-cover" />
                   ) : (
                     <span className="size-7 rounded bg-bg" />
                   )}

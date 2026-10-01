@@ -473,6 +473,8 @@ function ListDetail({ listId }: { listId: string }) {
               <img
                 src={nextUp.image}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="mx-auto h-28 w-20 rounded-lg object-cover sm:mx-0"
               />
             ) : (
@@ -734,7 +736,7 @@ function ListDetail({ listId }: { listId: string }) {
                       return (
                         <li key={m.id} className="flex items-center gap-2 px-1 py-1">
                           {image ? (
-                            <img src={image} alt="" className="h-9 w-6 rounded object-cover" />
+                            <img src={image} alt="" loading="lazy" decoding="async" className="h-9 w-6 rounded object-cover" />
                           ) : (
                             <div className="h-9 w-6 rounded bg-line" />
                           )}
@@ -812,7 +814,7 @@ function ListDetail({ listId }: { listId: string }) {
                           {selected ? <Check className="size-3" /> : null}
                         </button>
                         {e.image ? (
-                          <img src={e.image} alt="" className="h-9 w-6 rounded object-cover" />
+                          <img src={e.image} alt="" loading="lazy" decoding="async" className="h-9 w-6 rounded object-cover" />
                         ) : (
                           <div className="h-9 w-6 rounded bg-line" />
                         )}
@@ -854,7 +856,7 @@ function ListDetail({ listId }: { listId: string }) {
                 className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-2.5 py-2"
               >
                 {item.image ? (
-                  <img src={item.image} alt="" className="h-14 w-10 rounded object-cover" />
+                  <img src={item.image} alt="" loading="lazy" decoding="async" className="h-14 w-10 rounded object-cover" />
                 ) : (
                   <div className="h-14 w-10 rounded bg-line" />
                 )}
