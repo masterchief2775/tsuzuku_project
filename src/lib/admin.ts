@@ -1,6 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { lenientObject, requiredString, userIdField, z, zValidator } from "@/lib/validation";
+
+const setRoleInput = lenientObject({
+  userId: userIdField,
+  role: z.enum(["user", "admin"], { message: "Paramètres administrateur invalides" }),
+});
+const deleteUserInput = lenientObject({
+  userId: requiredString("Utilisateur à supprimer manquant", 128),
+});
 
 export type AdminRole = "user" | "admin";
 
@@ -12,23 +21,29 @@ export type AdminUser = {
   createdAt: string;
 };
 
-const BOOTSTRAP_ADMIN_EMAIL = "drainix@gmail.com";
-
+/**
+ * Extra admin grant beyond the `role` column, from the `ADMIN_EMAIL` env var
+ * only. There used to be a hardcoded bootstrap email here — removed: it
+ * leaked the owner's address in the public repo and re-granted admin on every
+ * sign-in even after the DB role was revoked. The durable grant is
+ * `user.role = 'admin'` (see `migrations/0012_admin_roles.sql` + `setAdminRole`
+ * below); `ADMIN_EMAIL` is just the break-glass override. Set it in Vercel →
+ * Environment Variables.
+ */
 function configuredAdminEmail() {
   return process.env.ADMIN_EMAIL?.trim().toLowerCase() || null;
 }
 
 async function requireAdmin(userId: string) {
   const sql = await getSql();
-  const rows = await sql<{ email: string; role: AdminRole }>`
+  const rows = await sql<{ email: string | null; role: AdminRole }>`
     select "email", "role" from "user" where "id" = ${userId} limit 1
   `;
   const user = rows[0];
-  const email = user?.email.toLowerCase();
+  const email = user?.email?.toLowerCase() ?? null;
   const isAdmin =
     user?.role === "admin" ||
-    email === BOOTSTRAP_ADMIN_EMAIL ||
-    email === configuredAdminEmail();
+    (email != null && email === configuredAdminEmail());
   if (!isAdmin) throw new Error("Accès administrateur refusé");
   return user;
 }
@@ -69,13 +84,7 @@ export const listAdminUsers = createServerFn({ method: "GET" })
 
 export const setAdminRole = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const value = input as { userId?: string; role?: AdminRole } | null;
-    if (!value?.userId || (value.role !== "user" && value.role !== "admin")) {
-      throw new Error("Paramètres administrateur invalides");
-    }
-    return { userId: value.userId, role: value.role };
-  })
+  .validator(zValidator(setRoleInput))
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
     await requireAdmin(context.userId);
     if (data.userId === context.userId && data.role === "user") {
@@ -91,11 +100,7 @@ export const setAdminRole = createServerFn({ method: "POST" })
 
 export const deleteAdminUser = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const userId = (input as { userId?: string } | null)?.userId?.trim();
-    if (!userId) throw new Error("Utilisateur à supprimer manquant");
-    return { userId };
-  })
+  .validator(zValidator(deleteUserInput))
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
     await requireAdmin(context.userId);
     if (data.userId === context.userId) {

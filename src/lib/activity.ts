@@ -1,5 +1,37 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { lenientObject, z, zValidator } from "@/lib/validation";
+
+const publishActivityInput = lenientObject({
+  kind: z.enum(["completed", "rated"], { message: "Type d’activité invalide" }),
+  // Mirrors the old manual behavior: coerce to string, trim, cap at 200, required.
+  title: z.preprocess(
+    (v) => String(v ?? "").trim().slice(0, 200),
+    z.string().min(1, "Titre manquant"),
+  ),
+  anilistId: z.preprocess(
+    (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    },
+    z.number().nullable(),
+  ),
+  image: z.preprocess(
+    (v) => (typeof v === "string" ? v : null),
+    z.string().nullable(),
+  ),
+  rating: z.preprocess(
+    (v) => (typeof v === "number" && v >= 0 && v <= 10 ? v : null),
+    z.number().min(0).max(10).nullable(),
+  ),
+});
+
+const activityLimitInput = lenientObject({
+  limit: z
+    .unknown()
+    .optional()
+    .transform((v) => Math.min(50, Math.max(1, Number(v) || 20))),
+});
 
 export type ActivityKind =
   | "completed"
@@ -29,32 +61,7 @@ function iso(v: string | Date | null | undefined): string | null {
 
 export const publishWatchActivity = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const raw = input as {
-      kind?: string;
-      title?: string;
-      anilistId?: number;
-      image?: string | null;
-      rating?: number | null;
-    } | null;
-    const kind = raw?.kind;
-    if (kind !== "completed" && kind !== "rated") {
-      throw new Error("Type d’activité invalide");
-    }
-    const title = String(raw?.title || "").trim().slice(0, 200);
-    if (!title) throw new Error("Titre manquant");
-    const anilistId = Number(raw?.anilistId);
-    return {
-      kind: kind as "completed" | "rated",
-      title,
-      anilistId: Number.isFinite(anilistId) && anilistId > 0 ? anilistId : null,
-      image: typeof raw?.image === "string" ? raw.image : null,
-      rating:
-        typeof raw?.rating === "number" && raw.rating >= 0 && raw.rating <= 10
-          ? raw.rating
-          : null,
-    };
-  })
+  .validator(zValidator(publishActivityInput))
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
     const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
     await fanOutToFriends({
@@ -70,13 +77,7 @@ export const publishWatchActivity = createServerFn({ method: "POST" })
 
 export const listFriendActivity = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const limit = Math.min(
-      50,
-      Math.max(1, Number((input as { limit?: number } | null)?.limit) || 20),
-    );
-    return { limit };
-  })
+  .validator(zValidator(activityLimitInput))
   .handler(async ({ context, data }): Promise<ActivityItem[]> => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();

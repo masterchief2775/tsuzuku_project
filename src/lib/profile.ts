@@ -1,6 +1,49 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { lenientObject, z, zValidator } from "@/lib/validation";
+
+const updateProfileInputSchema = lenientObject({
+  username: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().toLowerCase() : undefined),
+    z.string().max(64, "Pseudo trop long").optional(),
+  ),
+  displayName: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().slice(0, 80) : undefined),
+    z.string().optional(),
+  ),
+  bio: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().slice(0, 500) : undefined),
+    z.string().optional(),
+  ),
+  avatarUrl: z.union([z.string().max(60_000), z.null()]).optional(),
+  isPublic: z.boolean().optional(),
+  visibility: z.enum(["public", "friends", "private"], { message: "Visibilité invalide" }).optional(),
+  showStats: z.boolean().optional(),
+  showFavorites: z.boolean().optional(),
+  favorites: z.unknown().optional(),
+  anilistUrl: z.union([z.string(), z.null()]).optional(),
+  malUrl: z.union([z.string(), z.null()]).optional(),
+});
+
+const usernameLookupInput = lenientObject({
+  username: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().toLowerCase() : ""),
+    z.string().min(2, "Pseudo manquant").max(64),
+  ),
+});
+
+const profileSearchInput = lenientObject({
+  q: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().slice(0, 40) : ""),
+    z.string().max(40),
+  ),
+});
+
+const deleteAccountInput = lenientObject({ confirm: z.unknown().optional() }).refine(
+  (d) => d.confirm === "SUPPRIMER",
+  { message: "Tape « SUPPRIMER » pour confirmer." },
+);
 
 export type ProfileVisibility = "public" | "friends" | "private";
 
@@ -372,38 +415,14 @@ type UpdateProfileInput = {
 export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: unknown) => {
-    const p = (input || {}) as Record<string, unknown>;
-    const visibility = p.visibility;
-    if (
-      visibility !== undefined &&
-      visibility !== "public" &&
-      visibility !== "friends" &&
-      visibility !== "private"
-    ) {
-      throw new Error("Visibilité invalide");
+    const parsed = updateProfileInputSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || "Profil invalide");
     }
+    const d = parsed.data;
     return {
-      username: typeof p.username === "string" ? p.username.trim().toLowerCase() : undefined,
-      displayName: typeof p.displayName === "string" ? p.displayName.trim().slice(0, 80) : undefined,
-      bio: typeof p.bio === "string" ? p.bio.trim().slice(0, 500) : undefined,
-      avatarUrl:
-        p.avatarUrl === null
-          ? null
-          : typeof p.avatarUrl === "string"
-            ? p.avatarUrl.slice(0, 60_000)
-            : undefined,
-      isPublic: typeof p.isPublic === "boolean" ? p.isPublic : undefined,
-      visibility: visibility as ProfileVisibility | undefined,
-      showStats: typeof p.showStats === "boolean" ? p.showStats : undefined,
-      showFavorites: typeof p.showFavorites === "boolean" ? p.showFavorites : undefined,
-      favorites: p.favorites !== undefined ? sanitizeFavorites(p.favorites) : undefined,
-      anilistUrl:
-        p.anilistUrl === null
-          ? null
-          : typeof p.anilistUrl === "string"
-            ? p.anilistUrl
-            : undefined,
-      malUrl: p.malUrl === null ? null : typeof p.malUrl === "string" ? p.malUrl : undefined,
+      ...d,
+      favorites: d.favorites !== undefined ? sanitizeFavorites(d.favorites) : undefined,
     } satisfies UpdateProfileInput;
   })
   .handler(async ({ data, context }): Promise<PublicProfile> => {
@@ -560,11 +579,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   });
 
 export const getProfileByUsername = createServerFn({ method: "GET" })
-  .validator((input: unknown) => {
-    const username = (input as { username?: string } | null)?.username?.trim().toLowerCase();
-    if (!username || username.length < 2) throw new Error("Pseudo manquant");
-    return { username };
-  })
+  .validator(zValidator(usernameLookupInput))
   .handler(async ({ data }): Promise<PublicProfile | null> => {
     const sql = await getSql();
     let rows: ProfileRow[];
@@ -609,11 +624,7 @@ export const getProfileByUsername = createServerFn({ method: "GET" })
 
 export const getProfileByUsernameAuthed = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const username = (input as { username?: string } | null)?.username?.trim().toLowerCase();
-    if (!username || username.length < 2) throw new Error("Pseudo manquant");
-    return { username };
-  })
+  .validator(zValidator(usernameLookupInput))
   .handler(async ({ data, context }): Promise<PublicProfile | null> => {
     const sql = await getSql();
     let rows: ProfileRow[];
@@ -668,10 +679,7 @@ export const getProfileByUsernameAuthed = createServerFn({ method: "GET" })
   });
 
 export const searchProfiles = createServerFn({ method: "GET" })
-  .validator((input: unknown) => {
-    const q = (input as { q?: string } | null)?.q?.trim() ?? "";
-    return { q: q.slice(0, 40) };
-  })
+  .validator(zValidator(profileSearchInput))
   .handler(async ({ data }): Promise<PublicProfile[]> => {
     const sql = await getSql();
     if (!data.q || data.q.length < 2) return [];
@@ -737,13 +745,7 @@ export const searchProfiles = createServerFn({ method: "GET" })
 
 export const deleteMyAccount = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const confirm = (input as { confirm?: string } | null)?.confirm;
-    if (confirm !== "SUPPRIMER") {
-      throw new Error('Tape « SUPPRIMER » pour confirmer.');
-    }
-    return { confirm };
-  })
+  .validator(zValidator(deleteAccountInput))
   .handler(async ({ context }): Promise<{ ok: true }> => {
     const sql = await getSql();
     await sql`delete from "user" where "id" = ${context.userId}`;

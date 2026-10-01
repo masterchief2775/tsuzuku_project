@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -18,17 +18,13 @@ import {
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { listFriends, type FriendProfile } from "@/lib/friends";
 import {
   addSharedListItem,
   addSharedListItemsBulk,
   addSharedListMember,
-  createSharedList,
   deleteSharedList,
   disableSharedListInvite,
   enableSharedListInvite,
-  fetchMySharedLists,
-  fetchSharedList,
   joinSharedListByToken,
   removeSharedListItem,
   removeSharedListMember,
@@ -36,10 +32,9 @@ import {
   setSharedListItemStatus,
   toggleSharedListVote,
   type SharedItemStatus,
-  type SharedListDetail,
   type SharedListItem,
-  type SharedListSummary,
 } from "@/lib/shared-lists-client";
+import { useSharedListDetail, useSharedListsIndex } from "@/components/tsuzuku/use-shared-lists";
 import {
   mediaTitle,
   searchAniListQuery,
@@ -47,7 +42,6 @@ import {
   type AniListMedia,
 } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
-import { useVisiblePolling } from "@/lib/polling";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -134,50 +128,16 @@ function JoinByInvite({ token }: { token: string }) {
 function ListsIndex() {
   const { user, loading: authLoading } = useCurrentUserState();
   const navigate = useNavigate();
-  const [lists, setLists] = useState<SharedListSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { lists, loading, busy, error, createList } = useSharedListsIndex(user?.id);
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const reload = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      setLists(await fetchMySharedLists());
-    } catch {
-      /* */
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setLists([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    // Initial fetch runs through the shared poller below (immediate call).
-  }, [user?.id]);
-
-  // Was 30s in all tabs — now 60s visible, 5min hidden.
-  useVisiblePolling(reload, 60_000, Boolean(user?.id));
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const res = await createSharedList(name.trim());
+    const id = await createList(name);
+    if (id) {
       setName("");
-      await reload();
-      if (res?.id) void navigate({ to: "/lists", search: { id: res.id } });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setBusy(false);
+      void navigate({ to: "/lists", search: { id } });
     }
   }
 
@@ -284,11 +244,10 @@ function ListDetail({ listId }: { listId: string }) {
   const navigate = useNavigate();
   const entries = useWatchlistStore((s) => s.entries);
   const hydrate = useWatchlistStore((s) => s.hydrate);
-  const [detail, setDetail] = useState<SharedListDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [friends, setFriends] = useState<FriendProfile[]>([]);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { detail, loading, friends, error, busy, run } = useSharedListDetail(
+    listId,
+    user?.id,
+  );
   const [pickOpen, setPickOpen] = useState(false);
   const [memberOpen, setMemberOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -303,40 +262,9 @@ function ListDetail({ listId }: { listId: string }) {
   const [copied, setCopied] = useState(false);
   const [roulettePick, setRoulettePick] = useState<SharedListItem | null>(null);
 
-  const reload = useCallback(async () => {
-    if (!user?.id || !listId) return;
-    try {
-      setDetail(await fetchSharedList(listId));
-    } catch {
-      setDetail(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, listId]);
-
   useEffect(() => {
     if (user?.id) hydrate(user.id);
   }, [user?.id, hydrate]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    // Initial fetch runs through the shared poller below (immediate call).
-  }, [user?.id]);
-
-  // Was 15s in all tabs (the hottest poller in the app) — now 60s visible,
-  // 5min hidden. Edits already refetch explicitly after each mutation.
-  useVisiblePolling(reload, 60_000, Boolean(user?.id));
-
-  useEffect(() => {
-    if (!user?.id) return;
-    void listFriends()
-      .then(setFriends)
-      .catch(() => setFriends([]));
-  }, [user?.id]);
 
   useEffect(() => {
     const q = searchQ.trim();
@@ -394,19 +322,6 @@ function ListDetail({ listId }: { listId: string }) {
         b.voteCount - a.voteCount,
     )[0] ?? null;
   }, [detail]);
-
-  async function run(fn: () => Promise<unknown>) {
-    setBusy(true);
-    setError("");
-    try {
-      await fn();
-      await reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   if (authLoading || loading) {
     return (

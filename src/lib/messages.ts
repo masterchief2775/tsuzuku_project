@@ -2,6 +2,28 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { isBlockedBetween } from "@/lib/block-guards";
+import {
+  lenientObject,
+  messageBodyField,
+  requiredString,
+  z,
+  zValidator,
+} from "@/lib/validation";
+
+const withUserIdInput = lenientObject({
+  withUserId: requiredString("withUserId manquant", 128),
+});
+const sendToUserInput = lenientObject({
+  receiverId: requiredString("Destinataire manquant", 128),
+  body: messageBodyField,
+});
+const sendByUsernameInput = lenientObject({
+  username: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().toLowerCase() : ""),
+    z.string().min(1, "Pseudo du destinataire requis").max(64),
+  ),
+  body: messageBodyField,
+});
 
 export type PrivateMessage = {
   id: string;
@@ -122,11 +144,7 @@ export const getUnreadMessageCount = createServerFn({ method: "GET" })
 /** Full history with one contact, oldest first. Polled while a thread is open. */
 export const listThread = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const withUserId = (input as { withUserId?: string } | null)?.withUserId?.trim();
-    if (!withUserId) throw new Error("withUserId manquant");
-    return { withUserId };
-  })
+  .validator(zValidator(withUserIdInput))
   .handler(async ({ data, context }): Promise<PrivateMessage[]> => {
     const sql = await getSql();
     const rows = await sql<{
@@ -157,15 +175,7 @@ export const listThread = createServerFn({ method: "GET" })
 /** Send within an already-open thread (recipient id already known — no username round-trip). */
 export const sendMessageToUser = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const value = input as { receiverId?: string; body?: string } | null;
-    const receiverId = value?.receiverId?.trim() ?? "";
-    const body = value?.body?.trim() ?? "";
-    if (!receiverId) throw new Error("Destinataire manquant");
-    if (!body) throw new Error("Le message ne peut pas être vide");
-    if (body.length > 2000) throw new Error("Le message est trop long");
-    return { receiverId, body };
-  })
+  .validator(zValidator(sendToUserInput))
   .handler(async ({ context, data }): Promise<PrivateMessage> => {
     if (data.receiverId === context.userId) throw new Error("Tu ne peux pas t'envoyer un message");
     if (await isBlockedBetween(context.userId, data.receiverId)) {
@@ -191,15 +201,7 @@ export const sendMessageToUser = createServerFn({ method: "POST" })
 /** Start (or continue) a conversation by username — used from the "new message" search box. */
 export const sendPrivateMessage = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const value = input as { username?: string; body?: string } | null;
-    const username = value?.username?.trim().toLowerCase() ?? "";
-    const body = value?.body?.trim() ?? "";
-    if (!username) throw new Error("Pseudo du destinataire requis");
-    if (!body) throw new Error("Le message ne peut pas être vide");
-    if (body.length > 2000) throw new Error("Le message est trop long");
-    return { username, body };
-  })
+  .validator(zValidator(sendByUsernameInput))
   .handler(async ({ context, data }): Promise<{ receiverId: string }> => {
     const receiverId = await resolveUserId(data.username);
     if (!receiverId) throw new Error("Utilisateur introuvable");
@@ -218,11 +220,7 @@ export const sendPrivateMessage = createServerFn({ method: "POST" })
 /** Mark every message from one contact as read (called on opening/polling a thread). */
 export const markThreadRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const withUserId = (input as { withUserId?: string } | null)?.withUserId?.trim();
-    if (!withUserId) throw new Error("withUserId manquant");
-    return { withUserId };
-  })
+  .validator(zValidator(withUserIdInput))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const sql = await getSql();
     await sql`

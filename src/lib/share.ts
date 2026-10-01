@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { StatusKey, WatchlistEntry } from "@/lib/watchlist";
+import { lenientObject, shareTokenField, zValidator } from "@/lib/validation";
 
 /** Public projection — never includes comments or private tags */
 export type PublicShareEntry = {
@@ -84,13 +85,7 @@ export const disableShare = createServerFn({ method: "POST" })
 
 /** Public, unauthenticated read by token */
 export const fetchPublicShare = createServerFn({ method: "GET" })
-  .validator((input: unknown) => {
-    const token = (input as { token?: string } | null)?.token;
-    if (!token || typeof token !== "string" || token.length < 16) {
-      throw new Error("Token invalide");
-    }
-    return { token };
-  })
+  .validator(zValidator(lenientObject({ token: shareTokenField })))
   .handler(async ({ data }): Promise<PublicSharePayload | null> => {
     const sql = await getSql();
     const shareRows = await sql<{ user_id: string; enabled: boolean }>`

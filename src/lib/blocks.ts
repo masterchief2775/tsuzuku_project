@@ -2,6 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { mapRow, type ProfileRow, type PublicProfile } from "@/lib/profile";
+import { lenientObject, requiredString, zValidator } from "@/lib/validation";
+
+const userIdInput = lenientObject({ userId: requiredString("Utilisateur manquant", 128) });
 
 export type BlockedUser = PublicProfile & { blockedAt: string };
 
@@ -14,11 +17,7 @@ function iso(v: string | Date) {
 
 export const blockUser = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const userId = (input as { userId?: string } | null)?.userId?.trim();
-    if (!userId) throw new Error("Utilisateur manquant");
-    return { userId };
-  })
+  .validator(zValidator(userIdInput))
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
     const me = context.userId;
     if (data.userId === me) throw new Error("Tu ne peux pas te bloquer toi-même");
@@ -44,11 +43,7 @@ export const blockUser = createServerFn({ method: "POST" })
 
 export const unblockUser = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const userId = (input as { userId?: string } | null)?.userId?.trim();
-    if (!userId) throw new Error("Utilisateur manquant");
-    return { userId };
-  })
+  .validator(zValidator(userIdInput))
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
     const sql = await getSql();
     await sql`
@@ -87,11 +82,7 @@ export const listBlockedUsers = createServerFn({ method: "GET" })
 
 export const getBlockStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const userId = (input as { userId?: string } | null)?.userId?.trim();
-    if (!userId) throw new Error("Utilisateur manquant");
-    return { userId };
-  })
+  .validator(zValidator(userIdInput))
   .handler(async ({ context, data }) => {
     const { hasBlocked } = await import("@/lib/blocks.server");
     const [iBlockedThem, theyBlockedMe] = await Promise.all([

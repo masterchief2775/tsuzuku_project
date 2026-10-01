@@ -1,5 +1,49 @@
 node_modules/
 .vercel/
+dist/
+
+# Env & secrets — never commit (lessthan one leak = rotate immediately)
 .env
 .env.local
 .env.*.local
+.env.production
+!.env.example
+
+# TLS / VPN keys (Pi guide: server.key, WireGuard private keys)
+*.pem
+*.key
+*.p12
+server.crt
+wg0.conf
+wireguard/
+
+# Database dumps & local backups (neon.dump, pg-backup.sh output…)
+*.dump
+*.backup
+*.sql.gz
+/backups/
+/data/
+
+# Logs & temp
+*.log
+/tmp/
+
+# Agent / sandbox tooling (session files, local QA)
+.opencode/
+screenshots/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Build caches
+*.tsbuildinfo
+.vite/
+coverage/
+.nyc_output/
+npm-debug.log*
+
+# OS & editors
+.DS_Store
+Thumbs.db
+.idea/
+*.swp

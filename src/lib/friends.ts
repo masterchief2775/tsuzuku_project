@@ -2,6 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { mapRow, type ProfileRow, type PublicProfile } from "@/lib/profile";
+import { lenientObject, optionalString, requestIdField, requiredString, z, zValidator } from "@/lib/validation";
+
+const userRefInput = (missingMessage: string) =>
+  lenientObject({
+      username: z.preprocess(
+        (v) => (typeof v === "string" ? v.trim().toLowerCase() : undefined),
+        z.string().max(64).optional(),
+      ),
+      userId: optionalString(128),
+    })
+    .refine((d) => d.username || d.userId, { message: missingMessage });
+
+const requestIdInput = lenientObject({ requestId: requestIdField });
 
 export type FriendshipStatus = "none" | "pending_out" | "pending_in" | "friends" | "rejected";
 
@@ -73,13 +86,7 @@ async function loadProfile(userId: string): Promise<PublicProfile | null> {
 /** Send a friend request by username or userId. */
 export const sendFriendRequest = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const raw = input as { username?: string; userId?: string } | null;
-    const username = raw?.username?.trim().toLowerCase();
-    const userId = raw?.userId?.trim();
-    if (!username && !userId) throw new Error("Pseudo ou identifiant requis");
-    return { username, userId };
-  })
+  .validator(zValidator(userRefInput("Pseudo ou identifiant requis")))
   .handler(async ({ context, data }): Promise<{ ok: true; requestId: string }> => {
     const me = context.userId;
     const sql = await getSql();
@@ -182,11 +189,7 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
 /** Accept an incoming pending request. */
 export const acceptFriendRequest = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const id = (input as { requestId?: string } | null)?.requestId?.trim();
-    if (!id) throw new Error("Identifiant de demande manquant");
-    return { requestId: id };
-  })
+  .validator(zValidator(requestIdInput))
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
     const sql = await getSql();
     const rows = await sql<FriendshipRow>`
@@ -216,11 +219,7 @@ export const acceptFriendRequest = createServerFn({ method: "POST" })
 /** Refuse an incoming pending request. */
 export const rejectFriendRequest = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const id = (input as { requestId?: string } | null)?.requestId?.trim();
-    if (!id) throw new Error("Identifiant de demande manquant");
-    return { requestId: id };
-  })
+  .validator(zValidator(requestIdInput))
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
     const sql = await getSql();
     const rows = await sql<FriendshipRow>`
@@ -242,13 +241,14 @@ export const rejectFriendRequest = createServerFn({ method: "POST" })
 /** Cancel an outgoing pending request or remove an accepted friendship. */
 export const removeFriendship = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const raw = input as { requestId?: string; userId?: string } | null;
-    const requestId = raw?.requestId?.trim();
-    const userId = raw?.userId?.trim();
-    if (!requestId && !userId) throw new Error("Identifiant requis");
-    return { requestId, userId };
-  })
+  .validator(
+    zValidator(
+      lenientObject({
+        requestId: optionalString(128),
+        userId: optionalString(128),
+      }).refine((d) => d.requestId || d.userId, { message: "Identifiant requis" }),
+    ),
+  )
   .handler(async ({ context, data }): Promise<{ ok: true }> => {
     const me = context.userId;
     const sql = await getSql();
@@ -378,12 +378,7 @@ export const listFriendRequests = createServerFn({ method: "GET" })
 /** Relationship between me and another user (for profile buttons). */
 export const getFriendshipWith = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const userId = (input as { userId?: string } | null)?.userId?.trim();
-    const username = (input as { username?: string } | null)?.username?.trim().toLowerCase();
-    if (!userId && !username) throw new Error("userId ou username requis");
-    return { userId, username };
-  })
+  .validator(zValidator(userRefInput("userId ou username requis")))
   .handler(
     async ({
       context,
@@ -422,11 +417,20 @@ export const getFriendshipWith = createServerFn({ method: "GET" })
 /** Resolve friend profiles by user ids (for "Vu avec" display). */
 export const resolveFriendProfiles = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const ids = (input as { userIds?: string[] } | null)?.userIds;
-    if (!Array.isArray(ids)) return { userIds: [] as string[] };
-    return { userIds: ids.filter((x) => typeof x === "string" && x.length > 0).slice(0, 40) };
-  })
+  .validator(
+    zValidator(
+      lenientObject({
+        userIds: z
+          .unknown()
+          .optional()
+          .transform((v) =>
+            Array.isArray(v)
+              ? v.filter((x): x is string => typeof x === "string" && x.length > 0).slice(0, 40)
+              : [],
+          ),
+      }),
+    ),
+  )
   .handler(async ({ data }): Promise<PublicProfile[]> => {
     if (!data.userIds.length) return [];
     // pg/pglite tagged template doesn't expand arrays easily — resolve one by one.
@@ -480,11 +484,7 @@ function asEntries(raw: unknown): RawEntry[] {
 
 export const compareWatchlists = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => {
-    const friendUserId = String((input as { friendUserId?: string } | null)?.friendUserId || "").trim();
-    if (!friendUserId) throw new Error("Ami requis");
-    return { friendUserId };
-  })
+  .validator(zValidator(lenientObject({ friendUserId: requiredString("Ami requis", 128) })))
   .handler(async ({ context, data }): Promise<WatchlistComparison> => {
     const me = context.userId;
     const them = data.friendUserId;

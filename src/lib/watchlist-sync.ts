@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { WatchlistEntry } from "@/lib/watchlist";
+import { lenientObject, z } from "@/lib/validation";
 
 /**
  * Watchlist sync server functions.
@@ -15,6 +16,20 @@ const MAX_PATCH_ENTRIES = 200;
 const MAX_FULL_ENTRIES = 5000;
 /** Rough JSONB safety cap — rejects runaway payloads before they hit Neon. */
 const MAX_JSON_BYTES = 3_000_000;
+
+const fullSyncInput = z.preprocess(
+  (v) => (Array.isArray(v) ? { entries: v } : v),
+  lenientObject({
+    entries: z
+      .array(z.unknown())
+      .max(MAX_FULL_ENTRIES, "Watchlist trop volumineuse pour un sync complet"),
+  }),
+);
+
+const patchEnvelopeInput = lenientObject({
+  upsert: z.unknown().optional(),
+  deletedIds: z.unknown().optional(),
+});
 
 function normalizeEntries(raw: unknown): WatchlistEntry[] {
   if (raw == null) return [];
@@ -46,15 +61,14 @@ export const saveWatchlistState = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: unknown) => {
     // Client calls: saveWatchlistState({ data: { entries } })
-    // Validator receives the inner `data` payload.
-    const payload = input as { entries?: unknown } | unknown[] | null;
-    const entries = Array.isArray(payload)
-      ? payload
-      : (payload as { entries?: unknown } | null)?.entries;
-    if (!Array.isArray(entries)) {
-      throw new Error("Invalid watchlist payload: 'entries' must be an array");
+    // Validator receives the inner `data` payload (or a bare array, legacy —
+    // normalized by the schema's preprocess).
+    const parsed = fullSyncInput.safeParse(input);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      throw new Error(first?.message || "Invalid watchlist payload: 'entries' must be an array");
     }
-    return { entries: entries as WatchlistEntry[] };
+    return { entries: parsed.data.entries as WatchlistEntry[] };
   })
   .handler(async ({ data, context }): Promise<{ ok: true; count: number }> => {
     const sql = await getSql();
@@ -109,9 +123,13 @@ function sanitizePatchEntries(raw: unknown): WatchlistEntry[] {
 export const saveWatchlistPatch = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: unknown) => {
-    const payload = input as { upsert?: unknown; deletedIds?: unknown } | null;
-    const upsert = sanitizePatchEntries(payload?.upsert ?? []);
-    const rawDeleted = Array.isArray(payload?.deletedIds) ? payload.deletedIds : [];
+    const parsed = patchEnvelopeInput.safeParse(input);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      throw new Error(first?.message || "Patch invalide");
+    }
+    const upsert = sanitizePatchEntries(parsed.data.upsert ?? []);
+    const rawDeleted = Array.isArray(parsed.data.deletedIds) ? parsed.data.deletedIds : [];
     if (rawDeleted.length > MAX_PATCH_ENTRIES) {
       throw new Error("Patch trop volumineux — utilise un sync complet");
     }
