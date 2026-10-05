@@ -403,7 +403,7 @@ export function EntryModal() {
                         "size-4",
                         entry.rating != null && entry.rating >= n
                           ? "fill-lime text-lime"
-                          : "text-line",
+                          : "text-dim",
                       )}
                     />
                   </button>

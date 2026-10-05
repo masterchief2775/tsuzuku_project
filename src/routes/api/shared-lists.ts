@@ -1,16 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { auth, authConfigured } from "@/lib/auth/server";
+import { requireApiUser } from "@/lib/auth/api-guard.server";
 import { getSql } from "@/lib/db";
-
-async function requireUserId(request: Request): Promise<string | Response> {
-  if (!authConfigured) {
-    return Response.json({ error: "Auth disabled" }, { status: 503 });
-  }
-  const session = await auth.api.getSession({ headers: request.headers });
-  const id = session?.user?.id;
-  if (!id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  return id;
-}
 
 function newId(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -45,7 +35,7 @@ export const Route = createFileRoute("/api/shared-lists")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const userIdOrRes = await requireUserId(request);
+        const userIdOrRes = await requireApiUser(request);
         if (userIdOrRes instanceof Response) return userIdOrRes;
         const userId = userIdOrRes;
         const url = new URL(request.url);
@@ -258,7 +248,7 @@ export const Route = createFileRoute("/api/shared-lists")({
       },
 
       POST: async ({ request }) => {
-        const userIdOrRes = await requireUserId(request);
+        const userIdOrRes = await requireApiUser(request);
         if (userIdOrRes instanceof Response) return userIdOrRes;
         const userId = userIdOrRes;
         let body: Record<string, unknown> = {};
@@ -566,22 +556,42 @@ export const Route = createFileRoute("/api/shared-lists")({
           if (action === "toggleVote") {
             const itemId = String(body.itemId || "").trim();
             if (!itemId) return Response.json({ error: "itemId manquant" }, { status: 400 });
+            // `listId` is access-checked above, but `itemId` must be scoped to
+            // THAT list: vote_count is aggregated by `item_id` alone, so an
+            // unscoped row would let a member of one list inflate the counters
+            // of another list's items (and use this endpoint as a read/delete
+            // oracle on arbitrary item ids). `shared_list_vote` has two
+            // independent FKs and no cross-column constraint, so the database
+            // will NOT catch a mismatch for us — hence the explicit `list_id`
+            // predicate on every statement below.
             const exists = await sql<{ item_id: string }>`
               select "item_id" from "shared_list_vote"
-              where "item_id" = ${itemId} and "user_id" = ${userId}
+              where "item_id" = ${itemId}
+                and "list_id" = ${listId}
+                and "user_id" = ${userId}
               limit 1
             `;
             if (exists[0]) {
               await sql`
                 delete from "shared_list_vote"
-                where "item_id" = ${itemId} and "user_id" = ${userId}
+                where "item_id" = ${itemId}
+                  and "list_id" = ${listId}
+                  and "user_id" = ${userId}
               `;
             } else {
-              await sql`
+              // Insert only if the item really belongs to this list, so the
+              // (item_id, list_id) pair can never disagree.
+              const inserted = await sql`
                 insert into "shared_list_vote" ("item_id", "list_id", "user_id")
-                values (${itemId}, ${listId}, ${userId})
+                select i."id", ${listId}, ${userId}
+                from "shared_list_item" i
+                where i."id" = ${itemId} and i."list_id" = ${listId}
                 on conflict do nothing
+                returning "item_id"
               `;
+              if (!inserted.length) {
+                return Response.json({ error: "Titre introuvable" }, { status: 404 });
+              }
             }
             await sql`
               update "shared_list" set "updated_at" = current_timestamp where "id" = ${listId}

@@ -73,7 +73,7 @@ export function ListsView() {
 }
 
 function JoinByInvite({ token }: { token: string }) {
-  const { user, loading: authLoading } = useCurrentUserState();
+  const { user, isPending: authLoading } = useCurrentUserState();
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -126,7 +126,7 @@ function JoinByInvite({ token }: { token: string }) {
 }
 
 function ListsIndex() {
-  const { user, loading: authLoading } = useCurrentUserState();
+  const { user, isPending: authLoading } = useCurrentUserState();
   const navigate = useNavigate();
   const { lists, loading, busy, error, createList } = useSharedListsIndex(user?.id);
   const [name, setName] = useState("");
@@ -195,7 +195,7 @@ function ListsIndex() {
         <div className="flex justify-center py-12 text-dim">
           <Loader2 className="size-5 animate-spin" />
         </div>
-      ) : lists.length === 0 ? (
+      ) : error ? null : lists.length === 0 ? (
         <div className="rounded-[14px] border border-dashed border-line px-4 py-10 text-center">
           <p className="text-sm text-dim">
             Aucune liste. Crée-en une, invite des amis, ajoutez 3 titres et votez pour la prochaine
@@ -240,7 +240,7 @@ function ListsIndex() {
 }
 
 function ListDetail({ listId }: { listId: string }) {
-  const { user, loading: authLoading } = useCurrentUserState();
+  const { user, isPending: authLoading } = useCurrentUserState();
   const navigate = useNavigate();
   const entries = useWatchlistStore((s) => s.entries);
   const hydrate = useWatchlistStore((s) => s.hydrate);

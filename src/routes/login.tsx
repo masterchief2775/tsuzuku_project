@@ -221,7 +221,7 @@ function LoginPage() {
             )}
 
             {error && (
-              <div className="rounded-[10px] border border-red-500/20 bg-red-500/5 px-3.5 py-3 text-sm text-red-700">{error}</div>
+              <div className="rounded-[10px] border border-red-500/20 bg-red-500/5 px-3.5 py-3 text-sm text-crimson">{error}</div>
             )}
             {message && (
               <div className="rounded-[10px] border border-lime/30 bg-lime/10 px-3.5 py-3 text-sm">{message}</div>

@@ -135,6 +135,7 @@ export function NotificationsCenter() {
   }
 
   const [prefs, setPrefs] = useState<NotifPrefs | null>(null);
+  const [prefsError, setPrefsError] = useState("");
 
   useEffect(() => {
     if (!open || prefs) return;
@@ -143,7 +144,16 @@ export function NotificationsCenter() {
       .then((p) => {
         if (!cancelled) setPrefs(p);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (cancelled) return;
+        // Surfaced, and the switches below stay disabled: previously a failed
+        // load left `prefs` null, so every toggle rendered as ON
+        // (`prefs?.[kind] ?? true`) while `togglePref` returned early — an
+        // inert control with no explanation.
+        setPrefsError(
+          err instanceof Error ? err.message : "Impossible de charger les préférences.",
+        );
+      });
     return () => {
       cancelled = true;
     };
@@ -300,6 +310,11 @@ export function NotificationsCenter() {
               Types d’alertes
             </summary>
             <ul className="mt-2 space-y-1.5 pb-1">
+              {prefsError ? (
+                <li role="alert" className="pb-1 text-[12px] text-crimson">
+                  {prefsError}
+                </li>
+              ) : null}
               {NOTIF_KINDS.map((kind) => (
                 <li key={kind} className="flex items-center justify-between gap-2 text-[12.5px]">
                   <span className="text-dim">{PREF_LABELS[kind]}</span>
@@ -308,10 +323,12 @@ export function NotificationsCenter() {
                     role="switch"
                     aria-checked={prefs?.[kind] ?? true}
                     aria-label={PREF_LABELS[kind]}
+                    disabled={!prefs}
                     onClick={() => void togglePref(kind)}
                     className={cn(
                       "relative h-5 w-9 shrink-0 rounded-full transition",
                       prefs?.[kind] ?? true ? "bg-lime" : "bg-line",
+                      !prefs && "cursor-not-allowed opacity-50",
                     )}
                   >
                     <span

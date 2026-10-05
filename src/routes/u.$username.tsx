@@ -650,9 +650,19 @@ function PublicProfilePage() {
           </>
         ) : null}
       </main>
+      {editError && !hasBasicChanges ? (
+        <div
+          role="alert"
+          className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full border border-crimson/40 bg-raised px-4 py-2 text-xs font-semibold text-crimson shadow-2xl"
+        >
+          {editError}
+        </div>
+      ) : null}
       {hasBasicChanges ? (
         <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-line bg-raised px-3 py-2 text-xs font-semibold text-ink shadow-2xl">
-          <span className="hidden text-dim sm:inline">Modifications non enregistrées</span>
+          <span className={cn("hidden sm:inline", editError ? "text-crimson" : "text-dim")}>
+            {editError || "Modifications non enregistrées"}
+          </span>
           <button
             type="button"
             disabled={editSaving}

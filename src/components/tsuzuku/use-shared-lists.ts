@@ -24,8 +24,11 @@ export function useSharedListsIndex(userId: string | undefined) {
     if (!userId) return;
     try {
       setLists(await fetchMySharedLists());
-    } catch {
-      /* */
+      setError("");
+    } catch (err) {
+      // Never swallow this: an empty `lists` reads as "you have no lists", so a
+      // transient network failure would tell the user their lists are gone.
+      setError(err instanceof Error ? err.message : "Impossible de charger tes listes.");
     } finally {
       setLoading(false);
     }
@@ -83,8 +86,12 @@ export function useSharedListDetail(listId: string, userId: string | undefined) 
     if (!userId || !listId) return;
     try {
       setDetail(await fetchSharedList(listId));
-    } catch {
+      setError("");
+    } catch (err) {
       setDetail(null);
+      // Reported, not silently turned into "not found": a 502 must not read as
+      // "deleted or forbidden".
+      setError(err instanceof Error ? err.message : "Impossible de charger cette liste.");
     } finally {
       setLoading(false);
     }

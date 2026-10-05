@@ -486,13 +486,10 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     const { entries, showToast } = get();
     let autoCompletedTitle: string | null = null;
     let becameWatching = false;
-    let completedForActivity: WatchlistEntry | null = null;
-    let ratedForActivity: WatchlistEntry | null = null;
     let progressDelta = 0;
     const next = entries.map((e) => {
       if (e.id !== id) return e;
       const prevStatus = e.status;
-      const prevRating = e.rating;
       const prevProgress = e.progress;
       const merged: WatchlistEntry = {
         ...e,
@@ -512,14 +509,6 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
         if (merged.totalEpisodes != null && merged.totalEpisodes > 0) {
           merged.progress = merged.totalEpisodes;
         }
-        completedForActivity = merged;
-      }
-      if (
-        typeof merged.rating === "number" &&
-        merged.rating > 0 &&
-        merged.rating !== prevRating
-      ) {
-        ratedForActivity = merged;
       }
       if (merged.status === "Watching" && prevStatus !== "Watching") {
         becameWatching = true;
@@ -527,7 +516,19 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       }
       return merged;
     });
+    const prev = entries.find((e) => e.id === id) ?? null;
     const changed = next.find((e) => e.id === id) ?? null;
+    // Derived here rather than inside the map: TypeScript does not track
+    // assignments made inside a closure, so flags captured there were narrowed
+    // to their initial value and the published entry became `never`. Same
+    // conditions, now visible to the compiler.
+    const becameCompleted =
+      changed?.status === "Completed" && prev?.status !== "Completed";
+    const gotRated =
+      typeof changed?.rating === "number" &&
+      changed.rating > 0 &&
+      changed.rating !== prev?.rating;
+    const act = becameCompleted || gotRated ? changed : null;
     set({
       entries: applyPersist(next, get().userId, get, {
         upsert: changed ? [changed] : [],
@@ -552,9 +553,8 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     }
     if (becameWatching) void get().refreshNextAirings();
     // Activity via plain fetch (no createServerFn) — safe for client/SSR boundary
-    const act = completedForActivity || ratedForActivity;
     if (act) {
-      const kind = completedForActivity ? "completed" : "rated";
+      const kind = becameCompleted ? "completed" : "rated";
       void fetch("/api/activity", {
         method: "POST",
         credentials: "include",

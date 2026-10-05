@@ -63,6 +63,7 @@ export function MessagesView() {
 
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
+  const [conversationsError, setConversationsError] = useState("");
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [activeProfile, setActiveProfile] = useState<ConversationSummary | PublicProfile | null>(null);
   const [threadMessages, setThreadMessages] = useState<OptimisticMessage[]>([]);
@@ -85,9 +86,17 @@ export function MessagesView() {
     void listConversations()
       .then((rows) => {
         setConversations(rows);
+        setConversationsError("");
         setConversationsLoaded(true);
       })
-      .catch(() => setConversationsLoaded(true));
+      .catch((err) => {
+        // Reporting `loaded` with an empty list here would claim "you have no
+        // conversations" when the truth is "we could not ask the server".
+        setConversationsError(
+          err instanceof Error ? err.message : "Impossible de charger tes conversations.",
+        );
+        setConversationsLoaded(true);
+      });
   }, []);
 
   const refreshThread = useCallback((withUserId: string) => {
@@ -398,6 +407,10 @@ export function MessagesView() {
         </h2>
         {!conversationsLoaded ? (
           <p className="py-8 text-center text-sm text-dim">Chargement…</p>
+        ) : conversationsError ? (
+          <p role="alert" className="py-8 text-center text-sm text-crimson">
+            {conversationsError}
+          </p>
         ) : conversations.length === 0 ? (
           <p className="py-8 text-center text-sm text-dim">Aucune conversation pour le moment.</p>
         ) : (

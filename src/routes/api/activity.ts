@@ -1,22 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { auth, authConfigured } from "@/lib/auth/server";
+import { requireApiUser } from "@/lib/auth/api-guard.server";
 import { getSql } from "@/lib/db";
-
-async function requireUserId(request: Request): Promise<string | Response> {
-  if (!authConfigured) {
-    return Response.json({ error: "Auth disabled" }, { status: 503 });
-  }
-  const session = await auth.api.getSession({ headers: request.headers });
-  const id = session?.user?.id;
-  if (!id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  return id;
-}
 
 export const Route = createFileRoute("/api/activity")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const userIdOrRes = await requireUserId(request);
+        const userIdOrRes = await requireApiUser(request);
         if (userIdOrRes instanceof Response) return userIdOrRes;
         const userId = userIdOrRes;
         const url = new URL(request.url);
@@ -104,7 +94,7 @@ export const Route = createFileRoute("/api/activity")({
       },
 
       POST: async ({ request }) => {
-        const userIdOrRes = await requireUserId(request);
+        const userIdOrRes = await requireApiUser(request);
         if (userIdOrRes instanceof Response) return userIdOrRes;
         const userId = userIdOrRes;
         let body: Record<string, unknown> = {};

@@ -131,7 +131,7 @@ export function QuickActions({ entry, compact }: { entry: WatchlistEntry; compac
                           "size-3.5",
                           entry.rating != null && entry.rating >= n
                             ? "fill-lime text-lime"
-                            : "text-line",
+                            : "text-dim",
                         )}
                       />
                     </button>

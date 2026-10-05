@@ -507,7 +507,7 @@ function FacetRow({
       {has ? (
         <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">{children}</div>
       ) : (
-        <p className="text-[12px] text-dim/70">{empty}</p>
+        <p className="text-[12px] text-dim">{empty}</p>
       )}
     </div>
   );

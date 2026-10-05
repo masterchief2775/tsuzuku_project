@@ -252,7 +252,7 @@ export function CalendarView() {
                 {day.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })}
               </div>
               {list.length === 0 ? (
-                <p className="text-[11px] text-dim/60">—</p>
+                <p className="text-[11px] text-dim">—</p>
               ) : (
                 <ul className="space-y-1.5">
                   {list.map((e) => (
