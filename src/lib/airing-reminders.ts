@@ -43,19 +43,13 @@ function notifiedMap(): Record<string, number> {
   }
 }
 
-function markNotified(key: string) {
-  const map = notifiedMap();
-  map[key] = Date.now();
-  // prune old (> 14 days)
+/** Persist the notified map, pruning entries older than 14 days. */
+function saveNotified(map: Record<string, number>) {
   const cutoff = Date.now() - 14 * 86400_000;
   for (const k of Object.keys(map)) {
     if (map[k]! < cutoff) delete map[k];
   }
   localStorage.setItem(NOTIFIED_KEY, JSON.stringify(map));
-}
-
-function alreadyNotified(key: string) {
-  return Boolean(notifiedMap()[key]);
 }
 
 export function notificationPermission(): NotificationPermission | "unsupported" {
@@ -97,8 +91,15 @@ export function checkAiringReminders(entries: WatchlistEntry[]) {
   if (!prefs.enabled) return;
   if (notificationPermission() !== "granted") return;
 
-  const now = Math.floor(Date.now() / 1000);
+const now = Math.floor(Date.now() / 1000);
   const windowSec = prefs.minutesBefore * 60;
+
+  // The notified map is read ONCE per tick and written at most once. It used to
+  // be re-read and re-parsed for every watching entry (alreadyNotified) and
+  // re-written per notification (markNotified) — `localStorage` is synchronous,
+  // so a large watchlist turned each tick into hundreds of blocking parses.
+  const notified = notifiedMap();
+  const fresh: Record<string, number> = {};
 
   for (const e of entries) {
     if (e.status !== "Watching" || !e.nextAiring) continue;
@@ -107,7 +108,7 @@ export function checkAiringReminders(entries: WatchlistEntry[]) {
     if (at <= 0 || ep <= 0) continue;
 
     const key = `${e.anilistId}:${ep}:${at}`;
-    if (alreadyNotified(key)) continue;
+    if (notified[key]) continue;
 
     const delta = at - now;
     // Notify when within [0, minutesBefore] OR up to 15 min past airing
@@ -123,7 +124,12 @@ export function checkAiringReminders(entries: WatchlistEntry[]) {
         delta <= 0 ? "L'épisode est disponible." : `Sortie prévue ${when}.`,
         key,
       );
-      markNotified(key);
+      fresh[key] = Date.now();
     }
+  }
+
+  if (Object.keys(fresh).length > 0) {
+    Object.assign(notified, fresh);
+    saveNotified(notified);
   }
 }

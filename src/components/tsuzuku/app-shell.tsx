@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { ListActionsMenu } from "@/components/tsuzuku/list-actions-menu";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
-import { FriendsView } from "@/components/tsuzuku/friends-view";
 import { ProfileView } from "@/components/tsuzuku/profile-view";
 import { ListsView } from "@/components/tsuzuku/lists-view";
 import { Link, useRouter, useRouterState, useSearch } from "@tanstack/react-router";
@@ -11,9 +10,6 @@ import { EntryModal } from "@/components/tsuzuku/entry-modal";
 import { ImportView } from "@/components/tsuzuku/import-view";
 import { ListView } from "@/components/tsuzuku/list-view";
 import { SearchView } from "@/components/tsuzuku/search-view";
-import { SeasonView } from "@/components/tsuzuku/season-view";
-import { CalendarView } from "@/components/tsuzuku/calendar-view";
-import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { NotificationsCenter } from "@/components/tsuzuku/notifications-center";
@@ -22,8 +18,6 @@ import { useVisiblePolling } from "@/lib/polling";
 import { AppToast } from "@/components/tsuzuku/toast";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
-import { MessagesView } from "@/components/tsuzuku/messages-view";
-import { AdminView } from "@/components/tsuzuku/admin-view";
 import { getAdminStatus } from "@/lib/admin";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -32,6 +26,36 @@ import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
 import { isViewId, viewTitle } from "@/lib/view-nav";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { checkAiringReminders } from "@/lib/airing-reminders";
+
+// Only one view renders at a time (see the switch below), so the heavy and
+// rarely-opened ones are code-split: they were all shipping inside the entry
+// chunk, which made the first paint pay for the 800-line roulette spinner.
+const RouletteView = lazy(() =>
+  import("@/components/tsuzuku/roulette-view").then((m) => ({ default: m.RouletteView })),
+);
+const CalendarView = lazy(() =>
+  import("@/components/tsuzuku/calendar-view").then((m) => ({ default: m.CalendarView })),
+);
+const SeasonView = lazy(() =>
+  import("@/components/tsuzuku/season-view").then((m) => ({ default: m.SeasonView })),
+);
+const MessagesView = lazy(() =>
+  import("@/components/tsuzuku/messages-view").then((m) => ({ default: m.MessagesView })),
+);
+const FriendsView = lazy(() =>
+  import("@/components/tsuzuku/friends-view").then((m) => ({ default: m.FriendsView })),
+);
+const AdminView = lazy(() =>
+  import("@/components/tsuzuku/admin-view").then((m) => ({ default: m.AdminView })),
+);
+
+function ViewFallback() {
+  return (
+    <div className="flex justify-center py-12 text-dim">
+      <Loader2 className="size-5 animate-spin" />
+    </div>
+  );
+}
 
 export function AppShell() {
   useEffect(() => {
@@ -344,23 +368,35 @@ export function AppShell() {
         ) : pathname.startsWith("/profile") ? (
           <ProfileView />
         ) : pathname.startsWith("/friends") ? (
-          <FriendsView />
+          <Suspense fallback={<ViewFallback />}>
+            <FriendsView />
+          </Suspense>
         ) : pathname.startsWith("/lists") ? (
           <ListsView />
         ) : pathname.startsWith("/messages") ? (
-          <MessagesView />
+          <Suspense fallback={<ViewFallback />}>
+            <MessagesView />
+          </Suspense>
         ) : pathname.startsWith("/admin") ? (
-          <AdminView />
+          <Suspense fallback={<ViewFallback />}>
+            <AdminView />
+          </Suspense>
         ) : view === "dashboard" ? (
           <Dashboard />
         ) : view === "search" ? (
           <SearchView inputRef={searchRef} />
         ) : view === "season" ? (
-          <SeasonView />
+          <Suspense fallback={<ViewFallback />}>
+            <SeasonView />
+          </Suspense>
         ) : view === "calendar" ? (
-          <CalendarView />
+          <Suspense fallback={<ViewFallback />}>
+            <CalendarView />
+          </Suspense>
         ) : view === "roulette" ? (
-          <RouletteView />
+          <Suspense fallback={<ViewFallback />}>
+            <RouletteView />
+          </Suspense>
         ) : (
           <ListView />
         )}

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { CalendarClock, Dices, Play, Plus, Search, Star, Upload } from "lucide-react";
 import { EntryCard } from "@/components/tsuzuku/entry-card";
 import { Cover } from "@/components/tsuzuku/cover";
@@ -57,22 +58,16 @@ function dayBucketLabel(airingAt: number): string {
 }
 
 function groupUpcomingByDay(entries: WatchlistEntry[]) {
-  const groups: { label: string; items: WatchlistEntry[] }[] = [];
   const map = new Map<string, WatchlistEntry[]>();
   for (const e of entries) {
-    const at = e.nextAiring?.airingAt ?? 0;
-    const label = dayBucketLabel(at);
+    const label = dayBucketLabel(e.nextAiring?.airingAt ?? 0);
     if (!map.has(label)) map.set(label, []);
     map.get(label)!.push(e);
   }
-  // Preserve chronological order of first appearance
-  for (const e of entries) {
-    const label = dayBucketLabel(e.nextAiring!.airingAt);
-    if (!groups.some((g) => g.label === label)) {
-      groups.push({ label, items: map.get(label)! });
-    }
-  }
-  return groups;
+  // A Map already preserves insertion order, which IS the chronological order of
+  // first appearance — the extra `groups.some(...)` scan to rebuild it was the
+  // quadratic pass (and re-read `nextAiring` non-null).
+  return [...map].map(([label, items]) => ({ label, items }));
 }
 
 function isEpisodeAvailable(entry: WatchlistEntry) {
@@ -88,6 +83,41 @@ export function Dashboard() {
   const setActiveEntryId = useWatchlistStore((s) => s.setActiveEntryId);
   const applyGenreAndOpenList = useWatchlistStore((s) => s.applyGenreAndOpenList);
   const bumpProgress = useWatchlistStore((s) => s.bumpProgress);
+
+  // Recomputed only when the list changes, instead of on every render: this
+  // component re-renders on every "+1 épisode", and the five passes below are
+  // each a full filter/sort of the watchlist. Declared before the early return
+  // below so the hook order stays stable.
+  // A primitive so the memo is stable within a day and recomputes after midnight.
+  const dayKey = startOfDay(new Date()).getTime();
+  const derived = useMemo(() => {
+    const watching = entries.filter((e) => e.status === "Watching").sort(sortWatchingPriority);
+    const upcomingWeek = upcomingThisWeek(entries);
+    return {
+      watching,
+      featured: watching[0] ?? null,
+      otherWatching: watching.slice(1, 5),
+      upcomingCount: upcomingWeek.length,
+      upcomingGroups: groupUpcomingByDay(upcomingWeek),
+      recent: [...entries]
+        .sort((a, b) => +new Date(b.addedAt) - +new Date(a.addedAt))
+        .slice(0, 6),
+      stats: computeStats(entries),
+      todayAiring: airingOnDay(entries, new Date(dayKey)),
+      availableCount: watching.filter(isEpisodeAvailable).length,
+    };
+  }, [entries, dayKey]);
+  const {
+    watching: watchingAll,
+    featured,
+    otherWatching,
+    upcomingGroups,
+    recent,
+    stats,
+    todayAiring,
+    availableCount,
+    upcomingCount,
+  } = derived;
 
   if (entries.length === 0) {
     return (
@@ -144,19 +174,6 @@ export function Dashboard() {
       </div>
     );
   }
-
-  const watchingAll = entries.filter((e) => e.status === "Watching").sort(sortWatchingPriority);
-  const featured = watchingAll[0] ?? null;
-  const otherWatching = watchingAll.slice(1, 5);
-  const upcoming = upcomingThisWeek(entries);
-  const upcomingGroups = groupUpcomingByDay(upcoming);
-  const recent = [...entries]
-    .sort((a, b) => +new Date(b.addedAt) - +new Date(a.addedAt))
-    .slice(0, 6);
-  const stats = computeStats(entries);
-  const todayAiring = airingOnDay(entries, startOfDay(new Date()));
-
-  const availableCount = watchingAll.filter(isEpisodeAvailable).length;
 
   return (
     <div className="animate-fade-up">
@@ -278,9 +295,9 @@ export function Dashboard() {
           <h3 className="font-serif mb-3 flex items-center gap-2 text-[17px] font-medium">
             <CalendarClock className="size-4 text-lime" />
             Cette semaine
-            {upcoming.length > 0 ? (
+            {upcomingCount > 0 ? (
               <span className="rounded-full bg-lime/15 px-2 py-0.5 text-[11px] font-bold text-lime tabular-nums">
-                {upcoming.length}
+                {upcomingCount}
               </span>
             ) : null}
           </h3>

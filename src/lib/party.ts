@@ -213,46 +213,52 @@ export const getParty = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(zValidator(lenientObject({ roomId: requiredString("Session manquante", 128) })))
   .handler(async ({ context, data }): Promise<PartyDetail> => {
-    const room = await requireOpenRoom(data.roomId);
-    const myRow = await requireMember(data.roomId, context.userId);
     const sql = await getSql();
-    const members = await sql<{
-      user_id: string;
-      status: PartyMemberStatus;
-      progress: number;
-      display_name: string | null;
-      username: string | null;
-      avatar_url: string | null;
-      name: string | null;
-      image: string | null;
-    }>`
-      select m."user_id", m."status", m."progress",
-        p."display_name", p."username", p."avatar_url",
-        u."name", u."image"
-      from "party_member" m
-      join "user" u on u."id" = m."user_id"
-      left join "user_profile" p on p."user_id" = m."user_id"
-      where m."room_id" = ${data.roomId}
-      order by m."joined_at" asc
-    `;
-    const messages = await sql<{
-      id: string;
-      sender_id: string;
-      body: string;
-      created_at: string | Date;
-      display_name: string | null;
-      username: string | null;
-      name: string | null;
-    }>`
-      select g."id", g."sender_id", g."body", g."created_at",
-        p."display_name", p."username", u."name"
-      from "party_message" g
-      join "user" u on u."id" = g."sender_id"
-      left join "user_profile" p on p."user_id" = g."sender_id"
-      where g."room_id" = ${data.roomId}
-      order by g."created_at" asc
-      limit 50
-    `;
+    // All four depend only on (roomId, userId), so they run concurrently
+    // instead of one after another: this handler is on a 4s poll, which meant
+    // 4x the latency for every member's session. A failing check still
+    // rejects the whole handler, exactly as before.
+    const [room, myRow, members, messages] = await Promise.all([
+      requireOpenRoom(data.roomId),
+      requireMember(data.roomId, context.userId),
+      sql<{
+        user_id: string;
+        status: PartyMemberStatus;
+        progress: number;
+        display_name: string | null;
+        username: string | null;
+        avatar_url: string | null;
+        name: string | null;
+        image: string | null;
+      }>`
+        select m."user_id", m."status", m."progress",
+          p."display_name", p."username", p."avatar_url",
+          u."name", u."image"
+        from "party_member" m
+        join "user" u on u."id" = m."user_id"
+        left join "user_profile" p on p."user_id" = m."user_id"
+        where m."room_id" = ${data.roomId}
+        order by m."joined_at" asc
+      `,
+      sql<{
+        id: string;
+        sender_id: string;
+        body: string;
+        created_at: string | Date;
+        display_name: string | null;
+        username: string | null;
+        name: string | null;
+      }>`
+        select g."id", g."sender_id", g."body", g."created_at",
+          p."display_name", p."username", u."name"
+        from "party_message" g
+        join "user" u on u."id" = g."sender_id"
+        left join "user_profile" p on p."user_id" = g."sender_id"
+        where g."room_id" = ${data.roomId}
+        order by g."created_at" asc
+        limit 50
+      `,
+    ]);
     return {
       roomId: room.id,
       title: room.title,

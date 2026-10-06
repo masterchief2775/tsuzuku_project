@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import {
   addDays,
-  airingOnDay,
   formatAiringTime,
   nextAiringText,
   startOfDay,
@@ -26,6 +25,11 @@ import {
 } from "@/lib/airing-reminders";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { cn } from "@/lib/utils";
+
+/** Local-midnight key (seconds) — same boundary `airingOnDay` groups by. */
+function dayKey(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 1000;
+}
 
 function sameDay(a: Date, b: Date) {
   return (
@@ -62,19 +66,24 @@ export function CalendarView() {
 
   const upcoming = useMemo(() => upcomingAiring(entries, 28), [entries]);
   const today = startOfDay(new Date());
-  const todayCount = airingOnDay(entries, today).length;
+  // airingOnDay() filters and re-sorts the whole watchlist on every call, and
+  // was called 8 times per render (7 day cells + today's count). Bucket once
+  // instead — identical result, because upcomingAiring is already sorted.
+  const byDay = useMemo(() => {
+    const map = new Map<number, WatchlistEntry[]>();
+    for (const e of upcomingAiring(entries, 60)) {
+      const key = dayKey(new Date(e.nextAiring!.airingAt * 1000));
+      const bucket = map.get(key);
+      if (bucket) bucket.push(e);
+      else map.set(key, [e]);
+    }
+    return map;
+  }, [entries]);
+  const todayCount = byDay.get(dayKey(today))?.length ?? 0;
 
   useEffect(() => {
     void refreshNextAirings();
   }, [refreshNextAirings]);
-
-  // Reminder loop
-  useEffect(() => {
-    const tick = () => checkAiringReminders(useWatchlistStore.getState().entries);
-    tick();
-    const id = window.setInterval(tick, 60_000);
-    return () => window.clearInterval(id);
-  }, []);
 
   async function toggleReminders() {
     if (!prefs.enabled) {
@@ -233,7 +242,7 @@ export function CalendarView() {
       {/* Week grid */}
       <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-7 sm:gap-1.5">
         {days.map((day) => {
-          const list = airingOnDay(entries, day);
+          const list = byDay.get(dayKey(day)) ?? [];
           const isToday = sameDay(day, today);
           return (
             <div

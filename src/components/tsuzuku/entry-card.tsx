@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Star } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
 import { Highlight } from "@/components/tsuzuku/highlight";
@@ -5,7 +6,10 @@ import { HoverPlus, QuickActions } from "@/components/tsuzuku/quick-actions";
 import { cn } from "@/lib/utils";
 import { nextAiringText, progressText, statusMeta, type WatchlistEntry } from "@/lib/watchlist";
 
-export function EntryCard({
+// Memoised: any mutation replaces the whole entries array, so a grid of N cards
+// used to re-render N times for a single "+1 épisode". Cheap here — the props
+// are the entry object (stable unless that entry changed) plus stable callbacks.
+export const EntryCard = memo(function EntryCard({
   entry,
   compact,
   onOpen,
@@ -68,9 +72,9 @@ export function EntryCard({
       <HoverPlus entry={entry} />
     </div>
   );
-}
+});
 
-export function EntryRow({
+export const EntryRow = memo(function EntryRow({
   entry,
   onOpen,
   query = "",
@@ -118,4 +122,4 @@ export function EntryRow({
       <QuickActions entry={entry} />
     </div>
   );
-}
+});

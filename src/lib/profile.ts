@@ -666,14 +666,30 @@ export const searchProfiles = createServerFn({ method: "GET" })
     {
       let mapped = rows.map((r) => mapRow(r, { isOwner: false }));
       if (viewerId) {
-        const { isBlockedBetween } = await import("@/lib/blocks.server");
-        const filtered: PublicProfile[] = [];
-        for (const m of mapped) {
-          if (m.userId === viewerId) continue;
-          if (await isBlockedBetween(viewerId, m.userId)) continue;
-          filtered.push(m);
+        // One query for the whole result set. This used to call
+        // isBlockedBetween() per row — up to 20 extra round-trips behind a
+        // LIKE '%q%' scan, on every keystroke of the recipient search.
+        const others = mapped
+          .filter((m) => m.userId !== viewerId)
+          .map((m) => m.userId);
+        let blockedIds = new Set<string>();
+        if (others.length > 0) {
+          try {
+            const blockRows = await sql<{ other: string }>`
+              select "blocked_id" as other from "user_block"
+              where "blocker_id" = ${viewerId}
+                and "blocked_id" = any(${others}::text[])
+              union
+              select "blocker_id" as other from "user_block"
+              where "blocked_id" = ${viewerId}
+                and "blocker_id" = any(${others}::text[])
+            `;
+            blockedIds = new Set(blockRows.map((r) => r.other));
+          } catch {
+            /* user_block missing (old DB) — treat everyone as unblocked */
+          }
         }
-        mapped = filtered;
+        mapped = mapped.filter((m) => m.userId !== viewerId && !blockedIds.has(m.userId));
       }
       return mapped;
     }

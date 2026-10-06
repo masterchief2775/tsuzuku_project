@@ -203,15 +203,20 @@ export function MessagesView() {
       return;
     }
     let cancelled = false;
-    void searchProfiles({ data: { q: query } })
-      .then((results) => {
-        if (!cancelled) setRecipientResults(results.filter((p) => p.userId !== user?.id));
-      })
-      .catch(() => {
-        if (!cancelled) setRecipientResults([]);
-      });
+    // Debounced like the friend search (friends-view.tsx): this used to fire one
+    // server call per keystroke, each behind a LIKE '%q%' scan.
+    const t = window.setTimeout(() => {
+      void searchProfiles({ data: { q: query } })
+        .then((results) => {
+          if (!cancelled) setRecipientResults(results.filter((p) => p.userId !== user?.id));
+        })
+        .catch(() => {
+          if (!cancelled) setRecipientResults([]);
+        });
+    }, 250);
     return () => {
       cancelled = true;
+      window.clearTimeout(t);
     };
   }, [composeUsername, user?.id]);
 

@@ -117,7 +117,7 @@ export function episodesInWeek(state: HabitsState, ref = new Date()) {
  */
 export function computeStreak(state: HabitsState, ref = new Date()): number {
   const byDate = new Map(state.log.map((x) => [x.date, x.episodes]));
-  let cursor = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  const cursor = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
   // If today empty, streak can still count through yesterday
   if (!byDate.get(todayKey(cursor))) {
     cursor.setDate(cursor.getDate() - 1);

@@ -1,5 +1,4 @@
 import { getSql } from "@/lib/db";
-import { isBlockedBetween } from "@/lib/blocks.server";
 
 export type ActivityKind =
   | "completed"
@@ -10,8 +9,13 @@ export type ActivityKind =
   | "list_join"
   | "list_vote";
 
+// Monotonic suffix: ids are now generated in one synchronous burst for a bulk
+// insert, so `Date.now()` alone is no longer enough to keep them distinct.
+let idSeq = 0;
+
 function newId() {
-  return `act_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  idSeq += 1;
+  return `act_${Date.now().toString(36)}_${idSeq.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
 async function friendIdsOf(userId: string): Promise<string[]> {
@@ -58,35 +62,67 @@ export async function fanOutToFriends(input: {
         /* prefs table missing (old DB) — treat everyone as opted in */
       }
     }
-    for (const recipientId of recipients) {
-      if (recipientId === input.actorId) continue;
-      if (await isBlockedBetween(input.actorId, recipientId)) continue;
-      if (prefsByUser.get(recipientId)?.[input.kind] === false) continue;
-      try {
-        const dup = await sql<{ n: string }>`
-          select count(*)::text as n from "friend_activity"
-          where "recipient_id" = ${recipientId}
-            and "actor_id" = ${input.actorId}
-            and "kind" = ${input.kind}
-            and coalesce("title", '') = coalesce(${input.title ?? null}, '')
-            and "created_at" > (current_timestamp - interval '2 minutes')
-        `;
-        if (Number(dup[0]?.n || 0) > 0) continue;
-      } catch {
-        /* ignore */
-      }
-      const id = newId();
-      await sql`
-        insert into "friend_activity" (
-          "id", "recipient_id", "actor_id", "kind",
-          "title", "anilist_id", "image", "rating"
-        ) values (
-          ${id}, ${recipientId}, ${input.actorId}, ${input.kind},
-          ${input.title ?? null}, ${input.anilistId ?? null},
-          ${input.image ?? null}, ${input.rating ?? null}
-        )
+    // Everything below is batched. This runs on the user's click (marking a
+    // title watched), so it must not fan out to 3 sequential queries per
+    // recipient: with 20 friends that was 61 round-trips serialized on a pool
+    // of 3, stalling every other query the page had in flight.
+    const candidates = recipients.filter(
+      (id) => id !== input.actorId && prefsByUser.get(id)?.[input.kind] !== false,
+    );
+    if (candidates.length === 0) return;
+
+    // One query for every block in either direction (isBlockedBetween was the
+    // first of the three per-recipient round-trips).
+    let blocked = new Set<string>();
+    try {
+      const blockRows = await sql<{ other: string }>`
+        select "blocked_id" as other from "user_block"
+        where "blocker_id" = ${input.actorId}
+          and "blocked_id" = any(${candidates}::text[])
+        union
+        select "blocker_id" as other from "user_block"
+        where "blocked_id" = ${input.actorId}
+          and "blocker_id" = any(${candidates}::text[])
       `;
+      blocked = new Set(blockRows.map((r) => r.other));
+    } catch {
+      /* user_block missing (old DB) — treat everyone as unblocked */
     }
+
+    // One query for the 2-minute de-duplication window. A failure must not
+    // suppress the notification, so it degrades to "no duplicates found".
+    let duplicates = new Set<string>();
+    try {
+      const dupRows = await sql<{ recipient_id: string }>`
+        select "recipient_id" from "friend_activity"
+        where "actor_id" = ${input.actorId}
+          and "kind" = ${input.kind}
+          and "recipient_id" = any(${candidates}::text[])
+          and coalesce("title", '') = coalesce(${input.title ?? null}, '')
+          and "created_at" > (current_timestamp - interval '2 minutes')
+      `;
+      duplicates = new Set(dupRows.map((r) => r.recipient_id));
+    } catch {
+      /* ignore */
+    }
+
+    const targets = candidates.filter((id) => !blocked.has(id) && !duplicates.has(id));
+    if (targets.length === 0) return;
+
+    // Single insert for the whole fan-out.
+    const rows = targets.map((recipient_id) => ({ id: newId(), recipient_id }));
+    await sql`
+      insert into "friend_activity" (
+        "id", "recipient_id", "actor_id", "kind",
+        "title", "anilist_id", "image", "rating"
+      )
+      select
+        x.id, x.recipient_id, ${input.actorId}, ${input.kind},
+        ${input.title ?? null}, ${input.anilistId ?? null},
+        ${input.image ?? null}, ${input.rating ?? null}
+      from jsonb_to_recordset(${JSON.stringify(rows)}::jsonb)
+        as x(id text, recipient_id text)
+    `;
   } catch (err) {
     console.error("[activity] fanOut failed", err);
   }
