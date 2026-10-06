@@ -1,8 +1,9 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import { ListActionsMenu } from "@/components/tsuzuku/list-actions-menu";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
+import { FriendsView } from "@/components/tsuzuku/friends-view";
 import { ProfileView } from "@/components/tsuzuku/profile-view";
 import { ListsView } from "@/components/tsuzuku/lists-view";
 import { Link, useRouter, useRouterState, useSearch } from "@tanstack/react-router";
@@ -10,6 +11,9 @@ import { EntryModal } from "@/components/tsuzuku/entry-modal";
 import { ImportView } from "@/components/tsuzuku/import-view";
 import { ListView } from "@/components/tsuzuku/list-view";
 import { SearchView } from "@/components/tsuzuku/search-view";
+import { SeasonView } from "@/components/tsuzuku/season-view";
+import { CalendarView } from "@/components/tsuzuku/calendar-view";
+import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { NotificationsCenter } from "@/components/tsuzuku/notifications-center";
@@ -18,6 +22,8 @@ import { useVisiblePolling } from "@/lib/polling";
 import { AppToast } from "@/components/tsuzuku/toast";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
+import { MessagesView } from "@/components/tsuzuku/messages-view";
+import { AdminView } from "@/components/tsuzuku/admin-view";
 import { getAdminStatus } from "@/lib/admin";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -27,35 +33,14 @@ import { isViewId, viewTitle } from "@/lib/view-nav";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { checkAiringReminders } from "@/lib/airing-reminders";
 
-// Only one view renders at a time (see the switch below), so the heavy and
-// rarely-opened ones are code-split: they were all shipping inside the entry
-// chunk, which made the first paint pay for the 800-line roulette spinner.
-const RouletteView = lazy(() =>
-  import("@/components/tsuzuku/roulette-view").then((m) => ({ default: m.RouletteView })),
-);
-const CalendarView = lazy(() =>
-  import("@/components/tsuzuku/calendar-view").then((m) => ({ default: m.CalendarView })),
-);
-const SeasonView = lazy(() =>
-  import("@/components/tsuzuku/season-view").then((m) => ({ default: m.SeasonView })),
-);
-const MessagesView = lazy(() =>
-  import("@/components/tsuzuku/messages-view").then((m) => ({ default: m.MessagesView })),
-);
-const FriendsView = lazy(() =>
-  import("@/components/tsuzuku/friends-view").then((m) => ({ default: m.FriendsView })),
-);
-const AdminView = lazy(() =>
-  import("@/components/tsuzuku/admin-view").then((m) => ({ default: m.AdminView })),
-);
-
-function ViewFallback() {
-  return (
-    <div className="flex justify-center py-12 text-dim">
-      <Loader2 className="size-5 animate-spin" />
-    </div>
-  );
-}
+// NOTE: do NOT code-split these views with React.lazy(). Doing so splits the
+// SSR bundle into two chunks that import each other (one holds the server
+// functions + createSsrRpc, the other holds the route tree). Because the
+// generated server fns call `createSsrRpc(<hash>)` at module scope, whichever
+// chunk Node evaluates second reads an uninitialized binding and every request
+// dies with `TypeError: createSsrRpc is not a function` -> HTTP 500 on /, on
+// /api/* and on /_serverFn/*. It only reproduces in the deployed bundle,
+// depending on the module entry order Vercel picks. Keep these imports static.
 
 export function AppShell() {
   useEffect(() => {
@@ -368,35 +353,23 @@ export function AppShell() {
         ) : pathname.startsWith("/profile") ? (
           <ProfileView />
         ) : pathname.startsWith("/friends") ? (
-          <Suspense fallback={<ViewFallback />}>
-            <FriendsView />
-          </Suspense>
+          <FriendsView />
         ) : pathname.startsWith("/lists") ? (
           <ListsView />
         ) : pathname.startsWith("/messages") ? (
-          <Suspense fallback={<ViewFallback />}>
-            <MessagesView />
-          </Suspense>
+          <MessagesView />
         ) : pathname.startsWith("/admin") ? (
-          <Suspense fallback={<ViewFallback />}>
-            <AdminView />
-          </Suspense>
+          <AdminView />
         ) : view === "dashboard" ? (
           <Dashboard />
         ) : view === "search" ? (
           <SearchView inputRef={searchRef} />
         ) : view === "season" ? (
-          <Suspense fallback={<ViewFallback />}>
-            <SeasonView />
-          </Suspense>
+          <SeasonView />
         ) : view === "calendar" ? (
-          <Suspense fallback={<ViewFallback />}>
-            <CalendarView />
-          </Suspense>
+          <CalendarView />
         ) : view === "roulette" ? (
-          <Suspense fallback={<ViewFallback />}>
-            <RouletteView />
-          </Suspense>
+          <RouletteView />
         ) : (
           <ListView />
         )}
