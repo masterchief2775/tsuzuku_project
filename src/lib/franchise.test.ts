@@ -407,6 +407,48 @@ describe("buildFranchises — curated vs estimated", () => {
     const f = buildFranchises({ media: fate, statusOf: has(1, 2, 3), curated: [] });
     assert.equal(f[0]?.orderSource, "estimated");
   });
+
+  it("reports a curated-order gap even when AniList has no edge for it", () => {
+    // Faithful to the live graph: Stay Night (2006) and Fate/Zero (2011) are held
+    // in the same franchise only by a shared special, and no ordering edge links
+    // them. The verified order supplies the sequence, so the gap it shows has to
+    // be reported as a prerequisite too.
+    const special = node(5, "Fate/Zero: Onegai! Einzbern Soudanshitsu", {
+      format: "SPECIAL",
+      seasonYear: 2012,
+      episodes: 6,
+    });
+    const f = buildFranchises({
+      media: [
+        media(
+          1,
+          "Fate/Zero",
+          [
+            { type: "SEQUEL", node: node(2, "Fate/Zero 2nd Season", { seasonYear: 2012 }) },
+            { type: "SIDE_STORY", node: special },
+          ],
+          { seasonYear: 2011 },
+        ),
+        media(
+          3,
+          "Fate/stay night",
+          [
+            { type: "SEQUEL", node: node(4, "Fate/stay night: Unlimited Blade Works", { seasonYear: 2014 }) },
+            { type: "SIDE_STORY", node: special },
+          ],
+          { seasonYear: 2006 },
+        ),
+      ],
+      statusOf: has(1),
+      curated: [{ key: "Fate", fragments: ["stay night", "Zero"] }],
+    });
+    assert.equal(f.length, 1);
+    assert.equal(f[0]?.orderSource, "verified");
+    const titles = f[0]!.members.map((m) => m.title);
+    // The curated order wins over the (wrong) topological sort for the first two.
+    assert.deepEqual(titles.slice(0, 2), ["Fate/stay night", "Fate/Zero"]);
+    assert.deepEqual(f[0]?.missingPrerequisites.map((m) => m.title), ["Fate/stay night"]);
+  });
 });
 
 describe("rankFranchises", () => {
@@ -426,6 +468,102 @@ describe("rankFranchises", () => {
     });
     const ranked = rankFranchises([...complete, ...withGap]);
     assert.equal(ranked[0]?.key, withGap[0]?.key);
+  });
+});
+
+describe("buildFranchises — second hop", () => {
+  it("follows relations of a member that is only reachable as a relation node", () => {
+    // Real AniList shape for Fate/Zero (id 10087): it links its 2nd season, a
+    // short and a spin-off — and NOT Fate/stay night, which the user cares about
+    // most. Fate/stay night only shows up one hop further, through the spin-off,
+    // and *its* relations are what carry Unlimited Blade Works and Heaven's
+    // Feel. Without the second hop the franchise stopped at 4 titles.
+    const spinOff = node(154966, "Fate/strange Fake: Whispers of Dawn", {
+      format: "SPECIAL",
+      seasonYear: 2023,
+      episodes: 1,
+    });
+    const f = buildFranchises({
+      media: [
+        media(
+          1,
+          "Fate/Zero",
+          [
+            { type: "SEQUEL", node: node(11741, "Fate/Zero 2nd Season", { episodes: 12, seasonYear: 2012 }) },
+            { type: "SIDE_STORY", node: node(13263, "Fate/Zero: Onegai! Einzbern Soudanshitsu", { format: "SPECIAL", episodes: 6, seasonYear: 2012 }) },
+            { type: "SPIN_OFF", node: spinOff },
+          ],
+          { episodes: 13, seasonYear: 2011 },
+        ),
+      ],
+      statusOf: has(1),
+      curated: [],
+      extraRelations: new Map([
+        [
+          154966,
+          [
+            { type: "PREQUEL", node: node(10052, "Fate/stay night", { episodes: 12, seasonYear: 2006 }) },
+          ],
+        ],
+        [
+          10052,
+          [
+            { type: "SEQUEL", node: node(32281, "Fate/stay night Movie: UNLIMITED BLADE WORKS", { format: "MOVIE", seasonYear: 2010 }) },
+            { type: "SEQUEL", node: node(33988, "Fate/stay night [Heaven's Feel] I. presage flower", { format: "MOVIE", seasonYear: 2012 }) },
+          ],
+        ],
+      ]),
+    });
+
+    // The whole chain is now visible, not just the first hop.
+    assert.equal(f.length, 1);
+    const titles = f[0]!.members.map((m) => m.title);
+    for (const expected of [
+      "Fate/stay night",
+      "Fate/stay night Movie: UNLIMITED BLADE WORKS",
+      "Fate/stay night [Heaven's Feel] I. presage flower",
+      "Fate/Zero 2nd Season",
+    ]) {
+      assert.ok(titles.includes(expected), `missing ${expected}`);
+    }
+
+    // Chronologically consistent: Fate/stay night (2006) then Fate/Zero (2011).
+    const order = f[0]!.members.map((m) => m.title);
+    assert.ok(order.indexOf("Fate/stay night") < order.indexOf("Fate/Zero"));
+    // Both titles that precede the one the user owns are reported as gaps, while
+    // Heaven's Feel (2012) comes after Fate/Zero (2011) and is not.
+    assert.deepEqual(f[0]?.missingPrerequisites.map((m) => m.title), [
+      "Fate/stay night",
+      "Fate/stay night Movie: UNLIMITED BLADE WORKS",
+    ]);
+  });
+
+  it("ignores extra relations for ids that are not members", () => {
+    const f = buildFranchises({
+      media: [
+        media(1, "Alpha", [{ type: "PREQUEL", node: node(2, "Beta") }]),
+        media(2, "Beta", []),
+      ],
+      statusOf: has(1, 2),
+      curated: [],
+      // 999 is unrelated to this franchise and must not smuggle itself in.
+      extraRelations: new Map([[999, [{ type: "PREQUEL", node: node(1000, "Intrus") }]]]),
+    });
+    assert.equal(f.length, 1);
+    assert.equal(f[0]?.members.length, 2);
+  });
+
+  it("never overrides relations the user already provided", () => {
+    const f = buildFranchises({
+      media: [
+        media(1, "Alpha", [{ type: "PREQUEL", node: node(2, "Beta") }]),
+        media(2, "Beta", [{ type: "SEQUEL", node: node(3, "Gamma") }]),
+      ],
+      statusOf: has(1, 2),
+      curated: [],
+      extraRelations: new Map([[2, [{ type: "PREQUEL", node: node(4, "Delta") }]]]),
+    });
+    assert.equal(f[0]?.members.length, 3);
   });
 });
 
@@ -471,6 +609,68 @@ describe("splitMembersForDisplay", () => {
     const { visible, hidden } = splitMembersForDisplay(f[0]!, 1);
     assert.deepEqual(visible.map((m) => m.title), ["Origine", "Suite"]);
     assert.deepEqual(hidden, []);
+  });
+
+  it("never hides a prerequisite, even once the cap is already full", () => {
+    // The Fate case: eight members carry ordering edges, and the two titles the
+    // curated order puts *before* the user's entry have no AniList edge at all, so
+    // they are neither owned nor `constrainsOrder`. A cap-driven split dropped
+    // exactly the two rows the card exists to surface.
+    const f = buildFranchises({
+      media: [
+        media(
+          1,
+          "Fate/Zero",
+          [
+            { type: "SEQUEL", node: node(2, "Fate/Zero 2nd Season", { seasonYear: 2012 }) },
+            { type: "SIDE_STORY", node: node(10, "Onegai", { format: "SPECIAL", seasonYear: 2012 }) },
+            { type: "SIDE_STORY", node: node(11, "Extra", { format: "SPECIAL", seasonYear: 2013 }) },
+          ],
+          { seasonYear: 2011 },
+        ),
+        media(
+          2,
+          "Fate/Zero 2nd Season",
+          [
+            { type: "SEQUEL", node: node(3, "Unlimited Blade Works", { format: "MOVIE", seasonYear: 2010 }) },
+            { type: "SEQUEL", node: node(4, "Heaven's Feel", { format: "MOVIE", seasonYear: 2017 }) },
+            { type: "SIDE_STORY", node: node(12, "Extra 2", { format: "SPECIAL", seasonYear: 2014 }) },
+            { type: "SIDE_STORY", node: node(13, "Extra 3", { format: "SPECIAL", seasonYear: 2015 }) },
+            { type: "SIDE_STORY", node: node(14, "Extra 4", { format: "SPECIAL", seasonYear: 2016 }) },
+          ],
+          { seasonYear: 2012 },
+        ),
+        media(
+          5,
+          "Fate/stay night",
+          [
+            { type: "SEQUEL", node: node(6, "stay night TV", { seasonYear: 2014 }) },
+            { type: "SIDE_STORY", node: node(10, "Onegai", { format: "SPECIAL", seasonYear: 2012 }) },
+          ],
+          { seasonYear: 2006 },
+        ),
+        media(6, "stay night TV", [{ type: "SIDE_STORY", node: node(15, "Extra 5", { format: "SPECIAL", seasonYear: 2018 }) }], {
+          seasonYear: 2014,
+        }),
+      ],
+      statusOf: has(1),
+      curated: [{ key: "Fate", fragments: ["stay night", "stay night TV", "Unlimited Blade Works", "Zero", "Heaven's Feel"] }],
+    });
+    assert.equal(f[0]?.orderSource, "verified");
+    // The curated order puts three missing titles before the one the user owns,
+    // so all three are gaps.
+    const gaps = f[0]!.missingPrerequisites.map((m) => m.title);
+    assert.deepEqual(gaps, ["Fate/stay night", "stay night TV", "Unlimited Blade Works"]);
+
+    const { visible, hidden } = splitMembersForDisplay(f[0]!);
+    // The gaps lead the list and survive the split.
+    for (const title of gaps) {
+      assert.ok(visible.some((m) => m.title === title), `gap hidden: ${title}`);
+      assert.ok(!hidden.some((m) => m.title === title), `gap hidden: ${title}`);
+    }
+    assert.equal(visible[0]?.title, "Fate/stay night");
+    // Everything kept is still a real member, nothing duplicated.
+    assert.equal(visible.length + hidden.length, f[0]!.members.length);
   });
 
   it("hides nothing when the franchise fits under the cap", () => {

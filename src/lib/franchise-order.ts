@@ -14,14 +14,30 @@ import type { CuratedTable } from "./franchise.ts";
  *    here cannot add a title that does not exist in this user's franchise — it
  *    can only fail to match, which leaves the estimated order untouched.
  *
- * Fragments are matched case-insensitively as substrings of the member title.
+ * Fragments are matched case-insensitively as substrings of the member title, and
+ * the array IS the watch order. A fragment that matches several titles claims the
+ * earliest released one, so overlapping fragments are written in watch order
+ * ("stay night" takes the 2006 series and leaves "stay night: Unlimited Blade
+ * Works" for its own entry below).
  */
 export const CURATED_ORDERS: CuratedTable = [
   {
-    // Fate: watching Heaven's Feel before Unlimited Blade Works spoils a major
-    // reveal, and Zero is a prequel despite airing later than Stay Night.
+    // Fate: Zero is a prequel despite airing after Stay Night, and Heaven's Feel
+    // spoils a reveal if watched before Unlimited Blade Works.
+    //
+    // This order is not derivable at all from `relations`: on the live API
+    // Fate/stay night (2006) has no ordering edge in either direction — nothing
+    // links it to Fate/Zero — so the topological sort left it stranded behind two
+    // later films.
     key: "Fate",
-    fragments: ["Zero", "Zero First War", "Unlimited Blade Works", "Heaven's Feel"],
+    fragments: [
+      "stay night",
+      "MOVIE: UNLIMITED BLADE WORKS",
+      "Zero",
+      "Zero 2nd Season",
+      "stay night: Unlimited Blade Works",
+      "Heaven's Feel",
+    ],
   },
   {
     // Gundam: the real saga order. Char's Counterattack is a film, so AniList

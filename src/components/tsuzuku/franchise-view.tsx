@@ -129,8 +129,8 @@ function FranchiseCard({ franchise }: { franchise: Franchise }) {
       ) : null}
 
       <ol className="mt-3 divide-y divide-line/60">
-        {shown.map((member) => (
-          <MemberRow key={member.id} member={member} position={member.position} />
+        {shown.map((member, index) => (
+          <MemberRow key={member.id} member={member} position={index} />
         ))}
       </ol>
 

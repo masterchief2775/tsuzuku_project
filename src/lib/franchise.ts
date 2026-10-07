@@ -158,8 +158,17 @@ function displayTitle(m: { title: { romaji: string | null; english: string | nul
   return m.title.romaji || m.title.english || m.title.native || "Sans titre";
 }
 
-/** Flatten AniList nodes referenced by relations into known members. */
-function withRelatedNodes(media: FranchiseMember[]): Map<number, FranchiseMember> {
+/**
+ * Flatten AniList nodes referenced by relations into known members.
+ *
+ * `extraRelations` carries the relations of members that were only discovered as
+ * a relation node; it is applied in a second pass, because a node first seen as
+ * someone else's relation may itself lead to more titles.
+ */
+function withRelatedNodes(
+  media: FranchiseMember[],
+  extraRelations?: ReadonlyMap<number, AniListRelation[]>,
+): Map<number, FranchiseMember> {
   const known = new Map<number, FranchiseMember>();
   for (const m of media) known.set(m.id, m);
   // A franchise is only as good as its edges: the related nodes must exist as
@@ -180,6 +189,28 @@ function withRelatedNodes(media: FranchiseMember[]): Map<number, FranchiseMember
         seasonYear: rel.node.seasonYear ?? null,
         relations: [],
       });
+    }
+  }
+  // Second pass: attach relations we fetched for a discovered member, and let
+  // those introduce further members.
+  if (extraRelations) {
+    for (const [id, relations] of extraRelations) {
+      const member = known.get(id);
+      if (!member || member.relations.length > 0) continue;
+      member.relations = relations;
+      for (const rel of relations) {
+        if (!isFamilyRelation(rel)) continue;
+        if (known.has(rel.node.id)) continue;
+        known.set(rel.node.id, {
+          id: rel.node.id,
+          title: displayTitle(rel.node),
+          image: rel.node.coverImage?.large ?? null,
+          format: rel.node.format ?? null,
+          episodes: rel.node.episodes ?? null,
+          seasonYear: rel.node.seasonYear ?? null,
+          relations: [],
+        });
+      }
     }
   }
   return known;
@@ -215,11 +246,13 @@ function contradictsCalendar(before: number, after: number, byId: Map<number, Fr
  *
  * Preference order, strongest signal first:
  *
- *   1. the most ordering edges *leading out* of it — the spine of the story. The
- *      main series is the hub everything else hangs off (ONE PIECE points at 9
- *      of its own recaps), which no film or special ever does;
- *   2. the fewest ordering edges pointing at it, so a sequel never outranks its
- *      own origin;
+ *   1. the fewest ordering edges pointing *at* it, so a sequel never outranks its
+ *      own origin. Once the graph is walked two hops deep, Fate/Zero 2nd Season
+ *      carries more outgoing edges than Fate/Zero (it points at two Heaven's Feel
+ *      entries AniList mislabels) and used to win the anchor on edge count alone;
+ *   2. the most ordering edges leading out of it — the spine of the story. The
+ *      main series is the hub everything else hangs off (ONE PIECE points at 9 of
+ *      its own recaps), which no film or special ever does;
  *   3. a series rather than a film (TV > long/short TV > movie > OVA/ONA >
  *      special), which decides every unordered franchise such as Cowboy Bebop;
  *   4. earliest release year, then most episodes, then lowest id, so the choice
@@ -233,12 +266,12 @@ function pickAnchor(
 ): number {
   const best = [...order];
   best.sort((a, b) => {
-    const oa = edgesOut.get(a) ?? 0;
-    const ob = edgesOut.get(b) ?? 0;
-    if (ob !== oa) return ob - oa;
     const ia = edgesIn.get(a) ?? 0;
     const ib = edgesIn.get(b) ?? 0;
     if (ia !== ib) return ia - ib;
+    const oa = edgesOut.get(a) ?? 0;
+    const ob = edgesOut.get(b) ?? 0;
+    if (ob !== oa) return ob - oa;
     const fa = SERIES_RANK[String(byId.get(a)!.format ?? "")] ?? 9;
     const fb = SERIES_RANK[String(byId.get(b)!.format ?? "")] ?? 9;
     if (fa !== fb) return fa - fb;
@@ -316,19 +349,45 @@ function topoOrder(group: FranchiseMember[], byId: Map<number, FranchiseMember>)
   return order;
 }
 
-/** Applies a curated fragment order as a reorder; unknown fragments are ignored. */
+/**
+ * Applies a curated fragment list as a reorder. The array IS the watch order.
+ *
+ * A fragment often matches several titles ("stay night" hits the 2006 series, the
+ * 2010 film and the 2014 TV series), so each fragment claims exactly one of them:
+ * the **earliest released**, then the shortest title, then the lowest id. That
+ * makes an overlapping list writable in watch order — "stay night" takes the
+ * original and leaves "stay night: Unlimited Blade Works" for its own fragment —
+ * instead of forcing the table to be sorted most-specific-first, which is the
+ * opposite of what a watch order wants.
+ *
+ * Unknown fragments are ignored, and titles no fragment claimed keep their
+ * computed relative order at the end.
+ */
 export function applyCuratedOrder(ids: number[], fragments: string[], byId: Map<number, FranchiseMember>): number[] | null {
   const remaining = new Set(ids);
   const ordered: number[] = [];
   for (const fragment of fragments) {
     const f = fragment.toLowerCase();
-    // Best match wins; the whole franchise is skipped if nothing matched, so a
-    // stale curated entry can never scramble the topological order.
     let best: number | null = null;
     let bestLen = -1;
     for (const id of remaining) {
-      const title = byId.get(id)!.title.toLowerCase();
-      if (title.includes(f) && f.length > bestLen) {
+      const member = byId.get(id)!;
+      if (!member.title.toLowerCase().includes(f)) continue;
+      if (f.length <= bestLen) continue;
+      const year = member.seasonYear ?? Number.MAX_SAFE_INTEGER;
+      const bestYear = best == null ? Number.MAX_SAFE_INTEGER : byId.get(best)!.seasonYear ?? Number.MAX_SAFE_INTEGER;
+      const bestTitle = best == null ? "" : byId.get(best)!.title;
+      // Prefer the longest fragment, then the earliest release, then the shortest
+      // title, then the lowest id: fully deterministic.
+      if (
+        f.length > bestLen ||
+        (year < bestYear && f.length === bestLen) ||
+        (f.length === bestLen && year === bestYear && member.title.length < bestTitle.length) ||
+        (f.length === bestLen &&
+          year === bestYear &&
+          member.title.length === bestTitle.length &&
+          (best == null || id < best))
+      ) {
         best = id;
         bestLen = f.length;
       }
@@ -353,8 +412,17 @@ export function buildFranchises(input: {
   /** Only franchises with at least this many members are kept. */
   minSize?: number;
   curated?: CuratedTable;
+  /**
+   * Relations already fetched for members the user does NOT track.
+   *
+   * Without this, a member discovered only as a relation node has no relations of
+   * its own, so the graph stops at one hop: owning Fate/Zero surfaced 4 titles
+   * and never mentioned Fate/stay night, which is the entry that carries the rest
+   * of the chain. Supplying the second hop here pulls in 10.
+   */
+  extraRelations?: ReadonlyMap<number, AniListRelation[]>;
 }): Franchise[] {
-  const byId = withRelatedNodes(input.media);
+  const byId = withRelatedNodes(input.media, input.extraRelations);
   const all = [...byId.values()];
   const { find, union } = makeGroups();
 
@@ -435,8 +503,12 @@ const members: FranchiseMemberView[] = order.map((id, position) => {
     for (const member of members) {
       if (!member.missing) continue;
       // Only a member that genuinely orders the story can be a prerequisite: a
-      // missing spin-off or movie you can watch anytime is not a gap.
-      if (!member.constrainsOrder) continue;
+      // missing spin-off or movie you can watch anytime is not a gap. When the
+      // order came from the curated table the whole shown sequence IS the
+      // narrative order — Fate/stay night has no AniList edge at all yet the
+      // verified order puts it before Fate/Zero, so it is a real prerequisite and
+      // has to be reported as one.
+      if (!member.constrainsOrder && orderSource !== "verified") continue;
       const ownedLater = members.some((o) => !o.missing && o.position > member.position);
       if (ownedLater) missingPrerequisites.push(member);
     }
@@ -490,18 +562,27 @@ export const FRANCHISE_VISIBLE_CAP = 8;
 
 /**
  * Splits a franchise into the rows worth showing and the ones behind the
- * disclosure. What the user owns, what orders the story, and what is flagged as
- * a prerequisite always stays visible — those are the actionable rows.
+ * disclosure. Always visible: what the user owns, what orders the story, and what
+ * was reported as a prerequisite. Those are the actionable rows, and the cap must
+ * never push one out.
+ *
+ * The prerequisite clause is not redundant with `constrainsOrder`. Fate/stay night
+ * comes before Fate/Zero in the curated order while having no AniList edge at
+ * all, so it is neither owned nor `constrainsOrder` — and a franchise with eight
+ * ordering members would otherwise hide the two titles it is telling the user to
+ * go and watch.
  */
 export function splitMembersForDisplay(
   franchise: Franchise,
   cap = FRANCHISE_VISIBLE_CAP,
 ): { visible: FranchiseMemberView[]; hidden: FranchiseMemberView[] } {
+  const mustShow = new Set<number>(franchise.missingPrerequisites.map((m) => m.id));
+  for (const m of franchise.outOfOrder) mustShow.add(m.skipped.id);
   const keep = new Set<number>();
   for (const m of franchise.members) {
-    if (!m.missing || m.constrainsOrder) keep.add(m.id);
+    if (!m.missing || m.constrainsOrder || mustShow.has(m.id)) keep.add(m.id);
   }
-  // Never pad past the cap with rows the user already has; fill in order instead.
+  // Pad with the rest in order, never at the expense of a row above.
   for (const m of franchise.members) {
     if (keep.size >= cap) break;
     keep.add(m.id);
