@@ -1,4 +1,5 @@
 import { getSql } from "@/lib/db";
+import { newId } from "@/lib/ids";
 
 export type ActivityKind =
   | "completed"
@@ -8,15 +9,6 @@ export type ActivityKind =
   | "list_add"
   | "list_join"
   | "list_vote";
-
-// Monotonic suffix: ids are now generated in one synchronous burst for a bulk
-// insert, so `Date.now()` alone is no longer enough to keep them distinct.
-let idSeq = 0;
-
-function newId() {
-  idSeq += 1;
-  return `act_${Date.now().toString(36)}_${idSeq.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-}
 
 async function friendIdsOf(userId: string): Promise<string[]> {
   const sql = await getSql();
@@ -110,7 +102,7 @@ export async function fanOutToFriends(input: {
     if (targets.length === 0) return;
 
     // Single insert for the whole fan-out.
-    const rows = targets.map((recipient_id) => ({ id: newId(), recipient_id }));
+    const rows = targets.map((recipient_id) => ({ id: newId("act"), recipient_id }));
     await sql`
       insert into "friend_activity" (
         "id", "recipient_id", "actor_id", "kind",

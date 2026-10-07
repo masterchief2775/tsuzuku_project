@@ -1,9 +1,9 @@
-import { randomBytes } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { isBlockedBetween } from "@/lib/blocks.server";
 import { lenientObject, requiredString, z, zValidator } from "@/lib/validation";
+import { isoDateRequired, newId, newToken } from "@/lib/ids";
 
 export type PartyMemberStatus = "ready" | "paused" | "done";
 
@@ -41,18 +41,8 @@ export type PartyDetail = {
 const MAX_OPEN_ROOMS_PER_HOST = 5;
 
 function roomId() {
-  return `room_${Date.now().toString(36)}_${randomBytes(6).toString("hex")}`;
+  return newId("room");
 }
-function messageId() {
-  return `pmsg_${Date.now().toString(36)}_${randomBytes(6).toString("hex")}`;
-}
-function newToken() {
-  return `pty_${randomBytes(18).toString("base64url")}`;
-}
-function iso(v: string | Date) {
-  return typeof v === "string" ? v : v.toISOString();
-}
-
 type RoomRow = {
   id: string;
   host_id: string;
@@ -131,7 +121,7 @@ export const createParty = createServerFn({ method: "POST" })
       throw new Error("Tu as déjà 5 sessions ouvertes — ferme-en une d’abord");
     }
     const id = roomId();
-    const token = newToken();
+    const token = newToken("pty");
     await sql`
       insert into "party_room" ("id", "host_id", "title", "anilist_id", "image", "episode", "invite_token")
       values (${id}, ${context.userId}, ${data.title}, ${data.anilistId}, ${data.image}, ${data.episode}, ${token})
@@ -282,7 +272,7 @@ export const getParty = createServerFn({ method: "GET" })
         senderId: g.sender_id,
         senderName: g.display_name || g.name || g.username || "Ami",
         body: g.body,
-        createdAt: iso(g.created_at),
+        createdAt: isoDateRequired(g.created_at),
       })),
     };
   });
@@ -349,7 +339,7 @@ export const postPartyMessage = createServerFn({ method: "POST" })
     await requireOpenRoom(data.roomId);
     await requireMember(data.roomId, context.userId);
     const sql = await getSql();
-    const id = messageId();
+    const id = newId("pmsg");
     await sql`
       insert into "party_message" ("id", "room_id", "sender_id", "body")
       values (${id}, ${data.roomId}, ${context.userId}, ${data.body})

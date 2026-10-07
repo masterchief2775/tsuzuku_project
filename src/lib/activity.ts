@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { lenientObject, z, zValidator } from "@/lib/validation";
+import { isoDate } from "@/lib/ids";
 
 export const NOTIF_KINDS = [
   "completed",
@@ -76,10 +77,6 @@ export type ActivityItem = {
   readAt: string | null;
 };
 
-function iso(v: string | Date | null | undefined): string | null {
-  if (v == null) return null;
-  return typeof v === "string" ? v : v.toISOString();
-}
 
 export const publishWatchActivity = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -143,8 +140,8 @@ export const listFriendActivity = createServerFn({ method: "GET" })
         anilistId: r.anilist_id,
         image: r.image,
         rating: r.rating,
-        createdAt: iso(r.created_at) || new Date().toISOString(),
-        readAt: iso(r.read_at),
+        createdAt: isoDate(r.created_at) || new Date().toISOString(),
+        readAt: isoDate(r.read_at),
       }));
     } catch {
       return [];

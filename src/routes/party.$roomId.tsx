@@ -375,7 +375,7 @@ function PartyRoomPage() {
                   type="button"
                   disabled={busy}
                   onClick={() => void run(() => setPartyEpisode({ data: { roomId, episode: detail.episode - 1 } }))}
-                  className="rounded-[8px] border border-line bg-bg p-1.5 text-dim hover:text-ink disabled:opacity-40"
+                  className="flex size-11 items-center justify-center rounded-[8px] border border-line bg-bg text-dim hover:text-ink disabled:opacity-40 sm:h-auto sm:w-auto sm:p-1.5"
                   aria-label="Épisode précédent"
                 >
                   <Minus className="size-3.5" />
@@ -387,7 +387,7 @@ function PartyRoomPage() {
                   type="button"
                   disabled={busy}
                   onClick={() => void run(() => setPartyEpisode({ data: { roomId, episode: detail.episode + 1 } }))}
-                  className="rounded-[8px] border border-line bg-bg p-1.5 text-dim hover:text-ink disabled:opacity-40"
+                  className="flex size-11 items-center justify-center rounded-[8px] border border-line bg-bg text-dim hover:text-ink disabled:opacity-40 sm:h-auto sm:w-auto sm:p-1.5"
                   aria-label="Épisode suivant"
                 >
                   <Plus className="size-3.5" />
@@ -500,7 +500,14 @@ function PartyRoomPage() {
 
       {/* Ephemeral chat */}
       <section className="mb-4 overflow-hidden rounded-[14px] border border-line bg-raised">
-        <div ref={scrollRef} className="max-h-72 space-y-2.5 overflow-y-auto p-4">
+        <div
+          ref={scrollRef}
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-label="Messages de la session"
+          className="max-h-72 space-y-2.5 overflow-y-auto p-4"
+        >
           {detail.messages.length === 0 ? (
             <p className="py-4 text-center text-sm text-dim">
               Silence radio… lancez la lecture et synchronisez-vous ici.

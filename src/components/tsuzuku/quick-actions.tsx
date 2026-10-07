@@ -121,6 +121,9 @@ export function QuickActions({ entry, compact }: { entry: WatchlistEntry; compac
                       key={n}
                       type="button"
                       aria-label={`Note ${n}`}
+                      // Keeps the visual size of the icon but grows the tap area
+                      // (the negative margin cancels the extra padding).
+                      className="-m-2 rounded-sm p-2 transition hover:bg-bg"
                       onClick={() => {
                         updateEntry(entry.id, { rating: entry.rating === n ? null : n });
                         setOpen(false);
@@ -153,7 +156,7 @@ export function QuickActions({ entry, compact }: { entry: WatchlistEntry; compac
         aria-expanded={open}
         aria-haspopup="menu"
         className={cn(
-          "flex size-8 items-center justify-center rounded-full border border-line/60 bg-bg/90 text-ink shadow-sm backdrop-blur-sm",
+          "flex size-11 items-center justify-center rounded-full border border-line/60 bg-bg/90 text-ink shadow-sm backdrop-blur-sm md:size-8",
           "opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100",
           open && "opacity-100",
         )}

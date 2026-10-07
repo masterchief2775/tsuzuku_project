@@ -1,57 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
-import type { StatusKey, WatchlistEntry } from "@/lib/watchlist";
+import type { WatchlistEntry } from "@/lib/watchlist";
 import { lenientObject, shareTokenField, zValidator } from "@/lib/validation";
+import { toPublic, type PublicSharePayload } from "@/lib/share-public";
+import { newToken } from "@/lib/ids";
 
-/** Public projection — never includes comments or private tags */
-export type PublicShareEntry = {
-  anilistId: number;
-  title: string;
-  image: string | null;
-  totalEpisodes: number | null;
-  format: string | null;
-  status: StatusKey;
-  progress: number;
-  rating: number | null;
-  year: number | null;
-};
-
-export type PublicSharePayload = {
-  entries: PublicShareEntry[];
-  count: number;
-  /** Owner display name — feeds the share-card title (og:title via document title). */
-  ownerName: string | null;
-};
-
-/** Card/tab title for a shared list (unit-tested). */
-export function shareCardTitle(data: PublicSharePayload | null): string {
-  if (!data) return "Liste partagée · Tsuzuku";
-  const count = `${data.count} titre${data.count > 1 ? "s" : ""}`;
-  return data.ownerName
-    ? `Liste de ${data.ownerName} — ${count} · Tsuzuku`
-    : `Liste partagée — ${count} · Tsuzuku`;
-}
-
-function toPublic(entries: WatchlistEntry[]): PublicShareEntry[] {
-  return entries.map((e) => ({
-    anilistId: e.anilistId,
-    title: e.title,
-    image: e.image,
-    totalEpisodes: e.totalEpisodes,
-    format: e.format,
-    status: e.status,
-    progress: e.progress,
-    rating: e.rating,
-    year: e.year,
-  }));
-}
-
-function newToken(): string {
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
+// The projection, its allow-list and the card title live in `./share-public`
+// (no server imports) so they can be unit-tested — see the note there.
+export {
+  PRIVATE_ENTRY_FIELDS,
+  PUBLIC_SHARE_FIELDS,
+  shareCardTitle,
+  toPublic,
+  type PublicShareEntry,
+  type PublicSharePayload,
+} from "@/lib/share-public";
 
 export const getShareSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -69,7 +33,7 @@ export const enableShare = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
-    const token = newToken();
+    const token = newToken("shr");
     await sql`
       insert into "watchlist_share" ("user_id", "token", "enabled", "updated_at")
       values (${context.userId}, ${token}, true, current_timestamp)
@@ -84,7 +48,7 @@ export const disableShare = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const sql = await getSql();
     // Rotate token away so old links die immediately
-    const dead = newToken();
+    const dead = newToken("shr");
     await sql`
       insert into "watchlist_share" ("user_id", "token", "enabled", "updated_at")
       values (${context.userId}, ${dead}, false, current_timestamp)

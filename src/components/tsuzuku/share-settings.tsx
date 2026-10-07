@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, X } from "lucide-react";
 import { disableShare, enableShare, getShareSettings } from "@/lib/share";
+import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
 
 export function ShareSettings({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [enabled, setEnabled] = useState(false);
@@ -8,6 +9,10 @@ export function ShareSettings({ open, onClose }: { open: boolean; onClose: () =>
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Traps Tab, closes on Escape, and returns focus to the button that opened it.
+  useFocusTrap(panelRef, open, onClose);
 
   useEffect(() => {
     if (!open) return;
@@ -64,15 +69,23 @@ export function ShareSettings({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg/70 p-4 sm:items-center">
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className="w-full max-w-md rounded-[14px] border border-line bg-raised shadow-xl"
         role="dialog"
+        aria-modal="true"
         aria-labelledby="share-title"
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 id="share-title" className="font-serif text-lg font-medium">
             Liste publique
           </h2>
-          <button type="button" onClick={onClose} className="rounded-sm p-1.5 text-dim hover:bg-bg">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="rounded-sm p-1.5 text-dim hover:bg-bg"
+          >
             <X className="size-4" />
           </button>
         </div>

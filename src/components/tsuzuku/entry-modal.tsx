@@ -366,7 +366,7 @@ export function EntryModal() {
                 <button
                   type="button"
                   aria-label="Épisode précédent"
-                  className="flex size-[30px] items-center justify-center rounded-sm border border-line bg-bg"
+                  className="flex size-11 items-center justify-center rounded-sm border border-line bg-bg sm:size-[30px]"
                   onClick={() => bumpProgress(entry.id, -1)}
                 >
                   <Minus className="size-3.5" />
@@ -382,7 +382,7 @@ export function EntryModal() {
                 <button
                   type="button"
                   aria-label="Épisode suivant"
-                  className="flex size-[30px] items-center justify-center rounded-sm border border-line bg-bg"
+                  className="flex size-11 items-center justify-center rounded-sm border border-line bg-bg sm:size-[30px]"
                   onClick={() => bumpProgress(entry.id, 1)}
                 >
                   <Plus className="size-3.5" />
@@ -396,6 +396,10 @@ export function EntryModal() {
                     key={n}
                     type="button"
                     aria-label={`Note ${n} sur 10`}
+                    // Ten stars across, so the button stays the size of the
+                    // icon visually: negative margin cancels the extra padding
+                    // while the tap area grows from 16px to ~36px.
+                    className="-m-2 rounded-sm p-2 transition hover:bg-bg"
                     onClick={() => updateEntry(entry.id, { rating: entry.rating === n ? null : n })}
                   >
                     <Star

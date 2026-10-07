@@ -82,9 +82,21 @@ describe("theme secrets", () => {
     assert.equal(isSecretThemeUnlocked("mono"), true);
     assert.equal(isSecretThemeUnlocked("qc-sombre"), true);
     assert.equal(isSecretThemeUnlocked("qc-clair"), true);
+    assert.equal(pride, "pride");
+    assert.equal(isSecretThemeUnlocked("pride"), true);
     assert.equal(
       globalThis.localStorage.getItem("tsuzuku-secret-themes"),
-      JSON.stringify(["void", "ember", "neon", "aurora", "manga", "mono", "qc-sombre", "qc-clair"]),
+      JSON.stringify([
+        "void",
+        "ember",
+        "neon",
+        "aurora",
+        "manga",
+        "mono",
+        "qc-sombre",
+        "qc-clair",
+        "pride",
+      ]),
     );
   });
 

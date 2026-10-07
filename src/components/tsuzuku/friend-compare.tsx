@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, Loader2, X } from "lucide-react";
 import {
   compareWatchlists,
@@ -6,6 +6,7 @@ import {
   type WatchlistComparison,
 } from "@/lib/friends";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
 
 function TitleRow({ item, meta }: { item: CompareTitle; meta?: string }) {
   return (
@@ -84,13 +85,11 @@ function FriendCompareModal({
     };
   }, [friendUserId]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Escape and focus restoration come from the trap, which also stops the event
+  // from reaching handlers behind this layer.
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(panelRef, true, onClose);
 
   return (
     <div
@@ -99,6 +98,8 @@ function FriendCompareModal({
       role="presentation"
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className="max-h-[min(92vh,720px)] w-full max-w-lg overflow-hidden rounded-[16px] border border-line bg-raised shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"

@@ -1,22 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireApiUser } from "@/lib/auth/api-guard.server";
+import { enforceRateLimit, toErrorResponse } from "@/lib/rate-limit.server";
+import { SHARED_ITEM_STATUS_SET } from "@/lib/shared-list-status";
 import { getSql } from "@/lib/db";
+import { isoDateRequired, newId, newToken } from "@/lib/ids";
 
-function newId(prefix: string) {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
 
-function newToken() {
-  const bytes = new Uint8Array(18);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
 
-function iso(v: string | Date) {
-  return typeof v === "string" ? v : v.toISOString();
-}
 
-const ITEM_STATUSES = new Set(["planned", "watching", "watched", "skipped"]);
+// Allow-list comes from the shared vocabulary module, so the server and the
+// client cannot drift apart on which statuses exist.
+const ITEM_STATUSES = SHARED_ITEM_STATUS_SET;
 
 async function userCanAccess(sql: Awaited<ReturnType<typeof getSql>>, listId: string, userId: string) {
   const rows = await sql<{ role: string }>`
@@ -176,8 +170,8 @@ export const Route = createFileRoute("/api/shared-lists")({
                 name: list.name,
                 description: list.description,
                 ownerId: list.owner_id,
-                createdAt: iso(list.created_at),
-                updatedAt: iso(list.updated_at),
+                createdAt: isoDateRequired(list.created_at),
+                updatedAt: isoDateRequired(list.updated_at),
                 myRole: role,
                 inviteEnabled: Boolean(list.invite_enabled),
                 inviteToken:
@@ -186,7 +180,7 @@ export const Route = createFileRoute("/api/shared-lists")({
               members: members.map((m) => ({
                 userId: m.user_id,
                 role: m.role,
-                joinedAt: iso(m.joined_at),
+                joinedAt: isoDateRequired(m.joined_at),
                 displayName: m.display_name || m.name || m.username || "Membre",
                 username: m.username || "user",
                 avatarUrl: m.avatar_url || m.user_image || null,
@@ -198,7 +192,7 @@ export const Route = createFileRoute("/api/shared-lists")({
                 image: i.image,
                 addedBy: i.added_by,
                 addedByName: i.display_name || i.username || "Membre",
-                createdAt: iso(i.created_at),
+                createdAt: isoDateRequired(i.created_at),
                 status: i.status || "planned",
                 notes: i.notes ?? null,
                 priority: Number(i.priority || 0),
@@ -235,7 +229,7 @@ export const Route = createFileRoute("/api/shared-lists")({
               name: r.name,
               description: r.description,
               ownerId: r.owner_id,
-              updatedAt: iso(r.updated_at),
+              updatedAt: isoDateRequired(r.updated_at),
               myRole: r.role,
               itemCount: Number(r.item_count || 0),
               memberCount: Number(r.member_count || 0),
@@ -259,6 +253,21 @@ export const Route = createFileRoute("/api/shared-lists")({
         }
         const action = String(body.action || "");
         const sql = await getSql();
+
+        /** Returns a 429 Response when the caller is over budget, else null. */
+        const limit = async (
+          table: string,
+          ownerColumn: string,
+          userId: string,
+          bucket: { label: string; max: number; window: string },
+        ): Promise<Response | null> => {
+          try {
+            await enforceRateLimit({ table, ownerColumn, userId, bucket });
+            return null;
+          } catch (err) {
+            return toErrorResponse(err);
+          }
+        };
 
         try {
           if (action === "joinByInvite") {
@@ -305,6 +314,12 @@ export const Route = createFileRoute("/api/shared-lists")({
           }
 
           if (action === "create") {
+            const limited = await limit("shared_list", "owner_id", userId, {
+              label: "création de listes",
+              max: 10,
+              window: "1 hour",
+            });
+            if (limited) return limited;
             const name = String(body.name || "").trim().slice(0, 80);
             if (name.length < 2) {
               return Response.json({ error: "Nom trop court" }, { status: 400 });
@@ -356,7 +371,7 @@ export const Route = createFileRoute("/api/shared-lists")({
             if (role !== "owner") {
               return Response.json({ error: "Réservé au propriétaire" }, { status: 403 });
             }
-            const token = newToken();
+            const token = newToken("slv");
             await sql`
               update "shared_list"
               set "invite_token" = ${token}, "invite_enabled" = true, "updated_at" = current_timestamp
@@ -383,6 +398,29 @@ export const Route = createFileRoute("/api/shared-lists")({
             }
             const memberId = String(body.userId || "").trim();
             if (!memberId) return Response.json({ error: "userId manquant" }, { status: 400 });
+            // The client only ever offers friends, but nothing enforced it: an
+            // owner could add ANY user id — including someone who had blocked
+            // them, who would then see a list they never agreed to join.
+            if (memberId !== userId) {
+              const { isBlockedBetween } = await import("@/lib/blocks.server");
+              if (await isBlockedBetween(userId, memberId)) {
+                return Response.json({ error: "Accès refusé" }, { status: 403 });
+              }
+              const friends = await sql<{ n: string }>`
+                select count(*)::text as n from "friendship"
+                where "status" = 'accepted'
+                  and (
+                    ("requester_id" = ${userId} and "addressee_id" = ${memberId})
+                    or ("requester_id" = ${memberId} and "addressee_id" = ${userId})
+                  )
+              `;
+              if (Number(friends[0]?.n || 0) === 0) {
+                return Response.json(
+                  { error: "Tu ne peux ajouter que des amis à une liste" },
+                  { status: 403 },
+                );
+              }
+            }
             const memberRole = String(body.role || "editor");
             const safeRole = memberRole === "viewer" ? "viewer" : "editor";
             await sql`
@@ -426,6 +464,12 @@ export const Route = createFileRoute("/api/shared-lists")({
             if (!canEdit(role)) {
               return Response.json({ error: "Lecture seule" }, { status: 403 });
             }
+            const over = await limit("shared_list_item", "added_by", userId, {
+              label: "ajout de titres",
+              max: 60,
+              window: "10 minutes",
+            });
+            if (over) return over;
             const title = String(body.title || "").trim().slice(0, 200);
             const anilistId = Number(body.anilistId);
             if (!title || !Number.isFinite(anilistId) || anilistId <= 0) {
@@ -554,6 +598,12 @@ export const Route = createFileRoute("/api/shared-lists")({
           }
 
           if (action === "toggleVote") {
+            const over = await limit("shared_list_vote", "user_id", userId, {
+              label: "votes",
+              max: 60,
+              window: "1 minute",
+            });
+            if (over) return over;
             const itemId = String(body.itemId || "").trim();
             if (!itemId) return Response.json({ error: "itemId manquant" }, { status: 400 });
             // `listId` is access-checked above, but `itemId` must be scoped to

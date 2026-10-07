@@ -8,7 +8,6 @@ import {
   Star,
   ShieldCheck,
   Ban,
-  Camera,
   Save,
   UserMinus,
   UserPlus,
@@ -43,6 +42,7 @@ import {
 import { profileCardTitle } from "@/lib/profile-mapping";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { prepareAvatarDataUrl } from "@/lib/avatar";
 import { UserButton, writeAvatarCache } from "@/lib/auth/gates";
 
 export const Route = createFileRoute("/u/$username")({
@@ -57,43 +57,6 @@ export const Route = createFileRoute("/u/$username")({
   component: PublicProfilePage,
 });
 
-function resizeAvatar(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      const side = Math.min(image.width, image.height);
-      const canvas = document.createElement("canvas");
-      canvas.width = 160;
-      canvas.height = 160;
-      const context = canvas.getContext("2d");
-      if (!context) {
-        reject(new Error("Canvas indisponible."));
-        return;
-      }
-      context.drawImage(
-        image,
-        (image.width - side) / 2,
-        (image.height - side) / 2,
-        side,
-        side,
-        0,
-        0,
-        160,
-        160,
-      );
-      const dataUrl = canvas.toDataURL("image/webp", 0.7);
-      URL.revokeObjectURL(objectUrl);
-      if (dataUrl.length > 60_000) reject(new Error("Image trop lourde après compression."));
-      else resolve(dataUrl);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Image illisible."));
-    };
-    image.src = objectUrl;
-  });
-}
 
 function PublicProfilePage() {
   const { username } = Route.useParams();
@@ -251,12 +214,11 @@ function PublicProfilePage() {
 
   async function pickBasicAvatar(file: File | undefined) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setEditError("Choisis une image.");
-      return;
-    }
     try {
-      setEditAvatar(await resizeAvatar(file));
+      // Same pipeline as the profile page: type check, 8 Mo cap, 256px then
+      // 160px retry, JPEG fallback. The local copy this replaced had none of
+      // those, so photos that worked on /profile were rejected here.
+      setEditAvatar(await prepareAvatarDataUrl(file));
       setEditError("");
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Impossible de traiter cette image.");
@@ -653,13 +615,13 @@ function PublicProfilePage() {
       {editError && !hasBasicChanges ? (
         <div
           role="alert"
-          className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full border border-crimson/40 bg-raised px-4 py-2 text-xs font-semibold text-crimson shadow-2xl"
+          className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 z-40 -translate-x-1/2 rounded-full border border-crimson/40 bg-raised px-4 py-2 text-xs font-semibold text-crimson shadow-2xl"
         >
           {editError}
         </div>
       ) : null}
       {hasBasicChanges ? (
-        <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-line bg-raised px-3 py-2 text-xs font-semibold text-ink shadow-2xl">
+        <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-line bg-raised px-3 py-2 text-xs font-semibold text-ink shadow-2xl">
           <span className={cn("hidden sm:inline", editError ? "text-crimson" : "text-dim")}>
             {editError || "Modifications non enregistrées"}
           </span>

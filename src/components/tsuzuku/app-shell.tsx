@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { ListActionsMenu } from "@/components/tsuzuku/list-actions-menu";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
@@ -65,6 +65,29 @@ export function AppShell() {
   const [isAdmin, setIsAdmin] = useState(false);
   const helpDialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(helpDialogRef, helpOpen);
+
+  /**
+   * Publishes the sticky header's real height as `--header-h`, so other sticky
+   * bars can sit exactly below it. The header is two rows tall on phones and
+   * grows again when the mobile menu opens, so a hard-coded offset always
+   * drifted — the selection bar used `top-[4.5rem]` (72px) under a 115px header,
+   * which hid its most destructive control on mobile.
+   *
+   * A callback ref (not a mount effect): the `isPending` skeleton renders first,
+   * so on mount there is no header to measure, and a `[]` effect would never
+   * re-run once the real one appeared.
+   */
+  const setHeaderRef = useCallback((node: HTMLElement | null) => {
+    if (!node) return;
+    const publish = () => {
+      const h = Math.round(node.getBoundingClientRect().height);
+      if (h > 0) document.documentElement.style.setProperty("--header-h", `${h}px`);
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
 
   // Lets deep views (e.g. the empty dashboard) open the import dialog without
   // lifting its state into the store: `dispatchEvent(new CustomEvent("tsuzuku:open-import"))`.
@@ -301,7 +324,7 @@ export function AppShell() {
       >
         Aller au contenu
       </a>
-      <header className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4">
+      <header ref={setHeaderRef} className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           <Link to="/" className="flex items-center gap-3" onClick={() => setView("dashboard")}>
             <BrandMark />

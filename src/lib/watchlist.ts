@@ -498,6 +498,51 @@ const DISCOVERY_MODE_SORT: Record<Exclude<RouletteDiscoveryMode, "random">, stri
  *   instead of anything AniList has.
  * Format/genre are applied in the GraphQL query (not only client-side) so filters stay full.
  */
+const ANILIST_ENDPOINT = "https://graphql.anilist.co";
+
+type AniListEnvelope<T> = { data?: T; errors?: { message: string }[] };
+
+/**
+ * The single AniList GraphQL transport.
+ *
+ * This POST plus its HTTP/GraphQL error handling used to be copy-pasted five
+ * times in this file, which meant a retry, a timeout or a rate-limit policy (the
+ * API allows ~90 req/min) had five places to be added and five chances to drift.
+ *
+ * `tolerant` keeps the one caller that must never throw: the MAL import, where
+ * an unknown id resolves to `null` instead of failing the whole import.
+ */
+async function anilistGraphql<T>(
+  query: string,
+  variables: Record<string, unknown>,
+  signal?: AbortSignal,
+  opts?: { tolerant?: boolean },
+): Promise<AniListEnvelope<T>> {
+  const res = await fetch(ANILIST_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query, variables }),
+    signal,
+  });
+  if (!res.ok) {
+    if (opts?.tolerant) return {};
+    const body = await res.text().catch(() => "");
+    throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
+  }
+  return (await res.json()) as AniListEnvelope<T>;
+}
+
+/** Same transport, but surfaces GraphQL-level errors as exceptions. */
+async function anilistData<T>(
+  query: string,
+  variables: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<T> {
+  const json = await anilistGraphql<T>(query, variables, signal);
+  if (json.errors) throw new Error(json.errors.map((e) => e.message).join(", "));
+  return (json.data ?? {}) as T;
+}
+
 export async function fetchRoulettePool(options: {
   genre?: string | null;
   format?: RouletteFormatFilter;
@@ -522,32 +567,15 @@ export async function fetchRoulettePool(options: {
     };
     if (genre) variables.genres = [genre];
     if (formatIn) variables.format_in = formatIn;
-    const res = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        query: ROULETTE_POOL_GQL,
-        variables,
-      }),
-      signal,
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
-    }
-    const json = (await res.json()) as {
-      errors?: { message: string }[];
-      data?: {
-        Page?: {
-          pageInfo?: { lastPage?: number; hasNextPage?: boolean };
-          media?: AniListMedia[];
-        };
+    const data = await anilistData<{
+      Page?: {
+        pageInfo?: { lastPage?: number; hasNextPage?: boolean };
+        media?: AniListMedia[];
       };
-    };
-    if (json.errors) throw new Error(json.errors.map((e) => e.message).join(", "));
+    }>(ROULETTE_POOL_GQL, variables, signal);
     return {
-      media: json.data?.Page?.media ?? [],
-      lastPage: json.data?.Page?.pageInfo?.lastPage ?? 1,
+      media: data.Page?.media ?? [],
+      lastPage: data.Page?.pageInfo?.lastPage ?? 1,
     };
   };
 
@@ -633,19 +661,12 @@ export async function fetchAniList(
   variables: Record<string, unknown> | undefined,
   signal?: AbortSignal,
 ): Promise<AniListMedia[]> {
-  const res = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ query: gql, variables: variables || {} }),
+  const data = await anilistData<{ Page?: { media?: AniListMedia[] } }>(
+    gql,
+    variables || {},
     signal,
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
-  }
-  const json = (await res.json()) as { errors?: { message: string }[]; data?: { Page?: { media?: AniListMedia[] } } };
-  if (json.errors) throw new Error(json.errors.map((e) => e.message).join(", "));
-  return json?.data?.Page?.media || [];
+  );
+  return data.Page?.media || [];
 }
 
 export const searchAniListQuery = (q: string, signal?: AbortSignal) =>
@@ -669,23 +690,9 @@ export async function fetchMediaByIds(
 }
 
 export async function fetchMediaById(id: number, signal?: AbortSignal): Promise<AniListMedia> {
-  const res = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ query: MEDIA_BY_ID_GQL, variables: { id } }),
-    signal,
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
-  }
-  const json = (await res.json()) as {
-    errors?: { message: string }[];
-    data?: { Media?: AniListMedia };
-  };
-  if (json.errors) throw new Error(json.errors.map((e) => e.message).join(", "));
-  if (!json.data?.Media) throw new Error("Anime introuvable sur AniList");
-  return json.data.Media;
+  const data = await anilistData<{ Media?: AniListMedia }>(MEDIA_BY_ID_GQL, { id }, signal);
+  if (!data.Media) throw new Error("Anime introuvable sur AniList");
+  return data.Media;
 }
 
 /** Full detail payload for the entry modal (synopsis, trailer, banner…). */
@@ -693,23 +700,13 @@ export async function fetchMediaDetailById(
   id: number,
   signal?: AbortSignal,
 ): Promise<AniListMediaDetail> {
-  const res = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ query: MEDIA_BY_ID_DETAIL_GQL, variables: { id } }),
+  const data = await anilistData<{ Media?: AniListMediaDetail }>(
+    MEDIA_BY_ID_DETAIL_GQL,
+    { id },
     signal,
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error("AniList a répondu " + res.status + " " + body.slice(0, 200));
-  }
-  const json = (await res.json()) as {
-    errors?: { message: string }[];
-    data?: { Media?: AniListMediaDetail };
-  };
-  if (json.errors) throw new Error(json.errors.map((e) => e.message).join(", "));
-  if (!json.data?.Media) throw new Error("Anime introuvable sur AniList");
-  return json.data.Media;
+  );
+  if (!data.Media) throw new Error("Anime introuvable sur AniList");
+  return data.Media;
 }
 
 /** Strip AniList spoiler markers and residual HTML from a synopsis. */
@@ -855,17 +852,14 @@ export async function fetchMediaByMalId(
   idMal: number,
   signal?: AbortSignal,
 ): Promise<AniListMedia | null> {
-  const res = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ query: MEDIA_BY_MAL_GQL, variables: { idMal } }),
+  // Best effort by design: a MAL id AniList does not know must not break the
+  // import, so every GraphQL/HTTP failure resolves to null rather than throwing.
+  const json = await anilistGraphql<{ Media?: AniListMedia }>(
+    MEDIA_BY_MAL_GQL,
+    { idMal },
     signal,
-  });
-  if (!res.ok) return null;
-  const json = (await res.json()) as {
-    errors?: { message: string }[];
-    data?: { Media?: AniListMedia };
-  };
-  if (json.errors || !json.data?.Media) return null;
-  return json.data.Media;
+    { tolerant: true },
+  );
+  if (json.errors) return null;
+  return json.data?.Media ?? null;
 }

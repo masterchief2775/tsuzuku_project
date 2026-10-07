@@ -11,43 +11,8 @@ import {
   type PublicProfile,
 } from "@/lib/profile";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { prepareAvatarDataUrl } from "@/lib/avatar";
 
-// Keep in sync with the server-side cap in lib/profile.ts.
-const AVATAR_DATA_URL_MAX_LENGTH = 60_000;
-
-function resizeImageToDataUrl(file: File, maxSize: number, quality: number) {
-  return new Promise<string>((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const side = Math.min(img.width, img.height);
-        const sx = (img.width - side) / 2;
-        const sy = (img.height - side) / 2;
-        const canvas = document.createElement("canvas");
-        canvas.width = maxSize;
-        canvas.height = maxSize;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas indisponible.");
-        ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
-        let dataUrl = canvas.toDataURL("image/webp", quality);
-        if (!dataUrl.startsWith("data:image/webp")) {
-          dataUrl = canvas.toDataURL("image/jpeg", quality);
-        }
-        resolve(dataUrl);
-      } catch (err) {
-        reject(err instanceof Error ? err : new Error("Traitement de l'image impossible."));
-      } finally {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Image illisible."));
-    };
-    img.src = objectUrl;
-  });
-}
 
 /**
  * State + data layer for the profile page (extracted from ProfileView).
@@ -157,25 +122,9 @@ export function useProfileEditor(userId: string | undefined) {
 
   const onPickAvatar = async (file: File | null) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Choisis une image (JPEG, PNG, WebP…).");
-      return;
-    }
-    if (file.size > 8_000_000) {
-      setError("Image trop lourde (max ~8 Mo).");
-      return;
-    }
     setError("");
     try {
-      let dataUrl = await resizeImageToDataUrl(file, 256, 0.82);
-      if (dataUrl.length > AVATAR_DATA_URL_MAX_LENGTH) {
-        dataUrl = await resizeImageToDataUrl(file, 160, 0.7);
-      }
-      if (dataUrl.length > AVATAR_DATA_URL_MAX_LENGTH) {
-        setError("Cette image compresse mal — essaie une photo plus simple.");
-        return;
-      }
-      setAvatarUrl(dataUrl);
+      setAvatarUrl(await prepareAvatarDataUrl(file));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de traiter cette image.");
     }

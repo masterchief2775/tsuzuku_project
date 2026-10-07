@@ -3,17 +3,12 @@ import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { mapRow, type ProfileRow, type PublicProfile } from "@/lib/profile";
 import { lenientObject, requiredString, zValidator } from "@/lib/validation";
+import { isoDateRequired, newId } from "@/lib/ids";
 
 const userIdInput = lenientObject({ userId: requiredString("Utilisateur manquant", 128) });
 
 export type BlockedUser = PublicProfile & { blockedAt: string };
 
-function newId() {
-  return `blk_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-function iso(v: string | Date) {
-  return typeof v === "string" ? v : v.toISOString();
-}
 
 export const blockUser = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -26,7 +21,7 @@ export const blockUser = createServerFn({ method: "POST" })
       select "id" from "user" where "id" = ${data.userId} limit 1
     `;
     if (!exists[0]) throw new Error("Utilisateur introuvable");
-    const id = newId();
+    const id = newId("blk");
     await sql`
       insert into "user_block" ("id", "blocker_id", "blocked_id")
       values (${id}, ${me}, ${data.userId})
@@ -73,7 +68,7 @@ export const listBlockedUsers = createServerFn({ method: "GET" })
       `;
       return rows.map((r) => ({
         ...mapRow(r, { isOwner: false }),
-        blockedAt: iso(r.blocked_at),
+        blockedAt: isoDateRequired(r.blocked_at),
       }));
     } catch {
       return [];

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireApiUser } from "@/lib/auth/api-guard.server";
+import { enforceRateLimit, toErrorResponse } from "@/lib/rate-limit.server";
 import { getSql } from "@/lib/db";
 
 export const Route = createFileRoute("/api/activity")({
@@ -128,6 +129,21 @@ export const Route = createFileRoute("/api/activity")({
           const title = String(body.title || "").trim().slice(0, 200);
           if (!title) return Response.json({ error: "Titre manquant" }, { status: 400 });
           const anilistId = Number(body.anilistId);
+          // The de-dup window inside fanOutToFriends is keyed on the title, so
+          // varying it used to bypass it entirely and let one user flood every
+          // friend's feed. Throttle on the activity rows themselves.
+          try {
+            await enforceRateLimit({
+              table: "friend_activity",
+              ownerColumn: "actor_id",
+              userId,
+              bucket: { label: "notifications", max: 10, window: "1 minute" },
+            });
+          } catch (err) {
+            const limited = toErrorResponse(err);
+            if (limited) return limited;
+            throw err;
+          }
           const { fanOutToFriends } = await import("@/lib/activity-fanout.server");
           await fanOutToFriends({
             actorId: userId,

@@ -13,6 +13,7 @@ import {
   type WatchlistEntry,
 } from "@/lib/watchlist";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
 
 type Phase = "idle" | "preview" | "importing" | "done";
 
@@ -36,6 +37,11 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Traps Tab, closes on Escape, and returns focus to the opener. Declared
+  // before the `if (!open)` bail-out below to keep the hook order stable.
+  useFocusTrap(panelRef, open, onClose);
 
   const reset = useCallback(() => {
     setPhase("idle");
@@ -166,8 +172,11 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg/70 p-4 sm:items-center">
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[14px] border border-line bg-raised shadow-xl"
         role="dialog"
+        aria-modal="true"
         aria-labelledby="import-title"
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">

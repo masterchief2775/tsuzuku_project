@@ -575,7 +575,7 @@ function ContinueChip({
           ev.stopPropagation();
           onBump();
         }}
-        className="absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-full bg-lime text-bg shadow-lg hover:brightness-105"
+        className="absolute right-2 bottom-2 flex size-11 items-center justify-center rounded-full bg-lime text-bg shadow-lg hover:brightness-105 sm:size-8"
       >
         <Plus className="size-4" />
       </button>

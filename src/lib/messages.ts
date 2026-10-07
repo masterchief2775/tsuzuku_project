@@ -9,6 +9,7 @@ import {
   z,
   zValidator,
 } from "@/lib/validation";
+import { isoDateRequired, newId } from "@/lib/ids";
 
 const withUserIdInput = lenientObject({
   withUserId: requiredString("withUserId manquant", 128),
@@ -45,13 +46,7 @@ export type ConversationSummary = {
   unreadCount: number;
 };
 
-function messageId() {
-  return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
 
-function iso(value: string | Date) {
-  return typeof value === "string" ? value : value.toISOString();
-}
 
 async function resolveUserId(username: string): Promise<string | null> {
   const sql = await getSql();
@@ -120,7 +115,7 @@ export const listConversations = createServerFn({ method: "GET" })
           displayName: profile.display_name || profile.name || profile.username,
           avatarUrl: profile.avatar_url || profile.image || null,
           lastMessage: row.body,
-          lastMessageAt: iso(row.created_at),
+          lastMessageAt: isoDateRequired(row.created_at),
           lastMessageFromMe: row.sender_id === me,
           unreadCount: unreadByOther.get(row.other_id) ?? 0,
         } satisfies ConversationSummary;
@@ -225,8 +220,8 @@ export const listThread = createServerFn({ method: "GET" })
         senderId: r.sender_id,
         receiverId: r.receiver_id,
         body: r.body,
-        createdAt: iso(r.created_at),
-        readAt: r.read_at ? iso(r.read_at) : null,
+        createdAt: isoDateRequired(r.created_at),
+        readAt: r.read_at ? isoDateRequired(r.read_at) : null,
       })),
       hasMore,
       peerTyping,
@@ -262,7 +257,7 @@ export const sendMessageToUser = createServerFn({ method: "POST" })
       throw new Error("Impossible d'envoyer un message à cet utilisateur");
     }
     const sql = await getSql();
-    const id = messageId();
+    const id = newId("msg");
     const rows = await sql<{ created_at: string | Date }>`
       insert into "private_message" ("id", "sender_id", "receiver_id", "body")
       values (${id}, ${context.userId}, ${data.receiverId}, ${data.body})
@@ -273,7 +268,7 @@ export const sendMessageToUser = createServerFn({ method: "POST" })
       senderId: context.userId,
       receiverId: data.receiverId,
       body: data.body,
-      createdAt: iso(rows[0].created_at),
+      createdAt: isoDateRequired(rows[0].created_at),
       readAt: null,
     };
   });
@@ -292,7 +287,7 @@ export const sendPrivateMessage = createServerFn({ method: "POST" })
     const sql = await getSql();
     await sql`
       insert into "private_message" ("id", "sender_id", "receiver_id", "body")
-      values (${messageId()}, ${context.userId}, ${receiverId}, ${data.body})
+      values (${newId("msg")}, ${context.userId}, ${receiverId}, ${data.body})
     `;
     return { receiverId };
   });

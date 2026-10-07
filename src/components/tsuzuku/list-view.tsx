@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import {
   CheckSquare,
   LayoutGrid,
@@ -13,6 +13,7 @@ import { EntryCard, EntryRow } from "@/components/tsuzuku/entry-card";
 import { collectFacets, filterEntries, STATUSES, type StatusKey } from "@/lib/watchlist";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore, type SortId } from "@/store/watchlist-store";
+import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
 
 export function ListView() {
   const entries = useWatchlistStore((s) => s.entries);
@@ -51,6 +52,11 @@ export function ListView() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirmRef = useRef<HTMLDivElement>(null);
+
+  // The destructive confirmation is the worst case to leave un-trapped: Tab
+  // would walk the page behind it and Escape does nothing.
+  useFocusTrap(confirmRef, confirmDelete, () => setConfirmDelete(false));
 
   const facets = collectFacets(entries);
   const advancedCount =
@@ -220,7 +226,7 @@ export function ListView() {
 
       {/* Selection bar */}
       {selectionMode ? (
-        <div className="sticky top-[4.5rem] z-20 mb-4 flex flex-wrap items-center gap-2 rounded-[12px] border border-lime/40 bg-raised/95 px-3 py-2.5 shadow-lg backdrop-blur-md">
+        <div className="sticky top-[var(--header-h,7rem)] z-40 mb-4 flex flex-wrap items-center gap-2 rounded-[12px] border border-lime/40 bg-raised/95 px-3 py-2.5 shadow-lg backdrop-blur-md">
           <button
             type="button"
             className="flex items-center gap-1.5 text-[12.5px] font-semibold text-dim"
@@ -291,9 +297,19 @@ export function ListView() {
 
       {confirmDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/70 p-4">
-          <div className="w-full max-w-sm rounded-[12px] border border-line bg-raised p-5 shadow-xl">
-            <p className="font-serif text-lg font-medium">Confirmer la suppression</p>
-            <p className="mt-2 text-sm text-dim">
+          <div
+            ref={confirmRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-delete-title"
+            aria-describedby="confirm-delete-desc"
+            className="w-full max-w-sm rounded-[12px] border border-line bg-raised p-5 shadow-xl"
+          >
+            <p id="confirm-delete-title" className="font-serif text-lg font-medium">
+              Confirmer la suppression
+            </p>
+            <p id="confirm-delete-desc" className="mt-2 text-sm text-dim">
               Tu vas supprimer <strong className="text-ink">{selectedIds.length}</strong> entrée
               {selectedIds.length > 1 ? "s" : ""}. Cette action est définitive.
             </p>

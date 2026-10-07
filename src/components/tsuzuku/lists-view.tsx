@@ -31,6 +31,8 @@ import {
   renameSharedList,
   setSharedListItemStatus,
   toggleSharedListVote,
+  SHARED_ITEM_STATUSES,
+  SHARED_ITEM_STATUS_LABELS,
   type SharedItemStatus,
   type SharedListItem,
 } from "@/lib/shared-lists-client";
@@ -44,14 +46,10 @@ import {
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { cn } from "@/lib/utils";
 
-const STATUS_LABEL: Record<string, string> = {
-  planned: "À voir",
-  watching: "En cours",
-  watched: "Vu",
-  skipped: "Skip",
-};
-
-const STATUS_ORDER: SharedItemStatus[] = ["planned", "watching", "watched", "skipped"];
+// Labels and order come from the shared vocabulary (see lib/shared-list-status):
+// they were duplicated here and had already drifted from the rest of the app.
+const STATUS_LABEL = SHARED_ITEM_STATUS_LABELS;
+const STATUS_ORDER = SHARED_ITEM_STATUSES;
 
 export function ListsView() {
   const id = useRouterState({
@@ -257,7 +255,7 @@ function ListDetail({ listId }: { listId: string }) {
   const [searchHits, setSearchHits] = useState<AniListMedia[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<SharedItemStatus | "all">("all");
   const [sortBy, setSortBy] = useState<"votes" | "recent" | "title">("votes");
   const [copied, setCopied] = useState(false);
   const [roulettePick, setRoulettePick] = useState<SharedListItem | null>(null);
@@ -807,7 +805,10 @@ function ListDetail({ listId }: { listId: string }) {
                             });
                           }}
                           className={cn(
-                            "flex size-5 items-center justify-center rounded border",
+                            // The visible box stays 20px; the negative margin
+                            // cancels the padding so the tap area grows to
+                            // ~36px without shifting the row.
+                            "-m-2 flex size-5 items-center justify-center rounded border p-2",
                             selected ? "border-lime bg-lime text-bg" : "border-line",
                           )}
                         >

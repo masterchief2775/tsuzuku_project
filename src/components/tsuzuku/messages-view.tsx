@@ -273,7 +273,14 @@ export function MessagesView() {
           </div>
         </div>
 
-        <div ref={scrollRef} className="ui-panel min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+        <div
+          ref={scrollRef}
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-label="Messages"
+          className="ui-panel min-h-0 flex-1 space-y-3 overflow-y-auto p-4"
+        >
           {!threadLoaded ? (
             <p className="py-8 text-center text-sm text-dim">Chargement…</p>
           ) : threadMessages.length === 0 ? (

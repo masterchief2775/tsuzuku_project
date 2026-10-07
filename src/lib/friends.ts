@@ -3,6 +3,7 @@ import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { mapRow, type ProfileRow, type PublicProfile } from "@/lib/profile";
 import { lenientObject, optionalString, requestIdField, requiredString, z, zValidator } from "@/lib/validation";
+import { isoDateRequired, newId } from "@/lib/ids";
 
 const userRefInput = (missingMessage: string) =>
   lenientObject({
@@ -50,13 +51,7 @@ type FriendshipRow = {
 // the UI had those fields `undefined` instead of their real values. Reusing
 // `ProfileRow`/`mapRow` from lib/profile.ts keeps this in sync automatically.
 
-function newId() {
-  return `fr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
 
-function iso(v: string | Date) {
-  return typeof v === "string" ? v : v.toISOString();
-}
 
 async function resolveUserIdByUsername(username: string): Promise<string | null> {
   const sql = await getSql();
@@ -170,7 +165,7 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
       return { ok: true, requestId: row.id };
     }
 
-    const id = newId();
+    const id = newId("fr");
     await sql`
       insert into "friendship" ("id", "requester_id", "addressee_id", "status")
       values (${id}, ${me}, ${targetId}, 'pending')
@@ -320,7 +315,7 @@ export const listFriends = createServerFn({ method: "GET" })
       return rows.map((r) => ({
         ...mapRow(r),
         friendshipId: r.id,
-        since: iso(r.updated_at || r.created_at),
+        since: isoDateRequired(r.updated_at || r.created_at),
         isOnline: onlineIds.has(r.other_id),
         lastSeen: lastSeenByUser.get(r.other_id),
       }));
@@ -330,7 +325,7 @@ export const listFriends = createServerFn({ method: "GET" })
     return rows.map((r) => ({
       ...mapRow(r),
       friendshipId: r.id,
-      since: iso(r.updated_at || r.created_at),
+      since: isoDateRequired(r.updated_at || r.created_at),
       isOnline: onlineIds.has(r.other_id),
     }));
   });
@@ -365,7 +360,7 @@ export const listFriendRequests = createServerFn({ method: "GET" })
       const item: FriendRequest = {
         id: r.id,
         status: "pending",
-        createdAt: iso(r.created_at),
+        createdAt: isoDateRequired(r.created_at),
         direction: r.addressee_id === me ? "incoming" : "outgoing",
         other: mapRow(r),
       };
@@ -413,34 +408,6 @@ export const getFriendshipWith = createServerFn({ method: "GET" })
       return { status: "pending_in", requestId: row.id, otherUserId: otherId };
     },
   );
-
-/** Resolve friend profiles by user ids (for "Vu avec" display). */
-export const resolveFriendProfiles = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .validator(
-    zValidator(
-      lenientObject({
-        userIds: z
-          .unknown()
-          .optional()
-          .transform((v) =>
-            Array.isArray(v)
-              ? v.filter((x): x is string => typeof x === "string" && x.length > 0).slice(0, 40)
-              : [],
-          ),
-      }),
-    ),
-  )
-  .handler(async ({ data }): Promise<PublicProfile[]> => {
-    if (!data.userIds.length) return [];
-    // pg/pglite tagged template doesn't expand arrays easily — resolve one by one.
-    const out: PublicProfile[] = [];
-    for (const id of data.userIds) {
-      const p = await loadProfile(id);
-      if (p) out.push(p);
-    }
-    return out;
-  });
 
 /** Public projection of a shared title for friend comparison */
 export type CompareTitle = {

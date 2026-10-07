@@ -370,13 +370,13 @@ export function RouletteView() {
               >
                 <option value="watchable">À voir / en cours / pause</option>
                 <option value="all">Toute la liste</option>
-                {(["Plan to Watch", "Watching", "On Hold", "Completed", "Dropped"] as StatusKey[]).map(
-                  (s) => (
-                    <option key={s} value={s}>
-                      {statusMeta(s).label}
-                    </option>
-                  ),
-                )}
+                {(
+                  ["Plan to Watch", "Watching", "On Hold", "Completed", "Dropped"] as StatusKey[]
+                ).map((s) => (
+                  <option key={s} value={s}>
+                    {statusMeta(s).label}
+                  </option>
+                ))}
               </select>
             </label>
           ) : null}
@@ -429,7 +429,11 @@ export function RouletteView() {
                 : "border-line bg-raised text-dim",
             )}
           >
-            {loadingPool ? <Loader2 className="size-3.5 animate-spin" /> : <Dices className="size-3.5" />}
+            {loadingPool ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Dices className="size-3.5" />
+            )}
             {poolHint()}
           </div>
           {source === "anilist" ? (
@@ -552,31 +556,35 @@ export function RouletteView() {
       </div>
 
       {winner && !spinning ? (
-        <WinnerCard
-          item={winner}
-          alreadyInList={winner.media ? addedIds.has(winner.media.id) : true}
-          poolSize={pool.length}
-          discoveryLabel={
-            source === "anilist"
-              ? discoveryMode === "trending"
-                ? "Tendances AniList"
-                : discoveryMode === "popular"
-                  ? "Populaires AniList"
-                  : "Découverte AniList"
-              : undefined
-          }
-          onOpenList={() => {
-            if (winner.entry) setActiveEntryId(winner.entry.id);
-          }}
-          onAdd={() => {
-            if (winner.media) addEntry(winner.media);
-          }}
-          onBump={() => {
-            if (winner.entry) bumpProgress(winner.entry.id, 1);
-          }}
-          onSpin={spin}
-          onSkip={() => skipForSession(winner)}
-        />
+        // The spin runs for 4.2s with no visual change to the result area, so a
+        // screen reader gets no feedback at all: it now announces the draw.
+        <div role="status" aria-live="polite">
+          <WinnerCard
+            item={winner}
+            alreadyInList={winner.media ? addedIds.has(winner.media.id) : true}
+            poolSize={pool.length}
+            discoveryLabel={
+              source === "anilist"
+                ? discoveryMode === "trending"
+                  ? "Tendances AniList"
+                  : discoveryMode === "popular"
+                    ? "Populaires AniList"
+                    : "Découverte AniList"
+                : undefined
+            }
+            onOpenList={() => {
+              if (winner.entry) setActiveEntryId(winner.entry.id);
+            }}
+            onAdd={() => {
+              if (winner.media) addEntry(winner.media);
+            }}
+            onBump={() => {
+              if (winner.entry) bumpProgress(winner.entry.id, 1);
+            }}
+            onSpin={spin}
+            onSkip={() => skipForSession(winner)}
+          />
+        </div>
       ) : null}
 
       {history.length > 0 ? (
@@ -697,7 +705,12 @@ function ConfettiBurst() {
             transform: `translate3d(${dx}px, ${dy}px, 0) rotate(${rotation}deg) scale(0.4)`,
           },
         ],
-        { duration: 900 + (i % 5) * 80, delay, easing: "cubic-bezier(.15,.7,.25,1)", fill: "forwards" },
+        {
+          duration: 900 + (i % 5) * 80,
+          delay,
+          easing: "cubic-bezier(.15,.7,.25,1)",
+          fill: "forwards",
+        },
       );
     });
   }, []);
@@ -743,7 +756,9 @@ function WinnerCard({
   onSkip: () => void;
 }) {
   const meta = item.entry ? statusMeta(item.entry.status) : null;
-  const kind = kindLabel(mediaKind(item.format ?? null, item.entry?.totalEpisodes ?? item.media?.episodes ?? null));
+  const kind = kindLabel(
+    mediaKind(item.format ?? null, item.entry?.totalEpisodes ?? item.media?.episodes ?? null),
+  );
   const why = [
     item.entry ? "dans ta watchlist" : "catalogue AniList",
     item.genres[0] ? item.genres.slice(0, 2).join(" · ") : null,
@@ -775,7 +790,7 @@ function WinnerCard({
               {meta?.label} · {progressText(item.entry)}
             </>
           ) : (
-            discoveryLabel ?? "Découverte AniList"
+            (discoveryLabel ?? "Découverte AniList")
           )}
           {item.year ? ` · ${item.year}` : ""}
           {kind ? ` · ${kind}` : ""}

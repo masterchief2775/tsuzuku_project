@@ -1186,3 +1186,39 @@ html[data-theme="persona5"] footer .rounded-full {
   border: 1px solid rgba(230, 0, 18, 0.45) !important;
   background: rgba(0, 0, 0, 0.85) !important;
 }
+
+/* --- Keyboard focus -------------------------------------------------------
+   Unlayered on purpose. These sat inside `@layer base` at first, where
+   Tailwind's `outline-none` utility (in the `utilities` layer) still won the
+   cascade — cascade layers beat specificity, not the other way round — so those
+   elements kept `outline-style: none` while picking up only the width.
+   Unlayered declarations win over every layer.
+
+   14 interactive elements removed the outline without offering a replacement,
+   leaving keyboard users with no focus indicator at all. `:focus-visible` keeps
+   the ring out of the way for mouse users. Selectors are deliberately not
+   `:where()`d (element + pseudo-class) so they also outrank a bare
+   `.outline-none` on specificity alone. */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-lime);
+  outline-offset: 2px;
+}
+
+/* These already draw their own focus treatment, so they opt out rather than
+   stacking two indicators. */
+.ui-input:focus-visible,
+.profile-inline-field:focus-visible {
+  outline: none;
+}
+
+.profile-inline-field:focus-visible {
+  background: color-mix(in oklab, var(--color-lime) 10%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-lime) 32%, transparent);
+}

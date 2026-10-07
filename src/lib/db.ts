@@ -1,4 +1,5 @@
 import { pendingMigrations } from "../../scripts/migration-plan.mjs";
+import { needsTls, rejectUnauthorized } from "@/lib/pg-ssl";
 
 /** Which database backend is active. */
 export type DbSource = "neon" | "pglite";
@@ -102,17 +103,15 @@ export function pgPoolOptions(connectionString: string | undefined): {
   ssl?: { rejectUnauthorized: boolean };
 } {
   const url = connectionString ?? "";
-  // Neon / managed hosts require TLS; a self-hosted Pi typically uses a
-  // self-signed cert — accept it (`sslmode=require` semantics) but only when
-  // the URL asks for TLS, so plain local Postgres keeps working without SSL.
-  const needsSsl = /sslmode=(require|prefer|verify-ca|verify-full)|neon\.tech|supabase\.co|render\.com/i.test(url);
+  // TLS handling lives in `./pg-ssl` so it can be unit-tested; see the note
+  // there for why verification is only enabled on an explicit `verify-full`.
   return {
     connectionString,
     max: 3,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 10_000,
     keepAlive: true,
-    ...(needsSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+    ...(needsTls(url) ? { ssl: { rejectUnauthorized: rejectUnauthorized(url) } } : {}),
   };
 }
 
