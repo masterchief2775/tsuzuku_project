@@ -19,6 +19,7 @@ import { fetchWatchlistState, getWatchlistVersion, saveWatchlistPatch } from "@/
 import { localNewerThanRemote, mergeWatchlists } from "@/lib/watchlist-merge";
 import { getMyParties, type PartySummary } from "@/lib/party";
 import { getHabitsSnapshot, recordEpisodesWatched } from "@/lib/watch-habits";
+import { initialOnline } from "@/lib/online";
 
 export type ViewId =
   | "dashboard"
@@ -27,7 +28,8 @@ export type ViewId =
   | "season"
   | "roulette"
   | "calendar"
-  | "timeline";
+  | "timeline"
+  | "franchises";
 export type LayoutId = "grid" | "list";
 export type SortId = "updated" | "title" | "rating" | "progress" | "year" | "added";
 
@@ -296,7 +298,7 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
   userId: null,
   selectionMode: false,
   selectedIds: [],
-  online: typeof navigator !== "undefined" ? navigator.onLine : true,
+  online: initialOnline(globalThis.navigator as { onLine?: boolean } | undefined),
   pendingCount: 0,
   lastSyncedAt: null,
   myParties: [],

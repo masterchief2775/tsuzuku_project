@@ -13,6 +13,7 @@ export const VIEW_IDS = [
   "roulette",
   "calendar",
   "timeline",
+  "franchises",
 ] as const satisfies readonly ViewId[];
 
 export function isViewId(value: unknown): value is ViewId {
@@ -31,6 +32,7 @@ const VIEW_TITLES: Record<ViewId, string> = {
   roulette: "Roulette · Tsuzuku",
   calendar: "Calendrier · Tsuzuku",
   timeline: "Chronologie · Tsuzuku",
+  franchises: "Franchises · Tsuzuku",
 };
 
 export function viewTitle(view: ViewId): string {

@@ -142,6 +142,12 @@ async function createPgliteSql(): Promise<Sql> {
   globalRef.__pgliteInstance__ ??= (async () => {
     const { PGlite } = await import("@electric-sql/pglite");
     const pg = new PGlite({
+      // Explicit in-memory store, so the fallback never depends on the host's
+      // filesystem. Deployed runs never get here: with DATABASE_URL set the Neon
+      // path is used and this import does not happen. (A *built* output run
+      // without DATABASE_URL still cannot boot it -- Nitro does not copy PGlite's
+      // ~17MB of wasm/extension assets into the Vercel function bundle.)
+      dataDir: "memory://",
       parsers: {
         [OID_INT8]: Number,
         [OID_DATE]: identity,

@@ -1,4 +1,5 @@
 import { getRequest } from "@tanstack/react-start/server";
+import { getSql } from "@/lib/db";
 import { gateIdentityEnabled } from "./gate-identity.server";
 import { auth, authConfigured } from "./server";
 
@@ -28,6 +29,34 @@ if (databaseConfigured && !authConfigured) {
 
 /** Dev fallback user id, used only when auth is disabled (VITE_AUTH_ENABLED=false). */
 export const DEV_USER_ID = "dev-user";
+
+/**
+ * Per-user tables reference `"user"("id")`, and nothing ever creates that row for
+ * the dev fallback: with auth off there is no sign-in to run Better Auth's user
+ * creation. Every write scoped to `dev-user` then failed the foreign key, so the
+ * watchlist silently stopped syncing in the shipped auth-off configuration.
+ *
+ * Inserting it is idempotent and happens at most once per process, on the same
+ * path that hands out the id.
+ */
+let devUserEnsured: Promise<void> | null = null;
+
+async function ensureDevUserRow(): Promise<void> {
+  devUserEnsured ??= (async () => {
+    const sql = await getSql();
+    await sql`
+      insert into "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
+      values (${DEV_USER_ID}, ${"Dev User"}, ${"dev@example.com"}, ${false}, ${new Date()}, ${new Date()})
+      on conflict ("id") do nothing
+    `;
+  })().catch((err) => {
+    // Don't cache the failure: the next request should retry (e.g. the database
+    // may not have finished its own migrations yet).
+    devUserEnsured = null;
+    throw err;
+  });
+  return devUserEnsured;
+}
 
 /**
  * Thrown by `requireUserId` when the caller has no valid session. Carries
@@ -89,6 +118,9 @@ export async function requireUserId(bearerToken?: string): Promise<string> {
           "refusing to fall back to the shared dev user against a real database.",
       );
     }
+    // The local PGLite database still enforces the FK on every per-user table,
+    // so the row has to exist before anything scoped to this id can be written.
+    await ensureDevUserRow();
     return DEV_USER_ID;
   }
   const user = await getSessionUser(bearerToken);

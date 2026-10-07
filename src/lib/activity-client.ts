@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useVisiblePolling } from "@/lib/polling";
+import { authEnabled } from "@/lib/auth/client";
 
 export type ActivityItem = {
   id: string;
@@ -138,19 +139,23 @@ export function useBadgeCounts(userId: string | undefined) {
     pendingFriendRequests: 0,
     unreadMessages: 0,
   });
+  // With auth disabled the shared dev user has no session, and `/api/activity`
+  // answers 503 "Auth disabled" by design. Polling it anyway filled the console
+  // with a failed request every 60s for badges that can never be non-zero.
+  const canPoll = Boolean(userId) && authEnabled;
   const reload = useCallback(() => {
-    if (!userId) return;
+    if (!userId || !authEnabled) return;
     void getBadgeCounts()
       .then(setBadge)
       .catch(() => {});
   }, [userId]);
 
   useEffect(() => {
-    if (!userId) {
+    if (!canPoll) {
       setBadge({ unreadActivity: 0, pendingFriendRequests: 0, unreadMessages: 0 });
     }
-  }, [userId]);
+  }, [canPoll]);
 
-  useVisiblePolling(reload, 60_000, Boolean(userId));
+  useVisiblePolling(reload, 60_000, canPoll);
   return { ...badge, reload };
 }

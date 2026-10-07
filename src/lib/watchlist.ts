@@ -543,6 +543,109 @@ async function anilistData<T>(
   return (json.data ?? {}) as T;
 }
 
+/**
+ * One relation as AniList reports it.
+ *
+ * Direction, verified against the live API: `relationType` describes how the
+ * NODE relates to the queried media. Cowboy Bebop returns
+ * `SEQUEL -> Cowboy Bebop: Tengoku no Tobira`, i.e. the node is the sequel and
+ * therefore comes LATER. So `SEQUEL` means "watch the current media first".
+ */
+export type AniListRelationType =
+  | "PREQUEL"
+  | "SEQUEL"
+  | "PARENT"
+  | "SUMMARY"
+  | "SIDE_STORY"
+  | "ALTERNATIVE"
+  | "SPIN_OFF"
+  | "ADAPTATION"
+  | "CHARACTER"
+  | "OTHER";
+
+export type AniListRelation = {
+  type: AniListRelationType;
+  node: {
+    id: number;
+    title: { romaji: string | null; english: string | null; native: string | null };
+    coverImage: { large: string | null } | null;
+    format: MediaFormat;
+    episodes: number | null;
+    seasonYear: number | null;
+  };
+};
+
+/** Minimal projection: relations only, so a lookup never widens the payload. */
+const RELATIONS_GQL = `query ($ids: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids, type: ANIME) {
+      id
+      title { romaji english native }
+      coverImage { large }
+      format
+      episodes
+      seasonYear
+      relations {
+        edges {
+          relationType
+          node {
+            id
+            title { romaji english native }
+            coverImage { large }
+            format
+            episodes
+            seasonYear
+          }
+        }
+      }
+    }
+  }
+}`;
+
+type RelationsPage = {
+  Page?: {
+    media?: (Omit<AniListMedia, "nextAiringEpisode"> & {
+      relations?: { edges?: { relationType: string; node: AniListRelation["node"] }[] | null } | null;
+    })[];
+  };
+};
+
+/**
+ * Relations for a set of media, batched 50 at a time.
+ *
+ * Fetched on its own rather than added to `MEDIA_FIELDS`: the franchises view
+ * is the only consumer, and relations roughly double the response size for
+ * every other fetch (search, roulette, the airings refresh) for data they would
+ * throw away. Relations never land on a `WatchlistEntry`, so the synced JSONB
+ * payload is unchanged.
+ */
+export async function fetchMediaRelations(
+  ids: number[],
+  signal?: AbortSignal,
+): Promise<Map<number, AniListRelation[]>> {
+  const out = new Map<number, AniListRelation[]>();
+  if (ids.length === 0) return out;
+  const unique = [...new Set(ids)];
+  for (let i = 0; i < unique.length; i += 50) {
+    const chunk = unique.slice(i, i + 50);
+    const data = await anilistData<RelationsPage>(
+      RELATIONS_GQL,
+      { ids: chunk },
+      signal,
+    );
+    for (const m of data.Page?.media ?? []) {
+      const edges = m.relations?.edges ?? [];
+      out.set(
+        m.id,
+        edges
+          .filter((e) => e && typeof e.relationType === "string")
+          .map((e) => ({ type: e.relationType as AniListRelationType, node: e.node })),
+      );
+    }
+  }
+  return out;
+}
+
 export async function fetchRoulettePool(options: {
   genre?: string | null;
   format?: RouletteFormatFilter;
