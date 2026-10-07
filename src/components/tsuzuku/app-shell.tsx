@@ -13,6 +13,7 @@ import { ListView } from "@/components/tsuzuku/list-view";
 import { SearchView } from "@/components/tsuzuku/search-view";
 import { SeasonView } from "@/components/tsuzuku/season-view";
 import { CalendarView } from "@/components/tsuzuku/calendar-view";
+import { TimelineView } from "@/components/tsuzuku/timeline-view";
 import { RouletteView } from "@/components/tsuzuku/roulette-view";
 import { ShareSettings } from "@/components/tsuzuku/share-settings";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
@@ -391,6 +392,8 @@ export function AppShell() {
           <SeasonView />
         ) : view === "calendar" ? (
           <CalendarView />
+        ) : view === "timeline" ? (
+          <TimelineView />
         ) : view === "roulette" ? (
           <RouletteView />
         ) : (

@@ -20,7 +20,14 @@ import { localNewerThanRemote, mergeWatchlists } from "@/lib/watchlist-merge";
 import { getMyParties, type PartySummary } from "@/lib/party";
 import { getHabitsSnapshot, recordEpisodesWatched } from "@/lib/watch-habits";
 
-export type ViewId = "dashboard" | "list" | "search" | "season" | "roulette" | "calendar";
+export type ViewId =
+  | "dashboard"
+  | "list"
+  | "search"
+  | "season"
+  | "roulette"
+  | "calendar"
+  | "timeline";
 export type LayoutId = "grid" | "list";
 export type SortId = "updated" | "title" | "rating" | "progress" | "year" | "added";
 
