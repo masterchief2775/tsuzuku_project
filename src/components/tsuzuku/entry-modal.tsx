@@ -5,6 +5,7 @@ import {
   ExternalLink,
   Film,
   Minus,
+  Play,
   Plus,
   RefreshCw,
   Star,
@@ -324,6 +325,14 @@ export function EntryModal() {
                 <ExternalLink className="size-3" />
               </a>
             ) : null}
+
+            <Link
+              to="/watch"
+              search={{ m: String(entry.anilistId) }}
+              className="inline-flex items-center gap-1.5 rounded-[9px] bg-lime px-3 py-1.5 text-[12.5px] font-bold text-bg transition hover:bg-lime/90"
+            >
+              <Play className="size-3.5" /> Regarder
+            </Link>
 
             <a
               href={anilistUrl}

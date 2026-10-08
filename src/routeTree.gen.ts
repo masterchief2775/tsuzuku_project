@@ -16,6 +16,7 @@ import { Route as ListsRouteImport } from './routes/lists'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as WatchRouteImport } from './routes/watch'
 import { Route as ApiActivityRouteImport } from './routes/api/activity'
 import { Route as ApiSharedListsRouteImport } from './routes/api/shared-lists'
 import { Route as PartyRoomIdRouteImport } from './routes/party.$roomId'
@@ -58,6 +59,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WatchRoute = WatchRouteImport.update({
+  id: '/watch',
+  path: '/watch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiActivityRoute = ApiActivityRouteImport.update({
   id: '/api/activity',
   path: '/api/activity',
@@ -97,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
+  '/watch': typeof WatchRoute
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
   '/party/$roomId': typeof PartyRoomIdRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
+  '/watch': typeof WatchRoute
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
   '/party/$roomId': typeof PartyRoomIdRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
+  '/watch': typeof WatchRoute
   '/api/activity': typeof ApiActivityRoute
   '/api/shared-lists': typeof ApiSharedListsRoute
   '/party/$roomId': typeof PartyRoomIdRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/messages'
     | '/profile'
+    | '/watch'
     | '/api/activity'
     | '/api/shared-lists'
     | '/party/$roomId'
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/messages'
     | '/profile'
+    | '/watch'
     | '/api/activity'
     | '/api/shared-lists'
     | '/party/$roomId'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/messages'
     | '/profile'
+    | '/watch'
     | '/api/activity'
     | '/api/shared-lists'
     | '/party/$roomId'
@@ -191,6 +203,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MessagesRoute: typeof MessagesRoute
   ProfileRoute: typeof ProfileRoute
+  WatchRoute: typeof WatchRoute
   ApiActivityRoute: typeof ApiActivityRoute
   ApiSharedListsRoute: typeof ApiSharedListsRoute
   PartyRoomIdRoute: typeof PartyRoomIdRoute
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/watch': {
+      id: '/watch'
+      path: '/watch'
+      fullPath: '/watch'
+      preLoaderRoute: typeof WatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/activity': {
       id: '/api/activity'
       path: '/api/activity'
@@ -303,6 +323,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MessagesRoute: MessagesRoute,
   ProfileRoute: ProfileRoute,
+  WatchRoute: WatchRoute,
   ApiActivityRoute: ApiActivityRoute,
   ApiSharedListsRoute: ApiSharedListsRoute,
   PartyRoomIdRoute: PartyRoomIdRoute,
