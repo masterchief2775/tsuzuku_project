@@ -10,7 +10,7 @@ import {
 } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
-const STANDARD_IDS = new Set(["dark", "light", "sakura", "ocean"]);
+const STANDARD_IDS = new Set(["dark", "light", "sakura", "ocean", "foret", "soleil"]);
 
 export function ThemePicker() {
   const [open, setOpen] = useState(false);

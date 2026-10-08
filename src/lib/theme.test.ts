@@ -106,3 +106,15 @@ describe("theme secrets", () => {
     assert.equal(JSON.parse(globalThis.localStorage.getItem("tsuzuku-secret-themes") ?? "[]").includes("ember"), true);
   });
 });
+
+describe("standard themes", () => {
+  it("keeps every base theme available without a code, including foret and soleil", () => {
+    globalThis.localStorage.removeItem("tsuzuku-secret-themes");
+    globalThis.localStorage.removeItem("tsuzuku-secret-theme");
+    for (const id of ["dark", "light", "sakura", "ocean", "foret", "soleil"] as const) {
+      assert.equal(isSecretThemeUnlocked(id), true);
+      globalThis.localStorage.setItem("tsuzuku-theme", id);
+      assert.equal(getStoredTheme(), id);
+    }
+  });
+});

@@ -1,4 +1,4 @@
-export type StandardThemeId = "dark" | "light" | "sakura" | "ocean";
+export type StandardThemeId = "dark" | "light" | "sakura" | "ocean" | "foret" | "soleil";
 export type SecretThemeId =
   | "void"
   | "ember"
@@ -17,6 +17,8 @@ export type ThemeId = StandardThemeId | SecretThemeId;
 const STORAGE_KEY = "tsuzuku-theme";
 const SECRET_STORAGE_KEY = "tsuzuku-secret-themes";
 const LEGACY_SECRET_STORAGE_KEY = "tsuzuku-secret-theme";
+
+const STANDARD_THEME_IDS: StandardThemeId[] = ["dark", "light", "sakura", "ocean", "foret", "soleil"];
 
 const ALL_SECRET_THEME_IDS: SecretThemeId[] = [
   "void",
@@ -72,6 +74,8 @@ export const THEMES: { id: ThemeId; label: string; swatch: [string, string, stri
   { id: "light", label: "Jour", swatch: ["#f4f2ec", "#3d7a1c", "#ffffff"] },
   { id: "sakura", label: "Sakura", swatch: ["#1a1218", "#ff8fab", "#241820"] },
   { id: "ocean", label: "Océan", swatch: ["#0c1520", "#4fd1c5", "#132033"] },
+  { id: "foret", label: "Forêt", swatch: ["#0d1512", "#7bf59b", "#16241d"] },
+  { id: "soleil", label: "Soleil", swatch: ["#fdf6ec", "#b3540a", "#ffffff"] },
   ...SECRET_THEMES,
 ];
 
@@ -106,7 +110,7 @@ export function getUnlockedSecretThemes(): SecretThemeId[] {
 export function isSecretThemeUnlocked(id?: ThemeId): boolean {
   if (typeof window === "undefined") return false;
   const target = id ?? "void";
-  if (target === "dark" || target === "light" || target === "sakura" || target === "ocean") {
+  if ((STANDARD_THEME_IDS as string[]).includes(target)) {
     return true;
   }
   return getUnlockedSecretThemes().includes(target as SecretThemeId);
@@ -143,24 +147,7 @@ export function recordSecretThemeInput(input: string): SecretThemeId | null {
 export function getStoredTheme(): ThemeId {
   if (typeof window === "undefined") return "dark";
   const v = window.localStorage.getItem(STORAGE_KEY);
-  const valid: ThemeId[] = [
-    "dark",
-    "light",
-    "sakura",
-    "ocean",
-    "void",
-    "ember",
-    "neon",
-    "aurora",
-    "manga",
-    "mono",
-    "qc-sombre",
-    "qc-clair",
-    "pride",
-    "lagtrain",
-    "lost-umbrella",
-    "persona5",
-  ];
+  const valid: ThemeId[] = [...STANDARD_THEME_IDS, ...ALL_SECRET_THEME_IDS];
 
   if (v && isSecretThemeId(v) && !isSecretThemeUnlocked(v)) {
     return "dark";
@@ -172,9 +159,7 @@ export function getStoredTheme(): ThemeId {
 export function applyTheme(id: ThemeId) {
   if (typeof document === "undefined") return;
   const safeId =
-    id !== "dark" && id !== "light" && id !== "sakura" && id !== "ocean" && !isSecretThemeUnlocked(id)
-      ? "dark"
-      : id;
+    !(STANDARD_THEME_IDS as string[]).includes(id) && !isSecretThemeUnlocked(id) ? "dark" : id;
   document.documentElement.setAttribute("data-theme", safeId);
   window.localStorage.setItem(STORAGE_KEY, safeId);
   if (safeId === "persona5") {

@@ -70,6 +70,36 @@ html[data-theme="ocean"] {
   --color-status-dropped: #f56565;
 }
 
+html[data-theme="foret"] {
+  --color-bg: #0d1512;
+  --color-raised: #16241d;
+  --color-ink: #eaf5ec;
+  --color-dim: #93a89a;
+  --color-line: #23382e;
+  --color-lime: #7bf59b;
+  --color-crimson: #ff6b6b;
+  --color-status-plan: #9db8ff;
+  --color-status-watching: #7bf59b;
+  --color-status-completed: #3ddc97;
+  --color-status-hold: #ffd166;
+  --color-status-dropped: #ff6b6b;
+}
+
+html[data-theme="soleil"] {
+  --color-bg: #fdf6ec;
+  --color-raised: #ffffff;
+  --color-ink: #2b2118;
+  --color-dim: #8a7a66;
+  --color-line: #eadfd0;
+  --color-lime: #b3540a;
+  --color-crimson: #c62828;
+  --color-status-plan: #6a7bd4;
+  --color-status-watching: #b3540a;
+  --color-status-completed: #0d8a5a;
+  --color-status-hold: #b8860b;
+  --color-status-dropped: #c62828;
+}
+
 html[data-theme="void"] {
   --color-bg: #070b12;
   --color-raised: #111827;
