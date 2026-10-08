@@ -157,6 +157,17 @@ export function EntryModal() {
     : [];
   const genres = entry.genres.length > 0 ? entry.genres : detail?.genres || [];
 
+  // Which episode the watch page would open on, so the button says where it lands.
+  const totalEp = entry.totalEpisodes ?? null;
+  const nextEp =
+    totalEp && totalEp > 0 ? Math.min((entry.progress || 0) + 1, totalEp) : null;
+  const watchLabel =
+    nextEp == null
+      ? null
+      : entry.progress > 0
+        ? `ép. ${nextEp}`
+        : `ép. 1`;
+
   function addTag() {
     const t = tagDraft.trim();
     if (!t || entry!.tags.includes(t)) return;
@@ -271,6 +282,21 @@ export function EntryModal() {
                   ))}
                 </div>
               ) : null}
+
+              {/* Primary action, directly under the title. It used to sit in a
+                  row with the AniList link, where it read as a second link
+                  instead of the thing you came to do. */}
+              <Link
+                to="/watch"
+                search={{ m: String(entry.anilistId) }}
+                className="mt-3 inline-flex items-center gap-2 rounded-[10px] bg-lime px-4 py-2.5 text-[13.5px] font-bold text-bg transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+              >
+                <Play className="size-4 fill-current" />
+                Regarder maintenant
+                {watchLabel ? (
+                  <span className="font-semibold opacity-70">· {watchLabel}</span>
+                ) : null}
+              </Link>
             </div>
           </div>
 
@@ -326,19 +352,11 @@ export function EntryModal() {
               </a>
             ) : null}
 
-            <Link
-              to="/watch"
-              search={{ m: String(entry.anilistId) }}
-              className="inline-flex items-center gap-1.5 rounded-[9px] bg-lime px-3 py-1.5 text-[12.5px] font-bold text-bg transition hover:bg-lime/90"
-            >
-              <Play className="size-3.5" /> Regarder
-            </Link>
-
             <a
               href={anilistUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-dim hover:text-lime"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-dim transition hover:text-lime"
             >
               Voir sur AniList <ExternalLink className="size-3" />
             </a>

@@ -88,8 +88,11 @@ export function PlayerSurface({
   return (
     <div
       ref={containerRef}
+      // 4:3 on phones: the control bar wraps to two rows there, and at 16:9 the band
+      // grew tall enough to cover the centre play target. A taller frame keeps
+      // the tap area clear (a real 16:9 source simply letterboxes inside it).
       className={cn(
-        "group relative aspect-video w-full overflow-hidden rounded-[12px] border border-line bg-black",
+        "group relative aspect-[4/3] w-full overflow-hidden rounded-[12px] border border-line bg-black sm:aspect-video",
         idle && engine.playing && "cursor-none",
       )}
       onMouseMove={bumpIdle}
@@ -110,13 +113,15 @@ export function PlayerSurface({
           play button sits dead centre and any caption collided with it. The
           "no source yet" note lives under the player instead. */}
 
-      {/* Click to toggle play, but never swallow a click on a control. */}
+      {/* Click to toggle play, but never swallow a click on a control. The
+         circle sits in the upper third: on a phone the control band is tall
+         enough that a centred button falls inside it and stops being tappable. */}
       <button
         type="button"
         aria-label={engine.playing ? "Pause" : "Lecture"}
         onClick={engine.togglePlay}
         className={cn(
-          "absolute inset-0 grid place-items-center transition-opacity",
+          "absolute inset-0 grid items-start justify-items-center pt-[18%] transition-opacity",
           idle ? "opacity-0" : "opacity-100",
         )}
       >
@@ -134,7 +139,9 @@ export function PlayerSurface({
         <button
           type="button"
           onClick={onSkip}
-          className="absolute bottom-24 right-4 rounded-full border border-ink/20 bg-black/70 px-4 py-2 text-[12.5px] font-bold text-ink backdrop-blur transition hover:bg-black/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+          // Top-right, not above the controls: bottom-right overlapped the big
+          // centre play target on a phone, so the skip button swallowed the tap.
+          className="absolute top-3 right-3 rounded-full border border-ink/20 bg-black/70 px-3.5 py-2 text-[12.5px] font-bold text-ink backdrop-blur transition hover:bg-black/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
         >
           {skipText}
         </button>
@@ -161,7 +168,7 @@ export function PlayerSurface({
       {/* Controls */}
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pb-2.5 pt-8 transition-opacity sm:px-4",
+          "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 pb-2 pt-4 transition-opacity sm:px-4 sm:pb-2.5 sm:pt-8",
           idle ? "opacity-0" : "opacity-100",
         )}
       >

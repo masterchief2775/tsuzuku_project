@@ -250,8 +250,8 @@ export function WatchPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:px-7">
-        <div data-player-root className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+      <main className="mx-auto w-full max-w-[110rem] flex-1 px-4 py-5 sm:px-7">
+        <div data-player-root className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
           <div className="min-w-0">
             {loadError ? (
               <p role="alert" className="mb-3 text-sm text-crimson">
@@ -264,7 +264,7 @@ export function WatchPage() {
                 zero duration let the resume effect fire a `reset` that silently
                 cancelled the play the viewer had just started. */}
             {!hydrated || !session.episode ? (
-              <div className="grid aspect-video place-items-center rounded-[12px] border border-dashed border-line bg-raised">
+              <div className="grid aspect-[4/3] place-items-center rounded-[12px] border border-dashed border-line bg-raised sm:aspect-video">
                 <div className="px-6 text-center">
                   <Loader2 className="mx-auto size-6 animate-spin text-dim" />
                   <p className="mt-3 text-sm text-dim">
@@ -332,62 +332,59 @@ export function WatchPage() {
               </div>
             )}
 
-            {/* Below the player: what a streaming page shows next to the list. */}
-            <p className="mt-3 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-dim">
-              <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-              <span>
-                Aucune source n&apos;est encore connectée : la lecture est simulée, mais l&apos;épisode en
-                cours, la reprise et ta progression sont bien enregistrées.
-              </span>
-            </p>
-
-            <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr]">
+            {/* Below the player: a single information band. It used to be a stacked
+                poster/title block, which left the whole right half of a wide
+                screen empty. */}
+            <div className="mt-4 flex flex-wrap items-start gap-x-4 gap-y-3 rounded-[12px] border border-line bg-raised p-3.5">
               {entry?.image || detail?.image ? (
                 <img
                   src={entry?.image ?? detail?.image ?? ""}
                   alt=""
-                  className="h-40 w-28 rounded-[10px] border border-line object-cover"
+                  className="h-24 w-16 shrink-0 rounded-[8px] border border-line object-cover"
                 />
               ) : null}
-              <div className="min-w-0">
-                <h2 className="font-serif text-lg font-semibold">{title}</h2>
-                <p className="mt-1 text-[12.5px] text-dim">
+              <div className="min-w-0 flex-1">
+                <h2 className="font-serif text-base font-semibold">{title}</h2>
+                <p className="mt-0.5 text-[12px] text-dim">
                   {session.episode
                     ? `${episodeNumberLabel(session.episodeNumber)} · ${formatClock(session.episode.duration)}`
                     : "Sélectionne un épisode"}
+                  {episodes.length > 0 ? ` · ${episodes.length} épisodes` : ""}
                   {session.engine.rate !== 1 ? ` · lecture ${session.engine.rate}×` : ""}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {entry ? (
-                    <>
+                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-line bg-bg px-2.5 py-1 text-[11px] text-dim">
+                  <TriangleAlert className="size-3 shrink-0" />
+                  Aucune source connectée — lecture simulée, progression bien enregistrée
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {entry ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => session.engine.seek(0)}
+                      className="rounded-[9px] border border-line px-3 py-1.5 text-[12px] font-semibold text-dim transition hover:border-lime/40 hover:text-ink"
+                    >
+                      Revoir depuis le début
+                    </button>
+                    {session.next != null ? (
                       <button
                         type="button"
-                        onClick={() =>
-                          session.engine.seekBy(-session.engine.duration)
-                        }
-                        className="rounded-[9px] border border-line px-3 py-1.5 text-[12px] font-semibold text-dim transition hover:border-lime/40 hover:text-ink"
+                        onClick={() => session.goTo(session.next)}
+                        className="rounded-[9px] bg-lime px-3 py-1.5 text-[12px] font-bold text-bg transition hover:brightness-110"
                       >
-                        Revoir depuis le début
+                        Épisode suivant
                       </button>
-                      {session.next != null ? (
-                        <button
-                          type="button"
-                          onClick={() => session.goTo(session.next)}
-                          className="rounded-[9px] bg-lime px-3 py-1.5 text-[12px] font-bold text-bg"
-                        >
-                          Épisode suivant
-                        </button>
-                      ) : null}
-                    </>
-                  ) : (
-                    <Link
-                      to={homeHref("search")}
-                      className="rounded-[9px] bg-lime px-3 py-1.5 text-[12px] font-bold text-bg"
-                    >
-                      Ajouter à ma liste
-                    </Link>
-                  )}
-                </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <Link
+                    to={homeHref("search")}
+                    className="rounded-[9px] bg-lime px-3 py-1.5 text-[12px] font-bold text-bg"
+                  >
+                    Ajouter à ma liste
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -423,7 +420,7 @@ export function WatchPage() {
               </button>
 
               <div className={cn("lg:block", episodesOpen ? "block" : "hidden")}>
-                <ol className="max-h-[26rem] overflow-y-auto lg:max-h-[30rem]">
+                <ol className="max-h-[26rem] overflow-y-auto lg:max-h-[calc(100dvh-17rem)]">
                   {episodes.map((ep) => {
                     const current = ep.number === session.episodeNumber;
                     // Same floor as the player: a few seconds in is not a
