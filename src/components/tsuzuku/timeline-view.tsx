@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
-import { CalendarClock, Infinity as InfinityIcon, TriangleAlert } from "lucide-react";
+import { CalendarClock, Flag, Infinity as InfinityIcon, TriangleAlert } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
 import { cn } from "@/lib/utils";
 import { formatAiringTime } from "@/lib/watchlist";
 import {
   ASSUMED_EPISODE_INTERVAL_DAYS,
   buildTimeline,
+  finishedCount,
   openEndedCount,
   sortTimeline,
+  stillAiringCount,
   totalRemaining,
   type TimelineRow,
   type TimelineSort,
@@ -55,6 +57,20 @@ function endLabel(row: TimelineRow): string | null {
   return `${humanDuration(row.daysLeft)} · ${date}`;
 }
 
+/** "30 mars 2021" for a series AniList says is over, or null without a full date. */
+function endedLabel(row: TimelineRow): string | null {
+  if (row.endedAt == null) return null;
+  // Pinned to UTC on purpose: `endedAt` is midnight UTC standing for a
+  // calendar day with no time, so rendering it in local time showed "29 mars"
+  // for a series AniList dates 30 March on any machine west of Greenwich.
+  return new Date(row.endedAt * 1000).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 /**
  * Positions a bar on a shared axis so rows are comparable at a glance.
  * `span` is the widest projected end across the rows that have one.
@@ -96,9 +112,20 @@ function TimelineRowCard({ row, pct }: { row: TimelineRow; pct: (ts: number | nu
           </div>
 
           {/* Timeline track. Two markers: the next episode (real) and the
-              projected end (estimate). */}
+              projected end (estimate). A finished series has neither, so the track
+              shows watch progress instead — an empty bar there just looked broken. */}
           <div className="relative mt-2 h-2.5 rounded-full bg-bg">
-            {row.estimatedEndAt != null ? (
+            {row.airingFinished ? (
+              <div
+                title={
+                  row.total == null
+                    ? "Progression inconnue"
+                    : `${row.progress}/${row.total} épisodes vus`
+                }
+                className="absolute inset-y-0 left-0 rounded-full bg-ink/40"
+                style={{ width: `${Math.round((row.progressRatio ?? 0) * 100)}%` }}
+              />
+            ) : row.estimatedEndAt != null ? (
               <div
                 className="absolute inset-y-0 left-0 rounded-full bg-lime/70"
                 style={{ width: `${Math.max(2, barPct)}%` }}
@@ -117,7 +144,13 @@ function TimelineRowCard({ row, pct }: { row: TimelineRow; pct: (ts: number | nu
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-dim">
-            {row.estimatedEndAt != null ? (
+            {row.airingFinished ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-ink">
+                <Flag className="size-3.5" />
+                terminée
+                {endedLabel(row) ? ` le ${endedLabel(row)}` : ""}
+              </span>
+            ) : row.estimatedEndAt != null ? (
               <span className="inline-flex items-center gap-1 font-semibold text-lime">
                 <CalendarClock className="size-3.5" />
                 fin estimée {endLabel(row)}
@@ -173,6 +206,8 @@ export function TimelineView() {
   }
 
   const openEnded = openEndedCount(rows);
+  const finished = finishedCount(rows);
+  const stillAiring = stillAiringCount(rows);
 
   return (
     <div>
@@ -180,12 +215,15 @@ export function TimelineView() {
         <h2 className="font-serif text-xl font-semibold tracking-tight">Chronologie</h2>
         <p className="mt-1 text-[13px] text-dim">
           {totalRemaining(rows)} épisode{totalRemaining(rows) > 1 ? "s" : ""} à regarder sur{" "}
-          {rows.length} série{rows.length > 1 ? "s" : ""} en cours
-          {openEnded > 0 ? ` — dont ${openEnded} sans date de fin` : ""}.
+          {rows.length} série{rows.length > 1 ? "s" : ""} suivie{rows.length > 1 ? "s" : ""}.
+          {finished > 0 ? ` ${finished} terminée${finished > 1 ? "s" : ""}, à rattraper.` : ""}
+          {stillAiring < rows.length ? ` ${stillAiring} encore en diffusion.` : ""}
+          {openEnded > 0 ? ` ${openEnded} sans date de fin annoncée.` : ""}
         </p>
         <p className="mt-1 text-[12px] text-dim/80">
           Les dates de fin sont estimées à un épisode par semaine : AniList ne publie que le
-          prochain épisode, jamais le calendrier complet.
+          prochain épisode, jamais le calendrier complet. Les séries déjà terminées affichent leur
+          vraie date de fin.
         </p>
       </header>
 

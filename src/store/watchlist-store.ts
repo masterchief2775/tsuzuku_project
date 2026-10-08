@@ -9,6 +9,7 @@ import {
   fetchMediaById,
   fetchMediaByIds,
   isNextAiringStale,
+  airingEndDate,
   loadEntries,
   persistEntries,
   shouldAutoComplete,
@@ -647,7 +648,11 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
   refreshNextAirings: async () => {
     const watching = get().entries.filter(
       (e) =>
-        e.status === "Watching" && (isNextAiringStale(e) || !e.bannerImage),
+        e.status === "Watching" &&
+        // `airingStatus === undefined` backfills entries stored before the field
+        // existed; without it a finished series kept a fresh `nextAiring`
+        // sentinel and was never refetched, so it stayed "unknown" forever.
+        (isNextAiringStale(e) || !e.bannerImage || e.airingStatus === undefined),
     );
     if (watching.length === 0) return;
     try {
@@ -668,6 +673,8 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
           totalEpisodes: media.episodes ?? e.totalEpisodes,
           bannerImage: media.bannerImage || e.bannerImage || null,
           image: media.coverImage?.large || e.image,
+          airingStatus: media.status ?? e.airingStatus ?? null,
+          airingEndedOn: airingEndDate(media.endDate) ?? e.airingEndedOn ?? null,
           nextAiring: media.nextAiringEpisode
             ? {
                 airingAt: media.nextAiringEpisode.airingAt,
@@ -679,11 +686,15 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
               : { airingAt: 0, episode: 0, fetchedAt: now },
         };
         // Diff the technical fields: identical refresh = no server push.
-        // Without this, every hydrate re-uploaded the whole list to Neon.
+        // Without this, every hydrate re-uploaded the whole list to Neon. The
+        // airing status is part of that diff so the one-off backfill of entries
+        // stored before the field existed is actually persisted.
         if (
           updated.totalEpisodes !== e.totalEpisodes ||
           updated.bannerImage !== e.bannerImage ||
           updated.image !== e.image ||
+          updated.airingStatus !== e.airingStatus ||
+          updated.airingEndedOn !== e.airingEndedOn ||
           JSON.stringify(updated.nextAiring) !== JSON.stringify(e.nextAiring)
         ) {
           changed.push(updated);

@@ -1,4 +1,4 @@
-import type { WatchlistEntry } from "./watchlist.ts";
+import { hasFinishedAiring, type WatchlistEntry } from "./watchlist.ts";
 
 /**
  * Season timeline — when will this actually end?
@@ -36,6 +36,15 @@ export type TimelineRow = {
   nextEpisode: number | null;
   /** Unix seconds of the projected last episode; null when unknowable. */
   estimatedEndAt: number | null;
+  /**
+   * True when AniList says the series is over (FINISHED or CANCELLED). This is
+   * what separates "nothing is airing because it ended" from "nothing is airing
+   * and we do not know why": both have a null `nextAiringAt`, but only one is a
+   * finished series, and Black Clover is emphatically not an unknown broadcast.
+   */
+  airingFinished: boolean;
+  /** Unix seconds of the series' last day, when AniList records a full date. */
+  endedAt: number | null;
   /** true when the series has no announced total — the "never finishes" case. */
   openEnded: boolean;
   /** 0..1, null when the total is unknown. */
@@ -43,6 +52,13 @@ export type TimelineRow = {
   /** Whole days until the projected end; null when unknowable. */
   daysLeft: number | null;
 };
+
+/** "YYYY-MM-DD" as unix seconds, or null when absent/incomplete. */
+function parseIsoDate(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = Date.parse(`${iso}T00:00:00Z`);
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
+}
 
 /**
  * Projects when a series will finish, from the next airing and the number of
@@ -71,6 +87,12 @@ export function buildTimeline(
 
   for (const e of entries) {
     if (e.status !== "Watching") continue;
+    // A series that ended AND that the user has fully watched has nothing left to
+    // project and nothing left to air: keeping it would only add a row that
+    // answers nothing.
+    if (hasFinishedAiring(e.airingStatus) && e.totalEpisodes != null && e.progress >= e.totalEpisodes) {
+      continue;
+    }
     const at = e.nextAiring?.airingAt ?? null;
     const nextEpisode =
       e.nextAiring && e.nextAiring.episode > 0 ? e.nextAiring.episode : null;
@@ -81,7 +103,10 @@ export function buildTimeline(
     const progress = Math.max(0, e.progress || 0);
     const remaining = total == null ? null : Math.max(0, total - progress);
     const openEnded = total == null;
+    const airingFinished = hasFinishedAiring(e.airingStatus);
     const estimatedEndAt = estimateEnd(nextAiringAt, remaining, nowSec, intervalDays);
+    // A finished series has a real, known last day; never project one for it.
+    const endedAt = airingFinished ? parseIsoDate(e.airingEndedOn) : null;
 
     rows.push({
       id: e.id,
@@ -93,7 +118,9 @@ export function buildTimeline(
       remaining,
       nextAiringAt,
       nextEpisode,
-      estimatedEndAt,
+      estimatedEndAt: airingFinished ? null : estimatedEndAt,
+      airingFinished,
+      endedAt,
       openEnded,
       progressRatio: total == null || total <= 0 ? null : Math.min(1, progress / total),
       daysLeft:
@@ -133,10 +160,14 @@ export function sortTimeline(rows: TimelineRow[], sort: TimelineSort): TimelineR
     return copy;
   }
   copy.sort((a, b) => {
-    if (a.estimatedEndAt == null && b.estimatedEndAt == null) return a.title.localeCompare(b.title);
-    if (a.estimatedEndAt == null) return 1;
-    if (b.estimatedEndAt == null) return -1;
-    return a.estimatedEndAt - b.estimatedEndAt;
+    // Rows we can project come first, soonest end at the top.
+    if (a.estimatedEndAt != null && b.estimatedEndAt != null) return a.estimatedEndAt - b.estimatedEndAt;
+    if (a.estimatedEndAt != null) return -1;
+    if (b.estimatedEndAt != null) return 1;
+    // Then finished series, which have a real date: most recently ended first.
+    if (a.airingFinished !== b.airingFinished) return a.airingFinished ? -1 : 1;
+    if (a.endedAt != null && b.endedAt != null) return b.endedAt - a.endedAt;
+    return a.title.localeCompare(b.title);
   });
   return copy;
 }
@@ -149,4 +180,14 @@ export function totalRemaining(rows: TimelineRow[]): number {
 /** How many series cannot be projected to a finish. */
 export function openEndedCount(rows: TimelineRow[]): number {
   return rows.filter((r) => r.openEnded).length;
+}
+
+/** How many series are still broadcasting: the ones a "when does it end" list is about. */
+export function stillAiringCount(rows: TimelineRow[]): number {
+  return rows.filter((r) => !r.airingFinished).length;
+}
+
+/** How many series are over, so their rows are about catching up rather than waiting. */
+export function finishedCount(rows: TimelineRow[]): number {
+  return rows.filter((r) => r.airingFinished).length;
 }

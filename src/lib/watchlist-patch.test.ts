@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { airingEndDate, hasFinishedAiring } from "./watchlist.ts";
 import {
   MAX_PATCH_ENTRIES,
   mergeWatchlistPatch,
@@ -104,5 +105,31 @@ describe("mergeWatchlistPatch", () => {
     const { merged, applied } = mergeWatchlistPatch(current, [], []);
     assert.equal(merged.length, 1);
     assert.equal(applied, 0);
+  });
+});
+
+describe("airing metadata from AniList", () => {
+  it("keeps only a complete end date", () => {
+    assert.equal(airingEndDate({ year: 2021, month: 3, day: 30 }), "2021-03-30");
+    // A year alone is not precise enough to show as "ended on".
+    assert.equal(airingEndDate({ year: 2021, month: 3, day: null }), null);
+    assert.equal(airingEndDate({ year: 2021, month: null, day: null }), null);
+    assert.equal(airingEndDate(null), null);
+    assert.equal(airingEndDate(undefined), null);
+  });
+
+  it("pads single-digit months and days", () => {
+    assert.equal(airingEndDate({ year: 2024, month: 1, day: 5 }), "2024-01-05");
+  });
+
+  it("treats FINISHED and CANCELLED as over, never an unknown status", () => {
+    assert.equal(hasFinishedAiring("FINISHED"), true);
+    assert.equal(hasFinishedAiring("CANCELLED"), true);
+    assert.equal(hasFinishedAiring("RELEASING"), false);
+    assert.equal(hasFinishedAiring("HIATUS"), false);
+    assert.equal(hasFinishedAiring("NOT_YET_RELEASED"), false);
+    // `undefined` means an entry stored before the field existed.
+    assert.equal(hasFinishedAiring(undefined), false);
+    assert.equal(hasFinishedAiring(null), false);
   });
 });

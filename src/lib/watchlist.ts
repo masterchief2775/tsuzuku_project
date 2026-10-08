@@ -55,6 +55,14 @@ export type WatchlistEntry = {
     episode: number;
     fetchedAt: string;
   } | null;
+  /**
+   * AniList's airing status for the series, distinct from `status` above (which
+   * is the user's own progress). Absent on entries stored before this field
+   * existed, which is why every read treats `undefined` as "unknown".
+   */
+  airingStatus?: AniListAiringStatus | null;
+  /** ISO date of the last airing day, when AniList records a complete one. */
+  airingEndedOn?: string | null;
 };
 
 export type NextAiringEpisode = {
@@ -62,6 +70,21 @@ export type NextAiringEpisode = {
   episode: number;
   timeUntilAiring: number; // seconds
 };
+
+/**
+ * AniList's own airing status for a title — NOT the user's watchlist status.
+ *
+ * Needed to tell three apart that all look identical in `nextAiringEpisode`
+ * (a `null` airing): a series that has finished for good, one still running with
+ * no announced total (One Piece), and one we simply have no data for. Without it
+ * the timeline labelled a completed series like Black Clover "diffusion inconnue".
+ */
+export type AniListAiringStatus =
+  | "FINISHED"
+  | "RELEASING"
+  | "NOT_YET_RELEASED"
+  | "HIATUS"
+  | "CANCELLED";
 
 export type AniListMedia = {
   id: number;
@@ -74,8 +97,33 @@ export type AniListMedia = {
   studios: { nodes: { name: string }[] } | null;
   averageScore: number | null;
   format: MediaFormat;
+  /** Airing status of the series itself; absent on payloads fetched before. */
+  status?: AniListAiringStatus | null;
+  /** Last day of airing, when AniList records a complete one. */
+  endDate?: { year: number | null; month: number | null; day: number | null } | null;
   nextAiringEpisode?: NextAiringEpisode | null;
 };
+
+/**
+ * ISO date (YYYY-MM-DD) of the last airing day, or null when AniList leaves any
+ * part of the date open — a year-only end date is not precise enough to show.
+ */
+export function airingEndDate(
+  endDate: AniListMedia["endDate"],
+): string | null {
+  const y = endDate?.year ?? null;
+  const m = endDate?.month ?? null;
+  const d = endDate?.day ?? null;
+  if (y == null || m == null || d == null) return null;
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/** True when the series is over and no further episode will ever air. */
+export function hasFinishedAiring(
+  status: AniListAiringStatus | null | undefined,
+): boolean {
+  return status === "FINISHED" || status === "CANCELLED";
+}
 
 /** Rich fields fetched only for the entry detail modal. */
 export type AniListMediaDetail = AniListMedia & {
@@ -306,6 +354,8 @@ export function entryFromMedia(media: AniListMedia): WatchlistEntry {
     year: media.seasonYear ?? null,
     studio: media.studios?.nodes?.[0]?.name || "",
     format: media.format ?? null,
+    airingStatus: media.status ?? null,
+    airingEndedOn: airingEndDate(media.endDate),
     status: "Plan to Watch",
     progress: 0,
     rating: null,
@@ -359,6 +409,8 @@ const MEDIA_FIELDS = `
   format
   studios(isMain: true) { nodes { name } }
   averageScore
+  status
+  endDate { year month day }
   nextAiringEpisode {
     airingAt
     episode
@@ -935,6 +987,8 @@ export function technicalFieldsFromMedia(media: AniListMedia): Partial<Watchlist
     year: media.seasonYear ?? null,
     studio: media.studios?.nodes?.[0]?.name || "",
     format: media.format ?? null,
+    airingStatus: media.status ?? null,
+    airingEndedOn: airingEndDate(media.endDate),
     nextAiring: media.nextAiringEpisode
       ? {
           airingAt: media.nextAiringEpisode.airingAt,

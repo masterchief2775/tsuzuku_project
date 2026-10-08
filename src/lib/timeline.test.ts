@@ -4,8 +4,10 @@ import {
   ASSUMED_EPISODE_INTERVAL_DAYS,
   buildTimeline,
   estimateEnd,
+  finishedCount,
   openEndedCount,
   sortTimeline,
+  stillAiringCount,
   totalRemaining,
 } from "./timeline.ts";
 import type { WatchlistEntry } from "./watchlist.ts";
@@ -57,6 +59,102 @@ describe("estimateEnd", () => {
 
   it("honours a custom cadence", () => {
     assert.equal(estimateEnd(NOW, 5, NOW, 14), NOW + 4 * 14 * DAY);
+  });
+});
+
+describe("buildTimeline — finished series", () => {
+  // Black Clover (AniList id 97940) for real: FINISHED, 170 episodes,
+  // nextAiringEpisode null, endDate 2021-03-30.
+  const blackClover = entry({
+    id: "bc",
+    anilistId: 97940,
+    title: "Black Clover",
+    totalEpisodes: 170,
+    progress: 0,
+    airingStatus: "FINISHED",
+    airingEndedOn: "2021-03-30",
+    nextAiring: { airingAt: 0, episode: 0, fetchedAt: "" },
+  });
+
+  it("reports a finished series as finished, not as an unknown broadcast", () => {
+    const rows = buildTimeline([blackClover], NOW);
+    const row = rows[0]!;
+    assert.equal(row.airingFinished, true);
+    // The bug: with a null next airing and no status, this looked identical to a
+    // series we simply had no data for, and the UI said "diffusion inconnue".
+    assert.equal(row.estimatedEndAt, null);
+    assert.equal(row.nextAiringAt, null);
+    assert.equal(row.remaining, 170);
+  });
+
+  it("carries the real end date instead of projecting one", () => {
+    const row = buildTimeline([blackClover], NOW)[0]!;
+    assert.equal(row.endedAt, Date.parse("2021-03-30T00:00:00Z") / 1000);
+    // A series that is over never gets a *future* projection.
+    assert.equal(row.daysLeft, null);
+  });
+
+  it("still calls a finished series open-ended when AniList has no total", () => {
+    const row = buildTimeline(
+      [entry({ id: "x", totalEpisodes: null, airingStatus: "FINISHED", nextAiring: { airingAt: 0, episode: 0, fetchedAt: "" } })],
+      NOW,
+    )[0]!;
+    assert.equal(row.openEnded, true);
+    assert.equal(row.airingFinished, true);
+    assert.equal(row.endedAt, null);
+  });
+
+  it("treats a cancelled series as finished", () => {
+    const row = buildTimeline([entry({ airingStatus: "CANCELLED" })], NOW)[0]!;
+    assert.equal(row.airingFinished, true);
+    assert.equal(row.estimatedEndAt, null);
+  });
+
+  it("keeps projecting a series that is still releasing", () => {
+    const row = buildTimeline([entry({ airingStatus: "RELEASING" })], NOW)[0]!;
+    assert.equal(row.airingFinished, false);
+    assert.equal(row.estimatedEndAt, NOW + 2 * DAY + 8 * 7 * DAY);
+  });
+
+  it("keeps the old behaviour for entries stored before the field existed", () => {
+    // `airingStatus === undefined` must read as "unknown", never as finished.
+    const row = buildTimeline([entry({ airingStatus: undefined })], NOW)[0]!;
+    assert.equal(row.airingFinished, false);
+    assert.equal(row.estimatedEndAt, NOW + 2 * DAY + 8 * 7 * DAY);
+  });
+
+  it("drops a finished series the user has already watched to the end", () => {
+    const rows = buildTimeline(
+      [entry({ id: "done", airingStatus: "FINISHED", progress: 12, totalEpisodes: 12 })],
+      NOW,
+    );
+    assert.deepEqual(rows, []);
+  });
+
+  it("counts finished and still-airing series separately", () => {
+    const rows = buildTimeline(
+      [
+        blackClover,
+        entry({ id: "live", airingStatus: "RELEASING" }),
+        entry({ id: "unknown", airingStatus: undefined }),
+      ],
+      NOW,
+    );
+    assert.equal(rows.length, 3);
+    assert.equal(finishedCount(rows), 1);
+    assert.equal(stillAiringCount(rows), 2);
+  });
+
+  it("sorts the projected ends first, then finished ones, then unknown", () => {
+    const rows = buildTimeline(
+      [
+        entry({ id: "unknown", airingStatus: undefined, nextAiring: { airingAt: 0, episode: 0, fetchedAt: "" } }),
+        blackClover,
+        entry({ id: "live", airingStatus: "RELEASING" }),
+      ],
+      NOW,
+    );
+    assert.deepEqual(sortTimeline(rows, "end").map((r) => r.id), ["live", "bc", "unknown"]);
   });
 });
 
