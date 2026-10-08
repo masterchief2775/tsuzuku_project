@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { ArrowLeft, Mail, Send } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
-import { PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
+import { EmptyState, PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import {
@@ -19,11 +19,15 @@ const THREAD_POLL_MS = 4000;
 const LIST_POLL_MS = 15000;
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(
+    new Date(value),
+  );
 }
 
 function formatDay(value: string) {
-  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(
+    new Date(value),
+  );
 }
 
 /** True while the tab is actually visible — pauses polling instead of hammering the DB in a background tab. */
@@ -65,7 +69,9 @@ export function MessagesView() {
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [conversationsError, setConversationsError] = useState("");
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
-  const [activeProfile, setActiveProfile] = useState<ConversationSummary | PublicProfile | null>(null);
+  const [activeProfile, setActiveProfile] = useState<ConversationSummary | PublicProfile | null>(
+    null,
+  );
   const [threadMessages, setThreadMessages] = useState<OptimisticMessage[]>([]);
   const [threadLoaded, setThreadLoaded] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -99,37 +105,42 @@ export function MessagesView() {
       });
   }, []);
 
-  const refreshThread = useCallback((withUserId: string) => {
-    void listThread({ data: { withUserId } })
-      .then((page) => {
-        const rows = page.messages;
-        setThreadMessages((current) => {
-          // Drop any optimistic temp messages once the real one has landed —
-          // matched by sender+body, since the server assigns the real id.
-          const pendingStillUnconfirmed = current.filter(
-            (m) => m.pending && !rows.some((r) => r.senderId === m.senderId && r.body === m.body),
-          );
-          const confirmed = new Set(rows.map((r) => r.id));
-          const keptPending = pendingStillUnconfirmed.filter((m) => !confirmed.has(m.id));
-          const keptOld = current.filter((m) => !m.pending && !confirmed.has(m.id));
-          return [...keptOld, ...rows, ...keptPending];
-        });
-        setThreadLoaded(true);
-        setHasMore(page.hasMore);
-        setPeerTyping(page.peerTyping);
-        const last = rows[rows.length - 1];
-        if (last && last.id !== lastMessageIdRef.current) {
-          lastMessageIdRef.current = last.id;
-          // New message landed (from either side) — the read state may have
-          // changed too, so keep the conversation list's unread badge fresh.
-          refreshConversations();
-        }
-        if (rows.some((m) => m.senderId === withUserId && !m.readAt)) {
-          void markThreadRead({ data: { withUserId } });
-        }
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : "Impossible de charger la conversation."));
-  }, [refreshConversations]);
+  const refreshThread = useCallback(
+    (withUserId: string) => {
+      void listThread({ data: { withUserId } })
+        .then((page) => {
+          const rows = page.messages;
+          setThreadMessages((current) => {
+            // Drop any optimistic temp messages once the real one has landed —
+            // matched by sender+body, since the server assigns the real id.
+            const pendingStillUnconfirmed = current.filter(
+              (m) => m.pending && !rows.some((r) => r.senderId === m.senderId && r.body === m.body),
+            );
+            const confirmed = new Set(rows.map((r) => r.id));
+            const keptPending = pendingStillUnconfirmed.filter((m) => !confirmed.has(m.id));
+            const keptOld = current.filter((m) => !m.pending && !confirmed.has(m.id));
+            return [...keptOld, ...rows, ...keptPending];
+          });
+          setThreadLoaded(true);
+          setHasMore(page.hasMore);
+          setPeerTyping(page.peerTyping);
+          const last = rows[rows.length - 1];
+          if (last && last.id !== lastMessageIdRef.current) {
+            lastMessageIdRef.current = last.id;
+            // New message landed (from either side) — the read state may have
+            // changed too, so keep the conversation list's unread badge fresh.
+            refreshConversations();
+          }
+          if (rows.some((m) => m.senderId === withUserId && !m.readAt)) {
+            void markThreadRead({ data: { withUserId } });
+          }
+        })
+        .catch((err) =>
+          setError(err instanceof Error ? err.message : "Impossible de charger la conversation."),
+        );
+    },
+    [refreshConversations],
+  );
 
   const loadMore = useCallback(
     async (withUserId: string) => {
@@ -164,7 +175,11 @@ export function MessagesView() {
   // Conversation list: kept fresh in the background whenever no thread is open.
   usePolling(refreshConversations, LIST_POLL_MS, activeUserId === null);
   // Active thread: polled quickly for the "instant" feel while it's open.
-  usePolling(() => activeUserId && refreshThread(activeUserId), THREAD_POLL_MS, activeUserId !== null);
+  usePolling(
+    () => activeUserId && refreshThread(activeUserId),
+    THREAD_POLL_MS,
+    activeUserId !== null,
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -253,7 +268,8 @@ export function MessagesView() {
     if (!activeProfile) return "…";
     return "displayName" in activeProfile ? activeProfile.displayName : "";
   }, [activeProfile]);
-  const activeAvatar = activeProfile && "avatarUrl" in activeProfile ? activeProfile.avatarUrl : null;
+  const activeAvatar =
+    activeProfile && "avatarUrl" in activeProfile ? activeProfile.avatarUrl : null;
 
   if (activeUserId) {
     return (
@@ -300,46 +316,55 @@ export function MessagesView() {
                 </div>
               ) : null}
               {threadMessages.map((message, i) => {
-              const mine = message.senderId === user?.id;
-              const prev = threadMessages[i - 1];
-              const showDay = !prev || formatDay(prev.createdAt) !== formatDay(message.createdAt);
-              return (
-                <div key={message.id}>
-                  {showDay ? (
-                    <div className="my-3 text-center text-[11px] font-semibold text-dim">
-                      {formatDay(message.createdAt)}
-                    </div>
-                  ) : null}
-                  <div className={mine ? "flex justify-end" : "flex justify-start"}>
-                    <div
-                      className={
-                        mine
-                          ? "max-w-[75%] rounded-[14px] rounded-br-[4px] bg-lime px-3.5 py-2 text-sm font-medium text-bg"
-                          : "max-w-[75%] rounded-[14px] rounded-bl-[4px] border border-line bg-bg px-3.5 py-2 text-sm text-ink"
-                      }
-                    >
-                      <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                      <div className={mine ? "mt-1 text-right text-[10px] text-bg/70" : "mt-1 text-[10px] text-dim"}>
-                        {formatTime(message.createdAt)}
-                        {message.pending ? " · envoi…" : ""}
+                const mine = message.senderId === user?.id;
+                const prev = threadMessages[i - 1];
+                const showDay = !prev || formatDay(prev.createdAt) !== formatDay(message.createdAt);
+                return (
+                  <div key={message.id}>
+                    {showDay ? (
+                      <div className="my-3 text-center text-[11px] font-semibold text-dim">
+                        {formatDay(message.createdAt)}
+                      </div>
+                    ) : null}
+                    <div className={mine ? "flex justify-end" : "flex justify-start"}>
+                      <div
+                        className={
+                          mine
+                            ? "max-w-[75%] rounded-[14px] rounded-br-[4px] bg-lime px-3.5 py-2 text-sm font-medium text-bg"
+                            : "max-w-[75%] rounded-[14px] rounded-bl-[4px] border border-line bg-bg px-3.5 py-2 text-sm text-ink"
+                        }
+                      >
+                        <p className="whitespace-pre-wrap break-words">{message.body}</p>
+                        <div
+                          className={
+                            mine
+                              ? "mt-1 text-right text-[10px] text-bg/70"
+                              : "mt-1 text-[10px] text-dim"
+                          }
+                        >
+                          {formatTime(message.createdAt)}
+                          {message.pending ? " · envoi…" : ""}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-            {peerTyping ? (
-              <p className="text-xs text-dim italic" role="status">
-                {activeName} est en train d’écrire…
-              </p>
-            ) : null}
+                );
+              })}
+              {peerTyping ? (
+                <p className="text-xs text-dim italic" role="status">
+                  {activeName} est en train d’écrire…
+                </p>
+              ) : null}
             </>
           )}
         </div>
 
         {error ? <p className="mt-2 shrink-0 text-xs font-semibold text-crimson">{error}</p> : null}
 
-        <form onSubmit={(event) => void submitReply(event)} className="mt-3 flex w-full min-w-0 shrink-0 items-end gap-2">
+        <form
+          onSubmit={(event) => void submitReply(event)}
+          className="mt-3 flex w-full min-w-0 shrink-0 items-end gap-2"
+        >
           <textarea
             value={body}
             onChange={(event) => {
@@ -402,17 +427,29 @@ export function MessagesView() {
                   }}
                   className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-bg"
                 >
-                  <span className="min-w-0 truncate text-sm font-semibold">{profile.displayName}</span>
+                  <span className="min-w-0 truncate text-sm font-semibold">
+                    {profile.displayName}
+                  </span>
                   <span className="shrink-0 text-xs text-dim">@{profile.username}</span>
                 </button>
               ))}
             </div>
           ) : null}
         </div>
-        <p className="mt-2 text-xs text-dim">Choisis un destinataire pour ouvrir la conversation.</p>
+        <p className="mt-2 text-xs text-dim">
+          Choisis un destinataire pour ouvrir la conversation.
+        </p>
       </section>
 
-      <section className="ui-panel flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+      {/* The list needs the stretch + scroll area; loading, error and empty
+          states get a compact panel instead of a tall hollow box. */}
+      <section
+        className={
+          conversationsLoaded && !conversationsError && conversations.length > 0
+            ? "ui-panel flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5"
+            : "ui-panel shrink-0 p-4 sm:p-5"
+        }
+      >
         <SectionTitle icon={Mail} title="Conversations" />
         {!conversationsLoaded ? (
           <p className="py-8 text-center text-sm text-dim">Chargement…</p>
@@ -421,7 +458,11 @@ export function MessagesView() {
             {conversationsError}
           </p>
         ) : conversations.length === 0 ? (
-          <p className="py-8 text-center text-sm text-dim">Aucune conversation pour le moment.</p>
+          <EmptyState
+            icon={Mail}
+            title="Aucune conversation pour le moment."
+            hint="Recherche un destinataire ci-dessus pour démarrer."
+          />
         ) : (
           <div className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
             {conversations.map((c) => (
@@ -435,7 +476,9 @@ export function MessagesView() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold">{c.displayName}</span>
-                    <span className="shrink-0 text-[11px] text-dim">{formatTime(c.lastMessageAt)}</span>
+                    <span className="shrink-0 text-[11px] text-dim">
+                      {formatTime(c.lastMessageAt)}
+                    </span>
                   </div>
                   <p className="truncate text-xs text-dim">
                     {c.lastMessageFromMe ? "Toi : " : ""}

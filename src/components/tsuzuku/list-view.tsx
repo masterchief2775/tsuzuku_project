@@ -223,7 +223,11 @@ export function ListView() {
             aria-label={layout === "grid" ? "Vue liste" : "Vue grille"}
             onClick={() => setLayout(layout === "grid" ? "list" : "grid")}
           >
-            {layout === "grid" ? <ListIcon className="size-4" /> : <LayoutGrid className="size-4" />}
+            {layout === "grid" ? (
+              <ListIcon className="size-4" />
+            ) : (
+              <LayoutGrid className="size-4" />
+            )}
           </button>
         </div>
       </div>
@@ -344,14 +348,22 @@ export function ListView() {
         <div className="mb-5 space-y-3 rounded-[12px] border border-line bg-raised p-4">
           <FacetRow label="Genres" empty="Aucun genre pour l’instant">
             {facets.genres.map((g) => (
-              <FilterPill key={g} active={genreFilters.includes(g)} onClick={() => toggleGenreFilter(g)}>
+              <FilterPill
+                key={g}
+                active={genreFilters.includes(g)}
+                onClick={() => toggleGenreFilter(g)}
+              >
                 {g}
               </FilterPill>
             ))}
           </FacetRow>
           <FacetRow label="Année" empty="Aucune année">
             {facets.years.map((y) => (
-              <FilterPill key={y} active={yearFilters.includes(y)} onClick={() => toggleYearFilter(y)}>
+              <FilterPill
+                key={y}
+                active={yearFilters.includes(y)}
+                onClick={() => toggleYearFilter(y)}
+              >
                 {String(y)}
               </FilterPill>
             ))}
@@ -369,7 +381,11 @@ export function ListView() {
           </FacetRow>
           <FacetRow label="Tags" empty="Ajoute des tags sur une fiche pour filtrer ici">
             {facets.tags.map((t) => (
-              <FilterPill key={t} active={tagFilters.includes(t)} onClick={() => toggleTagFilter(t)}>
+              <FilterPill
+                key={t}
+                active={tagFilters.includes(t)}
+                onClick={() => toggleTagFilter(t)}
+              >
                 {t}
               </FilterPill>
             ))}
@@ -484,7 +500,9 @@ export function ListView() {
               key={e.id}
               className={cn(
                 "flex items-stretch gap-2",
-                selectedIds.includes(e.id) && selectionMode ? "rounded-[10px] ring-2 ring-lime" : "",
+                selectedIds.includes(e.id) && selectionMode
+                  ? "rounded-[10px] ring-2 ring-lime"
+                  : "",
               )}
             >
               {selectionMode ? (

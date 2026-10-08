@@ -1,18 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, Loader2, X } from "lucide-react";
-import {
-  compareWatchlists,
-  type CompareTitle,
-  type WatchlistComparison,
-} from "@/lib/friends";
+import { compareWatchlists, type CompareTitle, type WatchlistComparison } from "@/lib/friends";
 import { cn } from "@/lib/utils";
+import { Cover } from "@/components/tsuzuku/cover";
 import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
 
 function TitleRow({ item, meta }: { item: CompareTitle; meta?: string }) {
   return (
     <li className="flex items-center gap-2.5 py-1.5">
       {item.image ? (
-        <img src={item.image} alt="" loading="lazy" decoding="async" className="h-10 w-7 rounded object-cover" />
+        <Cover src={item.image} title={item.title} className="h-10 w-7 rounded" />
       ) : (
         <div className="h-10 w-7 rounded bg-line" />
       )}
@@ -45,10 +42,7 @@ export function FriendCompareButton({
         Comparer
       </button>
       {open ? (
-        <FriendCompareModal
-          friendUserId={friendUserId}
-          onClose={() => setOpen(false)}
-        />
+        <FriendCompareModal friendUserId={friendUserId} onClose={() => setOpen(false)} />
       ) : null}
     </>
   );
@@ -202,9 +196,7 @@ function FriendCompareModal({
                       <TitleRow
                         key={item.anilistId}
                         item={item}
-                        meta={[item.myStatus, item.theirStatus]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        meta={[item.myStatus, item.theirStatus].filter(Boolean).join(" · ")}
                       />
                     ))}
                   </ul>
@@ -217,7 +209,11 @@ function FriendCompareModal({
                 ) : (
                   <ul className="divide-y divide-line/50">
                     {data.bothWatching.map((item) => (
-                      <TitleRow key={item.anilistId} item={item} meta="Vous regardez tous les deux" />
+                      <TitleRow
+                        key={item.anilistId}
+                        item={item}
+                        meta="Vous regardez tous les deux"
+                      />
                     ))}
                   </ul>
                 )

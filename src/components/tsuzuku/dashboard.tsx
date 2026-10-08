@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CalendarClock, Dices, Play, Plus, Search, Star, Upload } from "lucide-react";
 import { EntryCard } from "@/components/tsuzuku/entry-card";
 import { Cover } from "@/components/tsuzuku/cover";
@@ -100,9 +100,7 @@ export function Dashboard() {
       otherWatching: watching.slice(1, 5),
       upcomingCount: upcomingWeek.length,
       upcomingGroups: groupUpcomingByDay(upcomingWeek),
-      recent: [...entries]
-        .sort((a, b) => +new Date(b.addedAt) - +new Date(a.addedAt))
-        .slice(0, 6),
+      recent: [...entries].sort((a, b) => +new Date(b.addedAt) - +new Date(a.addedAt)).slice(0, 6),
       stats: computeStats(entries),
       todayAiring: airingOnDay(entries, new Date(dayKey)),
       availableCount: watching.filter(isEpisodeAvailable).length,
@@ -126,8 +124,8 @@ export function Dashboard() {
         <div className="font-serif text-5xl text-line">見</div>
         <h1 className="font-serif mt-1 text-xl font-medium text-balance">Bienvenue sur Tsuzuku</h1>
         <p className="mx-auto mt-1 mb-6 max-w-md text-sm text-dim">
-          Trois façons de commencer — choisis celle qui te ressemble, tu pourras
-          tout changer plus tard.
+          Trois façons de commencer — choisis celle qui te ressemble, tu pourras tout changer plus
+          tard.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
@@ -319,7 +317,11 @@ export function Dashboard() {
                             available ? "border-lime/40 bg-lime/5" : "border-line",
                           )}
                         >
-                          <Cover src={e.image} title={e.title} className="h-12 w-9 shrink-0 rounded" />
+                          <Cover
+                            src={e.image}
+                            title={e.title}
+                            className="h-12 w-9 shrink-0 rounded"
+                          />
                           <div className="min-w-0 flex-1">
                             <div className="line-clamp-2 text-[12.5px] font-semibold leading-snug">
                               {e.title}
@@ -458,6 +460,9 @@ function ContinueHero({
   const airing = nextAiringText(entry);
   const available = isEpisodeAvailable(entry);
   const banner = entry.bannerImage || entry.image;
+  // AniList CDN hashes rotate — a stored banner URL can 404. Without this the
+  // hero shows a broken-image icon over the gradient.
+  const [bannerFailed, setBannerFailed] = useState(false);
   const pct =
     entry.totalEpisodes && entry.totalEpisodes > 0
       ? Math.min(100, Math.round((entry.progress / entry.totalEpisodes) * 100))
@@ -470,7 +475,7 @@ function ContinueHero({
     >
       <button type="button" className="block w-full text-left" onClick={() => onOpen(entry.id)}>
         <div className="relative h-[168px] w-full overflow-hidden sm:h-[210px]">
-          {banner ? (
+          {banner && !bannerFailed ? (
             <img
               src={banner}
               alt=""
@@ -478,6 +483,7 @@ function ContinueHero({
               loading="eager"
               decoding="async"
               fetchPriority="high"
+              onError={() => setBannerFailed(true)}
             />
           ) : (
             <div className="size-full bg-bg" />
@@ -508,7 +514,10 @@ function ContinueHero({
           </div>
           {pct != null ? (
             <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-line/80">
-              <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+              <div
+                className="h-full rounded-full bg-[var(--accent)]"
+                style={{ width: `${pct}%` }}
+              />
             </div>
           ) : null}
         </div>
@@ -553,7 +562,7 @@ function ContinueChip({
     <div className="relative h-[96px] w-[210px] shrink-0 overflow-hidden rounded-[12px] border border-line sm:w-[230px]">
       <button type="button" onClick={() => onOpen(entry.id)} className="absolute inset-0 text-left">
         {banner ? (
-          <img src={banner} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+          <Cover src={banner} title={entry.title} className="absolute inset-0 size-full" />
         ) : (
           <div className="absolute inset-0 bg-raised" />
         )}
@@ -561,7 +570,12 @@ function ContinueChip({
         <div className="absolute inset-x-0 bottom-0 p-2.5 pr-12">
           <div className="line-clamp-2 text-[12px] font-semibold leading-snug">{entry.title}</div>
           {airing ? (
-            <div className={cn("mt-0.5 text-[10.5px] font-bold", available ? "text-lime" : "text-lime/90")}>
+            <div
+              className={cn(
+                "mt-0.5 text-[10.5px] font-bold",
+                available ? "text-lime" : "text-lime/90",
+              )}
+            >
               {airing}
             </div>
           ) : (

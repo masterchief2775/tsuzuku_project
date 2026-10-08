@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 export function ProfileAvatar({
@@ -22,14 +23,18 @@ export function ProfileAvatar({
             ? "size-24 text-3xl"
             : "size-10 text-sm";
   const letter = (name || "?").charAt(0).toUpperCase();
+  // A stored avatar URL can die (expired CDN hash, deleted file). Without this,
+  // every dead URL renders a broken-image icon instead of the initial.
+  const [failed, setFailed] = useState(false);
 
-  if (src) {
+  if (src && !failed) {
     return (
       <img
         src={src}
         alt=""
         loading="lazy"
         decoding="async"
+        onError={() => setFailed(true)}
         className={cn("rounded-full object-cover border border-line bg-raised", dims, className)}
       />
     );

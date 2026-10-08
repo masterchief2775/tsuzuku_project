@@ -45,7 +45,9 @@ function humanDuration(days: number): string {
   if (months < 18) return `${months} mois`;
   const years = Math.floor(days / 365);
   const rest = Math.round((days - years * 365) / 30.44);
-  return rest > 0 ? `${years} an${years > 1 ? "s" : ""} ${rest} mois` : `${years} an${years > 1 ? "s" : ""}`;
+  return rest > 0
+    ? `${years} an${years > 1 ? "s" : ""} ${rest} mois`
+    : `${years} an${years > 1 ? "s" : ""}`;
 }
 
 /** "4 mois · janv. 27" for a projected end, or null when there is none. */
@@ -95,11 +97,7 @@ function TimelineRowCard({ row, pct }: { row: TimelineRow; pct: (ts: number | nu
   return (
     <li className="rounded-[12px] border border-line bg-raised p-3">
       <div className="flex items-start gap-3">
-        <Cover
-          src={row.image}
-          title={row.title}
-          className="h-16 w-11 shrink-0 rounded-[8px]"
-        />
+        <Cover src={row.image} title={row.title} className="h-16 w-11 shrink-0 rounded-[8px]" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h3 className="truncate text-sm font-bold">{row.title}</h3>
@@ -218,7 +216,7 @@ export function TimelineView() {
             {totalRemaining(rows)} épisode{totalRemaining(rows) > 1 ? "s" : ""} à regarder sur{" "}
             {rows.length} série{rows.length > 1 ? "s" : ""} suivie{rows.length > 1 ? "s" : ""}.
             {finished > 0 ? ` ${finished} terminée${finished > 1 ? "s" : ""}, à rattraper.` : ""}
-            {stillAiring < rows.length ? ` ${stillAiring} encore en diffusion.` : ""}
+            {stillAiring > 0 ? ` ${stillAiring} encore en diffusion.` : ""}
             {openEnded > 0 ? ` ${openEnded} sans date de fin annoncée.` : ""}{" "}
             <span className="text-dim">
               Dates de fin estimées à un épisode par semaine — AniList ne publie que le prochain

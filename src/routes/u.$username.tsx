@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { useConfirmDialog } from "@/components/tsuzuku/use-confirm-dialog";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
@@ -57,22 +58,21 @@ export const Route = createFileRoute("/u/$username")({
   component: PublicProfilePage,
 });
 
-
 function PublicProfilePage() {
   const { username } = Route.useParams();
   const { user } = useCurrentUserState();
   const exportJson = useWatchlistStore((s) => s.exportJson);
   const [profile, setProfile] = useState<PublicProfile | null | undefined>(undefined);
-    function profilePresenceLabel(profile: PublicProfile): string {
-      if (profile.isOnline) return "En ligne";
-      if (!profile.lastSeen) return "Hors ligne";
-      const minutes = Math.floor(Math.max(0, Date.now() - Date.parse(profile.lastSeen)) / 60_000);
-      if (minutes < 1) return "Vu à l’instant";
-      if (minutes < 60) return `Vu il y a ${minutes} min`;
-      const hours = Math.floor(minutes / 60);
-      if (hours < 24) return `Vu il y a ${hours} h`;
-      return `Vu il y a ${Math.floor(hours / 24)} j`;
-    }
+  function profilePresenceLabel(profile: PublicProfile): string {
+    if (profile.isOnline) return "En ligne";
+    if (!profile.lastSeen) return "Hors ligne";
+    const minutes = Math.floor(Math.max(0, Date.now() - Date.parse(profile.lastSeen)) / 60_000);
+    if (minutes < 1) return "Vu à l’instant";
+    if (minutes < 60) return `Vu il y a ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Vu il y a ${hours} h`;
+    return `Vu il y a ${Math.floor(hours / 24)} j`;
+  }
   const [error, setError] = useState("");
   const [relStatus, setRelStatus] = useState<FriendshipStatus>("none");
   const [requestId, setRequestId] = useState<string | undefined>();
@@ -83,6 +83,7 @@ function PublicProfilePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [editName, setEditName] = useState("");
   const [editBio, setEditBio] = useState("");
   const [editAvatar, setEditAvatar] = useState<string | null>(null);
@@ -203,7 +204,7 @@ function PublicProfilePage() {
           avatarUrl: editAvatar,
         },
       });
-      setProfile((current) => current ? { ...current, ...updated } : updated);
+      setProfile((current) => (current ? { ...current, ...updated } : updated));
       writeAvatarCache(user.id, updated.avatarUrl, updated.displayName);
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Impossible d’enregistrer le profil.");
@@ -227,8 +228,11 @@ function PublicProfilePage() {
 
   const isSelf = Boolean(user && profile && user.id === profile.userId);
   const hasBasicChanges = Boolean(
-    isSelf && profile &&
-      (editName !== profile.displayName || editBio !== profile.bio || editAvatar !== profile.avatarUrl),
+    isSelf &&
+    profile &&
+    (editName !== profile.displayName ||
+      editBio !== profile.bio ||
+      editAvatar !== profile.avatarUrl),
   );
 
   return (
@@ -302,8 +306,17 @@ function PublicProfilePage() {
               <div className="flex justify-center">
                 {isSelf ? (
                   <>
-                    <button type="button" className="profile-inline-edit-avatar" onClick={() => avatarInputRef.current?.click()} aria-label="Changer la photo publique">
-                      <ProfileAvatar name={editName || profile.displayName} src={editAvatar} size="xl" />
+                    <button
+                      type="button"
+                      className="profile-inline-edit-avatar"
+                      onClick={() => avatarInputRef.current?.click()}
+                      aria-label="Changer la photo publique"
+                    >
+                      <ProfileAvatar
+                        name={editName || profile.displayName}
+                        src={editAvatar}
+                        size="xl"
+                      />
                     </button>
                     <input
                       ref={avatarInputRef}
@@ -329,8 +342,18 @@ function PublicProfilePage() {
                 <h1 className="font-serif mt-4 text-2xl font-semibold">{profile.displayName}</h1>
               )}
               <p className="text-sm text-dim">@{profile.username}</p>
-              <p className={cn("mt-2 text-xs font-semibold", profile.isOnline ? "text-status-completed" : "text-dim")}>
-                <span className={cn("mr-1.5 inline-block size-2 rounded-full", profile.isOnline ? "bg-status-completed" : "bg-dim/70")} />
+              <p
+                className={cn(
+                  "mt-2 text-xs font-semibold",
+                  profile.isOnline ? "text-status-completed" : "text-dim",
+                )}
+              >
+                <span
+                  className={cn(
+                    "mr-1.5 inline-block size-2 rounded-full",
+                    profile.isOnline ? "bg-status-completed" : "bg-dim/70",
+                  )}
+                />
                 {profilePresenceLabel(profile)}
               </p>
               {profile.bio || isSelf ? (
@@ -345,7 +368,9 @@ function PublicProfilePage() {
                     rows={1}
                   />
                 ) : (
-                  <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-dim">{profile.bio}</p>
+                  <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-dim">
+                    {profile.bio}
+                  </p>
                 )
               ) : null}
               {typeof profile.listCount === "number" ? (
@@ -489,15 +514,17 @@ function PublicProfilePage() {
                         type="button"
                         disabled={busy}
                         onClick={() => {
-                          if (!window.confirm(`Retirer ${profile.displayName} de tes amis ?`))
-                            return;
-                          void doAction(
-                            () =>
-                              removeFriendship({
-                                data: { userId: profile.userId },
-                              }),
-                            "Ami retiré",
-                          );
+                          void (async () => {
+                            if (!(await confirm(`Retirer ${profile.displayName} de tes amis ?`)))
+                              return;
+                            void doAction(
+                              () =>
+                                removeFriendship({
+                                  data: { userId: profile.userId },
+                                }),
+                              "Ami retiré",
+                            );
+                          })();
                         }}
                         className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50"
                       >
@@ -531,20 +558,22 @@ function PublicProfilePage() {
                       type="button"
                       disabled={busy}
                       onClick={() => {
-                        if (
-                          !window.confirm(
-                            `Bloquer ${profile.displayName} ? Il ne pourra plus t’envoyer de demande ni voir ton profil.`,
+                        void (async () => {
+                          if (
+                            !(await confirm(
+                              `Bloquer ${profile.displayName} ? Il ne pourra plus t’envoyer de demande ni voir ton profil.`,
+                            ))
                           )
-                        )
-                          return;
-                        void doAction(
-                          () =>
-                            blockUser({ data: { userId: profile.userId } }).then(() => {
-                              setIBlockedThem(true);
-                              setRelStatus("none");
-                            }),
-                          "Utilisateur bloqué",
-                        );
+                            return;
+                          void doAction(
+                            () =>
+                              blockUser({ data: { userId: profile.userId } }).then(() => {
+                                setIBlockedThem(true);
+                                setRelStatus("none");
+                              }),
+                            "Utilisateur bloqué",
+                          );
+                        })();
                       }}
                       className="inline-flex items-center gap-2 rounded-[9px] border border-line px-4 py-2 text-sm font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50"
                     >
@@ -594,11 +623,7 @@ function PublicProfilePage() {
                     <li key={f.anilistId} className="text-center">
                       <div className="mx-auto aspect-[2/3] w-full max-w-[100px] overflow-hidden rounded-[10px] border border-line bg-bg">
                         {f.image ? (
-                          <img
-                            src={f.image}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
+                          <img src={f.image} alt="" className="h-full w-full object-cover" />
                         ) : null}
                       </div>
                       <p className="mt-1.5 line-clamp-2 text-[11.5px] font-semibold leading-snug">
@@ -640,6 +665,7 @@ function PublicProfilePage() {
       <ImportView open={importOpen} onClose={() => setImportOpen(false)} />
       <ShareSettings open={shareOpen} onClose={() => setShareOpen(false)} />
       <AppToast />
+      {confirmDialog}
     </div>
   );
 }

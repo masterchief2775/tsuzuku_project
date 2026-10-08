@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useProfileEditor } from "@/components/tsuzuku/use-profile-editor";
@@ -87,7 +88,12 @@ export function ProfileView() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-2xl space-y-8">
+      <div className="mx-auto w-full max-w-2xl animate-fade-up space-y-6 sm:space-y-8">
+        <PageHeader
+          eyebrow="Compte"
+          title="Mon profil"
+          description="Pseudo public, avatar, favoris et paramètres."
+        />
         {error && !loading ? (
           <div className="rounded-[12px] border border-crimson/40 bg-crimson/10 px-4 py-3 text-sm">
             <p className="font-semibold text-crimson">Erreur de chargement</p>
@@ -104,10 +110,7 @@ export function ProfileView() {
 
         {/* Search others */}
         <section className="rounded-[12px] border border-line bg-raised p-4">
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Search className="size-4 text-lime" />
-            Rechercher un profil
-          </h2>
+          <SectionTitle icon={Search} title="Rechercher un profil" />
           <input
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
@@ -288,9 +291,7 @@ export function ProfileView() {
                   <span className="inline-flex items-center gap-1.5">
                     <Star className="size-4 text-lime" />
                     Top 5 favoris
-                    <span className="text-[11px] font-medium text-dim">
-                      ({favorites.length}/5)
-                    </span>
+                    <span className="text-[11px] font-medium text-dim">({favorites.length}/5)</span>
                   </span>
                   <span
                     className="flex items-center gap-2 text-xs text-dim"
@@ -322,7 +323,16 @@ export function ProfileView() {
                           {idx + 1}
                         </span>
                         {f.image ? (
-                          <img src={f.image} alt="" loading="lazy" decoding="async" className="size-5 rounded object-cover" />
+                          <img
+                            src={f.image}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                            className="size-5 rounded object-cover"
+                          />
                         ) : null}
                         <span className="max-w-[140px] truncate">{f.title}</span>
                         <button
@@ -370,20 +380,20 @@ export function ProfileView() {
                 </summary>
                 <div className="mt-3 space-y-3">
                   <Field label="AniList">
-                  <input
-                    value={anilistUrl}
-                    onChange={(e) => setAnilistUrl(e.target.value)}
-                    placeholder="https://anilist.co/user/…"
-                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime"
-                  />
+                    <input
+                      value={anilistUrl}
+                      onChange={(e) => setAnilistUrl(e.target.value)}
+                      placeholder="https://anilist.co/user/…"
+                      className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime"
+                    />
                   </Field>
                   <Field label="MyAnimeList">
-                  <input
-                    value={malUrl}
-                    onChange={(e) => setMalUrl(e.target.value)}
-                    placeholder="https://myanimelist.net/profile/…"
-                    className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime"
-                  />
+                    <input
+                      value={malUrl}
+                      onChange={(e) => setMalUrl(e.target.value)}
+                      placeholder="https://myanimelist.net/profile/…"
+                      className="w-full rounded-[9px] border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-lime"
+                    />
                   </Field>
                 </div>
               </details>
@@ -413,10 +423,7 @@ export function ProfileView() {
             </section>
 
             <section className="rounded-[12px] border border-line bg-raised p-5">
-              <h2 className="font-serif mb-1 flex items-center gap-2 text-base font-medium">
-                <KeyRound className="size-4 text-lime" />
-                Mot de passe
-              </h2>
+              <SectionTitle icon={KeyRound} title="Mot de passe" />
               <p className="mb-3 text-xs text-dim">
                 Disponible si tu t&apos;es inscrit avec e-mail / mot de passe.
               </p>
@@ -476,7 +483,9 @@ export function ProfileView() {
 
             {/* Danger zone */}
             <section className="rounded-[12px] border border-crimson/30 bg-crimson/5 p-5">
-              <h2 className="font-serif text-base font-medium text-crimson">Zone dangereuse</h2>
+              <h2 className="font-serif mb-3 text-[17px] font-medium text-crimson">
+                Zone dangereuse
+              </h2>
               <p className="mt-1 text-sm text-dim">
                 La suppression est définitive : watchlist, partages, profil et sessions.
               </p>
@@ -527,7 +536,6 @@ export function ProfileView() {
       </div>
     </>
   );
-
 }
 
 function FavoritesPicker({
@@ -603,7 +611,16 @@ function FavoritesPicker({
                   }}
                 >
                   {e.image ? (
-                    <img src={e.image} alt="" loading="lazy" decoding="async" className="size-7 rounded object-cover" />
+                    <img
+                      src={e.image}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      onError={(ev) => {
+                        ev.currentTarget.style.display = "none";
+                      }}
+                      className="size-7 rounded object-cover"
+                    />
                   ) : (
                     <span className="size-7 rounded bg-bg" />
                   )}
@@ -617,7 +634,6 @@ function FavoritesPicker({
     </div>
   );
 }
-
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

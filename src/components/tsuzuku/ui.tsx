@@ -39,9 +39,7 @@ export function PageHeader({
             {title}
           </h1>
           {description ? (
-            <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-dim">
-              {description}
-            </p>
+            <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-dim">{description}</p>
           ) : null}
         </div>
         {actions ? (
@@ -132,3 +130,4 @@ export function EmptyState({
     </div>
   );
 }
+

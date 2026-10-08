@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CalendarRange, RotateCw } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { Cover } from "@/components/tsuzuku/cover";
 import { SectionTitle } from "@/components/tsuzuku/ui";
 import { getWeeklyDigest, type DigestItem } from "@/lib/activity";
 
@@ -79,27 +80,25 @@ export function WeeklyDigest() {
       />
       <ul className="space-y-2">
         {items.slice(0, 8).map((item) => (
-          <li
-            key={`${item.actorId}-${item.kind}`}
-            className="flex items-center gap-2.5 text-sm"
-          >
+          <li key={`${item.actorId}-${item.kind}`} className="flex items-center gap-2.5 text-sm">
             <ProfileAvatar name={item.actorName} src={item.actorAvatar} size="sm" />
             <p className="min-w-0 flex-1 truncate text-dim">
               <span className="font-semibold text-ink">{item.actorName}</span> {kindText(item)}
             </p>
             {item.sampleImage ? (
-              <img
+              <Cover
                 src={item.sampleImage}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-9 w-7 shrink-0 rounded object-cover"
+                title={item.sampleTitle ?? item.actorName}
+                className="h-9 w-7 shrink-0 rounded"
               />
             ) : null}
           </li>
         ))}
       </ul>
-      <Link to="/friends" className="mt-3 inline-block text-xs font-semibold text-dim hover:text-lime">
+      <Link
+        to="/friends"
+        className="mt-3 inline-block text-xs font-semibold text-dim hover:text-lime"
+      >
         Tout voir dans l’activité →
       </Link>
     </section>

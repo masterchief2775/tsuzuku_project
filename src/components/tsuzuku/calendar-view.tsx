@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Bell,
-  BellOff,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-} from "lucide-react";
+import { Bell, BellOff, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import {
   addDays,
   formatAiringTime,
@@ -23,6 +17,7 @@ import {
   type ReminderPrefs,
 } from "@/lib/airing-reminders";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { Cover } from "@/components/tsuzuku/cover";
 import { EmptyState, PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 import { cn } from "@/lib/utils";
 
@@ -133,9 +128,7 @@ export function CalendarView() {
             {todayCount > 0 ? (
               <>
                 {" "}
-                <span className="font-semibold text-lime">
-                  {todayCount} aujourd&apos;hui
-                </span>
+                <span className="font-semibold text-lime">{todayCount} aujourd&apos;hui</span>
               </>
             ) : null}
           </>
@@ -182,9 +175,7 @@ export function CalendarView() {
               {perm === "denied" ? (
                 <span className="text-crimson"> Permission refusée dans le navigateur.</span>
               ) : null}
-              {perm === "unsupported" ? (
-                <span> Non supporté sur cet appareil.</span>
-              ) : null}
+              {perm === "unsupported" ? <span> Non supporté sur cet appareil.</span> : null}
             </p>
           </div>
           <label className="flex items-center gap-2 text-[12.5px] font-semibold text-dim">
@@ -214,7 +205,7 @@ export function CalendarView() {
         <button
           type="button"
           onClick={() => setWeekAnchor((w) => addDays(w, -7))}
-          className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
+          className="flex size-11 items-center justify-center rounded-[10px] border border-line bg-raised text-dim transition hover:border-lime/40 hover:text-ink"
           aria-label="Semaine précédente"
         >
           <ChevronLeft className="size-4" />
@@ -232,7 +223,7 @@ export function CalendarView() {
         <button
           type="button"
           onClick={() => setWeekAnchor((w) => addDays(w, 7))}
-          className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
+          className="flex size-11 items-center justify-center rounded-[10px] border border-line bg-raised text-dim transition hover:border-lime/40 hover:text-ink"
           aria-label="Semaine suivante"
         >
           <ChevronRight className="size-4" />
@@ -295,7 +286,7 @@ export function CalendarView() {
                     className="flex w-full items-center gap-3 rounded-[12px] border border-line bg-raised px-3 py-2.5 text-left transition hover:border-lime/35"
                   >
                     {e.image ? (
-                      <img src={e.image} alt="" loading="lazy" decoding="async" className="h-12 w-9 rounded object-cover" />
+                      <Cover src={e.image} title={e.title} className="h-12 w-9 shrink-0 rounded" />
                     ) : (
                       <div className="h-12 w-9 rounded bg-line" />
                     )}

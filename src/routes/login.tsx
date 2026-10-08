@@ -121,14 +121,20 @@ function LoginPage() {
             <button
               type="button"
               onClick={() => setMode("login")}
-              className={cn("flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold transition", mode === "login" ? "bg-ink text-bg" : "text-dim hover:text-ink")}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold transition",
+                mode === "login" ? "bg-ink text-bg" : "text-dim hover:text-ink",
+              )}
             >
               <LogIn className="size-4" /> Connexion
             </button>
             <button
               type="button"
               onClick={() => setMode("signup")}
-              className={cn("flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold transition", mode === "signup" ? "bg-ink text-bg" : "text-dim hover:text-ink")}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold transition",
+                mode === "signup" ? "bg-ink text-bg" : "text-dim hover:text-ink",
+              )}
             >
               <UserPlus className="size-4" /> Inscription
             </button>
@@ -221,10 +227,14 @@ function LoginPage() {
             )}
 
             {error && (
-              <div className="rounded-[10px] border border-crimson/20 bg-crimson/5 px-3.5 py-3 text-sm text-crimson">{error}</div>
+              <div className="rounded-[10px] border border-crimson/20 bg-crimson/5 px-3.5 py-3 text-sm text-crimson">
+                {error}
+              </div>
             )}
             {message && (
-              <div className="rounded-[10px] border border-lime/30 bg-lime/10 px-3.5 py-3 text-sm">{message}</div>
+              <div className="rounded-[10px] border border-lime/30 bg-lime/10 px-3.5 py-3 text-sm">
+                {message}
+              </div>
             )}
 
             <button
@@ -232,7 +242,13 @@ function LoginPage() {
               disabled={busy}
               className="ui-button-primary w-full disabled:cursor-wait disabled:opacity-60"
             >
-              {busy ? <Loader2 className="size-4 animate-spin" /> : mode === "login" ? <LogIn className="size-4" /> : <UserPlus className="size-4" />}
+              {busy ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : mode === "login" ? (
+                <LogIn className="size-4" />
+              ) : (
+                <UserPlus className="size-4" />
+              )}
               {mode === "login" ? "Se connecter" : "Créer mon compte"}
             </button>
           </form>

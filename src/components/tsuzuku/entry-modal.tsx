@@ -61,6 +61,9 @@ export function EntryModal() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
+  // Decorative banner: a dead AniList CDN URL hides the whole block instead of
+  // showing a broken-image icon.
+  const [bannerFailed, setBannerFailed] = useState(false);
 
   useEffect(() => {
     setConfirming(false);
@@ -69,6 +72,7 @@ export function EntryModal() {
     setDetail(null);
     setDetailError("");
     setSynopsisExpanded(false);
+    setBannerFailed(false);
   }, [activeEntryId]);
 
   useEffect(() => {
@@ -86,7 +90,9 @@ export function EntryModal() {
       })
       .catch((err) => {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
-        setDetailError(err instanceof Error ? err.message : "Impossible de charger les détails AniList.");
+        setDetailError(
+          err instanceof Error ? err.message : "Impossible de charger les détails AniList.",
+        );
         setDetailLoading(false);
       });
     return () => {
@@ -159,14 +165,8 @@ export function EntryModal() {
 
   // Which episode the watch page would open on, so the button says where it lands.
   const totalEp = entry.totalEpisodes ?? null;
-  const nextEp =
-    totalEp && totalEp > 0 ? Math.min((entry.progress || 0) + 1, totalEp) : null;
-  const watchLabel =
-    nextEp == null
-      ? null
-      : entry.progress > 0
-        ? `ép. ${nextEp}`
-        : `ép. 1`;
+  const nextEp = totalEp && totalEp > 0 ? Math.min((entry.progress || 0) + 1, totalEp) : null;
+  const watchLabel = nextEp == null ? null : entry.progress > 0 ? `ép. ${nextEp}` : `ép. 1`;
 
   function addTag() {
     const t = tagDraft.trim();
@@ -205,12 +205,13 @@ export function EntryModal() {
         className="relative max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-xl border border-line bg-raised shadow-2xl outline-none"
         style={{ ["--accent" as string]: meta.color }}
       >
-        {detail?.bannerImage ? (
+        {detail?.bannerImage && !bannerFailed ? (
           <div className="relative h-28 w-full overflow-hidden sm:h-36">
             <img
               src={detail.bannerImage}
               alt=""
               decoding="async"
+              onError={() => setBannerFailed(true)}
               className="h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-raised via-raised/40 to-transparent" />
@@ -234,7 +235,10 @@ export function EntryModal() {
               className="h-[120px] w-[84px] shrink-0 rounded-md shadow-lg ring-1 ring-line/60 sm:h-[132px] sm:w-[92px]"
             />
             <div className="min-w-0 flex-1 pr-8 pt-1">
-              <h2 id="entry-modal-title" className="font-serif text-[19px] leading-snug font-semibold">
+              <h2
+                id="entry-modal-title"
+                className="font-serif text-[19px] leading-snug font-semibold"
+              >
                 {entry.title}
               </h2>
               {altTitles.length > 0 ? (
@@ -427,7 +431,7 @@ export function EntryModal() {
                     // Ten stars across, so the button stays the size of the
                     // icon visually: negative margin cancels the extra padding
                     // while the tap area grows from 16px to ~36px.
-                      className="-m-2 rounded-[8px] p-2 transition hover:bg-bg"
+                    className="-m-2 rounded-[8px] p-2 transition hover:bg-bg"
                     onClick={() => updateEntry(entry.id, { rating: entry.rating === n ? null : n })}
                   >
                     <Star
@@ -624,7 +628,11 @@ export function EntryModal() {
   );
 }
 
-function StartPartyButton({ entry }: { entry: { title: string; anilistId: number; image: string | null; progress: number } }) {
+function StartPartyButton({
+  entry,
+}: {
+  entry: { title: string; anilistId: number; image: string | null; progress: number };
+}) {
   const navigate = useNavigate();
   const setActiveEntryId = useWatchlistStore((s) => s.setActiveEntryId);
   const showToast = useWatchlistStore((s) => s.showToast);
@@ -663,10 +671,20 @@ function StartPartyButton({ entry }: { entry: { title: string; anilistId: number
   );
 }
 
-function Field({ label, children, htmlFor }: { label: string; children: ReactNode; htmlFor?: string }) {
+function Field({
+  label,
+  children,
+  htmlFor,
+}: {
+  label: string;
+  children: ReactNode;
+  htmlFor?: string;
+}) {
   return (
     <div className="mb-4">
-      <label htmlFor={htmlFor} className="mb-1.5 block text-[11.5px] font-semibold text-dim">{label}</label>
+      <label htmlFor={htmlFor} className="mb-1.5 block text-[11.5px] font-semibold text-dim">
+        {label}
+      </label>
       {children}
     </div>
   );

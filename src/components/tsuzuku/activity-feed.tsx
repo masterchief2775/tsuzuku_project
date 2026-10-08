@@ -2,13 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { Cover } from "@/components/tsuzuku/cover";
 import { SectionTitle } from "@/components/tsuzuku/ui";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import {
-  fetchFriendActivity,
-  markActivityRead,
-  type ActivityItem,
-} from "@/lib/activity-client";
+import { fetchFriendActivity, markActivityRead, type ActivityItem } from "@/lib/activity-client";
 import { authEnabled } from "@/lib/auth/client";
 import { useVisiblePolling } from "@/lib/polling";
 import { cn } from "@/lib/utils";
@@ -36,9 +33,7 @@ function labelFor(item: ActivityItem) {
       return (
         <>
           a noté <span className="font-semibold text-ink">{item.title}</span>
-          {item.rating != null ? (
-            <span className="text-lime"> · {item.rating}/10</span>
-          ) : null}
+          {item.rating != null ? <span className="text-lime"> · {item.rating}/10</span> : null}
         </>
       );
     case "friend_request":
@@ -107,9 +102,7 @@ export function ActivityFeed({ compact = true }: { compact?: boolean }) {
     const t = window.setTimeout(() => {
       void markActivityRead().then(() =>
         setItems((prev) =>
-          prev.map((i) =>
-            i.readAt ? i : { ...i, readAt: new Date().toISOString() },
-          ),
+          prev.map((i) => (i.readAt ? i : { ...i, readAt: new Date().toISOString() })),
         ),
       );
     }, 2500);
@@ -171,12 +164,10 @@ export function ActivityFeed({ compact = true }: { compact?: boolean }) {
                 <p className="mt-0.5 text-[11px] text-dim">{formatWhen(item.createdAt)}</p>
               </div>
               {item.image ? (
-                <img
+                <Cover
                   src={item.image}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="h-11 w-8 shrink-0 rounded object-cover"
+                  title={item.title ?? item.actorName}
+                  className="h-11 w-8 shrink-0 rounded"
                 />
               ) : null}
             </li>

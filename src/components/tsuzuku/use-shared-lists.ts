@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useVisiblePolling } from "@/lib/polling";
+import { friendlyErrorMessage } from "@/lib/error-message";
 import { listFriends, type FriendProfile } from "@/lib/friends";
 import {
   createSharedList,
@@ -28,7 +29,8 @@ export function useSharedListsIndex(userId: string | undefined) {
     } catch (err) {
       // Never swallow this: an empty `lists` reads as "you have no lists", so a
       // transient network failure would tell the user their lists are gone.
-      setError(err instanceof Error ? err.message : "Impossible de charger tes listes.");
+      // Technical statuses are translated — see `friendlyErrorMessage`.
+      setError(friendlyErrorMessage(err, "Impossible de charger tes listes."));
     } finally {
       setLoading(false);
     }
@@ -58,7 +60,7 @@ export function useSharedListsIndex(userId: string | undefined) {
         await reload();
         return res?.id ?? null;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erreur");
+        setError(friendlyErrorMessage(err, "Erreur"));
         return null;
       } finally {
         setBusy(false);
@@ -91,7 +93,7 @@ export function useSharedListDetail(listId: string, userId: string | undefined) 
       setDetail(null);
       // Reported, not silently turned into "not found": a 502 must not read as
       // "deleted or forbidden".
-      setError(err instanceof Error ? err.message : "Impossible de charger cette liste.");
+      setError(friendlyErrorMessage(err, "Impossible de charger cette liste."));
     } finally {
       setLoading(false);
     }
@@ -125,7 +127,7 @@ export function useSharedListDetail(listId: string, userId: string | undefined) 
         await fn();
         await reload();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erreur");
+        setError(friendlyErrorMessage(err, "Erreur"));
       } finally {
         setBusy(false);
       }

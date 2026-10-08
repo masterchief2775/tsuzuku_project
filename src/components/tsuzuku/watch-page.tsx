@@ -5,6 +5,7 @@ import { PlayerSurface } from "@/components/tsuzuku/player-surface";
 import { useWatchSession } from "@/components/tsuzuku/use-watch-session";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
+import { Cover } from "@/components/tsuzuku/cover";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -77,11 +78,15 @@ export function WatchPage() {
   }, [userId, hydrate]);
 
   const entry = useMemo(
-    () => (hydrated ? entries.find((e) => e.anilistId === anilistId) ?? null : null),
+    () => (hydrated ? (entries.find((e) => e.anilistId === anilistId) ?? null) : null),
     [entries, anilistId, hydrated],
   );
 
-  const [detail, setDetail] = useState<{ title: string; total: number | null; image: string | null } | null>(null);
+  const [detail, setDetail] = useState<{
+    title: string;
+    total: number | null;
+    image: string | null;
+  } | null>(null);
   const [loadError, setLoadError] = useState("");
   const [episodesOpen, setEpisodesOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -90,7 +95,8 @@ export function WatchPage() {
   const requestedEpisode = parseEpisodeParam(search.ep);
   // Fall back to the episode the user has already watched + 1: landing on the
   // next unwatched episode is what "continue watching" means everywhere else.
-  const fallbackEpisode = (entry ? Math.min((entry.progress ?? 0) + 1, entry.totalEpisodes ?? 1) : 1) || 1;
+  const fallbackEpisode =
+    (entry ? Math.min((entry.progress ?? 0) + 1, entry.totalEpisodes ?? 1) : 1) || 1;
   const initialEpisode = requestedEpisode ?? fallbackEpisode;
 
   const episodes: Episode[] = useMemo(
@@ -122,7 +128,16 @@ export function WatchPage() {
     };
   }, [anilistId, entry]);
 
-  const title = entry?.title ?? detail?.title ?? (Number.isFinite(anilistId) ? `Titre ${anilistId}` : "Lecteur");
+  const title =
+    entry?.title ??
+    detail?.title ??
+    (Number.isFinite(anilistId) ? `Titre ${anilistId}` : "Lecteur");
+
+  // Standalone route: AppShell never runs here, so the tab would keep the
+  // previous page's title.
+  useEffect(() => {
+    document.title = `${title} — Tsuzuku`;
+  }, [title]);
 
   // No "reprendre" prompt here: the session already restored the position when
   // it loaded (see `resumePosition` in `use-watch-session`), and the episode list
@@ -170,7 +185,11 @@ export function WatchPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      )
+        return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       // Space and Enter activate a focused control natively. Handling them here
       // too would toggle playback twice (once from the button's click, once from
@@ -215,7 +234,9 @@ export function WatchPage() {
     );
   }
 
-  const watchedCount = episodes.filter((e) => resumePosition(readResume(anilistId, e.number), e.duration) != null).length;
+  const watchedCount = episodes.filter(
+    (e) => resumePosition(readResume(anilistId, e.number), e.duration) != null,
+  ).length;
 
   return (
     <div className="ambient-bg flex min-h-dvh flex-col bg-bg text-ink">
@@ -251,7 +272,10 @@ export function WatchPage() {
       </header>
 
       <main className="mx-auto w-full max-w-[110rem] flex-1 px-4 py-5 sm:px-7">
-        <div data-player-root className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div
+          data-player-root
+          className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_24rem]"
+        >
           <div className="min-w-0">
             {loadError ? (
               <p role="alert" className="mb-3 text-sm text-crimson">
@@ -276,7 +300,8 @@ export function WatchPage() {
                   </p>
                   {hydrated && !entry ? (
                     <p className="mt-1 text-[12px] text-dim">
-                      Ce titre n&apos;est pas dans ta liste : ajoute-le pour suivre ta progression ici.
+                      Ce titre n&apos;est pas dans ta liste : ajoute-le pour suivre ta progression
+                      ici.
                     </p>
                   ) : null}
                 </div>
@@ -288,7 +313,9 @@ export function WatchPage() {
                   title={title}
                   episodeLabel={session.episode ? episodeNumberLabel(session.episodeNumber) : ""}
                   onNext={session.next != null ? () => session.goTo(session.next) : null}
-                  onPrevious={session.previous != null ? () => session.goTo(session.previous) : null}
+                  onPrevious={
+                    session.previous != null ? () => session.goTo(session.previous) : null
+                  }
                   onExit={exit}
                   onToggleFullscreen={toggleFullscreen}
                   isFullscreen={isFullscreen}
@@ -311,7 +338,10 @@ export function WatchPage() {
                       <h2 className="font-serif text-base font-semibold">Raccourcis clavier</h2>
                       <dl className="mt-3 space-y-1.5">
                         {SHORTCUTS.map((s) => (
-                          <div key={s.keys} className="flex items-center justify-between gap-3 text-[12.5px]">
+                          <div
+                            key={s.keys}
+                            className="flex items-center justify-between gap-3 text-[12.5px]"
+                          >
                             <dt className="text-dim">{s.action}</dt>
                             <dd className="shrink-0 rounded bg-bg px-1.5 py-0.5 font-bold tabular-nums">
                               {s.keys}
@@ -337,10 +367,10 @@ export function WatchPage() {
                 screen empty. */}
             <div className="mt-4 flex flex-wrap items-start gap-x-4 gap-y-3 rounded-[12px] border border-line bg-raised p-3.5">
               {entry?.image || detail?.image ? (
-                <img
+                <Cover
                   src={entry?.image ?? detail?.image ?? ""}
-                  alt=""
-                  className="h-24 w-16 shrink-0 rounded-[8px] border border-line object-cover"
+                  title={title}
+                  className="h-24 w-16 shrink-0 rounded-[8px] border border-line"
                 />
               ) : null}
               <div className="min-w-0 flex-1">
@@ -444,7 +474,11 @@ export function WatchPage() {
                           <span
                             className={cn(
                               "grid size-7 shrink-0 place-items-center rounded-[7px] text-[11px] font-bold tabular-nums",
-                              current ? "bg-lime text-bg" : done ? "bg-lime/20 text-lime" : "bg-bg text-dim",
+                              current
+                                ? "bg-lime text-bg"
+                                : done
+                                  ? "bg-lime/20 text-lime"
+                                  : "bg-bg text-dim",
                             )}
                           >
                             {done ? "✓" : ep.number}
@@ -473,8 +507,8 @@ export function WatchPage() {
                   })}
                   {episodes.length === 0 ? (
                     <li className="px-3.5 py-6 text-center text-[12.5px] text-dim">
-                      Ce titre n&apos;a pas de nombre d&apos;épisodes connu. Ajoute-le à ta liste pour
-                      voir ses épisodes ici.
+                      Ce titre n&apos;a pas de nombre d&apos;épisodes connu. Ajoute-le à ta liste
+                      pour voir ses épisodes ici.
                     </li>
                   ) : null}
                 </ol>
@@ -482,8 +516,8 @@ export function WatchPage() {
             </div>
 
             <p className="mt-3 px-1 text-[11.5px] leading-relaxed text-dim">
-              Épisodes listés d&apos;après AniList. Les durées sont estimées tant qu&apos;aucune source
-              n&apos;est branchée.
+              Épisodes listés d&apos;après AniList. Les durées sont estimées tant qu&apos;aucune
+              source n&apos;est branchée.
             </p>
           </aside>
         </div>

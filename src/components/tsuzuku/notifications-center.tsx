@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, CheckCheck, Loader2, MessageCircle, UserPlus } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { Cover } from "@/components/tsuzuku/cover";
 import {
   fetchFriendActivity,
   invalidateBadgeCache,
@@ -181,11 +182,7 @@ export function NotificationsCenter() {
           "relative rounded-[10px] border border-line/80 bg-raised/95 p-2.5 text-dim shadow-sm transition hover:border-lime/40 hover:text-ink",
           open && "border-lime/40 text-lime",
         )}
-        aria-label={
-          badgeCount > 0
-            ? `Notifications, ${badgeCount} non lues`
-            : "Notifications"
-        }
+        aria-label={badgeCount > 0 ? `Notifications, ${badgeCount} non lues` : "Notifications"}
         aria-expanded={open}
       >
         <Bell className="size-4" />
@@ -290,15 +287,13 @@ export function NotificationsCenter() {
                       </p>
                       <p className="mt-0.5 text-[11px] text-dim">{formatWhen(item.createdAt)}</p>
                     </div>
-                      {item.image ? (
-                        <img
-                          src={item.image}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          className="h-11 w-8 shrink-0 rounded object-cover"
-                        />
-                      ) : null}
+                    {item.image ? (
+                      <Cover
+                        src={item.image}
+                        title={item.title ?? item.actorName}
+                        className="h-11 w-8 shrink-0 rounded"
+                      />
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -327,14 +322,14 @@ export function NotificationsCenter() {
                     onClick={() => void togglePref(kind)}
                     className={cn(
                       "relative h-5 w-9 shrink-0 rounded-full transition",
-                      prefs?.[kind] ?? true ? "bg-lime" : "bg-line",
+                      (prefs?.[kind] ?? true) ? "bg-lime" : "bg-line",
                       !prefs && "cursor-not-allowed opacity-50",
                     )}
                   >
                     <span
                       className={cn(
                         "absolute top-0.5 size-4 rounded-full bg-white transition-all",
-                        prefs?.[kind] ?? true ? "left-[18px]" : "left-0.5",
+                        (prefs?.[kind] ?? true) ? "left-[18px]" : "left-0.5",
                       )}
                     />
                   </button>

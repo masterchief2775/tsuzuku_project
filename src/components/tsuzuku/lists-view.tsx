@@ -17,7 +17,9 @@ import {
   Users,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { Cover } from "@/components/tsuzuku/cover";
 import { EmptyState, PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
+import { useConfirmDialog } from "@/components/tsuzuku/use-confirm-dialog";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
   addSharedListItem,
@@ -127,7 +129,7 @@ function JoinByInvite({ token }: { token: string }) {
 function ListsIndex() {
   const { user, isPending: authLoading } = useCurrentUserState();
   const navigate = useNavigate();
-  const { lists, loading, busy, error, createList } = useSharedListsIndex(user?.id);
+  const { lists, loading, busy, error, reload, createList } = useSharedListsIndex(user?.id);
   const [name, setName] = useState("");
 
   async function onCreate(e: React.FormEvent) {
@@ -187,7 +189,21 @@ function ListsIndex() {
           Créer
         </button>
       </form>
-      {error ? <p className="mb-4 text-sm text-crimson">{error}</p> : null}
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-crimson/30 bg-crimson/10 px-3.5 py-3 text-sm text-crimson"
+        >
+          <span className="min-w-0 flex-1">{error}</span>
+          <button
+            type="button"
+            onClick={() => void reload()}
+            className="shrink-0 rounded-[8px] border border-crimson/40 px-2.5 py-1.5 text-xs font-bold transition hover:bg-crimson/15"
+          >
+            Réessayer
+          </button>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="flex justify-center py-12 text-dim">
@@ -241,7 +257,7 @@ function ListDetail({ listId }: { listId: string }) {
   const navigate = useNavigate();
   const entries = useWatchlistStore((s) => s.entries);
   const hydrate = useWatchlistStore((s) => s.hydrate);
-  const { detail, loading, friends, error, busy, run } = useSharedListDetail(
+  const { detail, loading, friends, error, busy, reload, run } = useSharedListDetail(
     listId,
     user?.id,
   );
@@ -258,6 +274,7 @@ function ListDetail({ listId }: { listId: string }) {
   const [sortBy, setSortBy] = useState<"votes" | "recent" | "title">("votes");
   const [copied, setCopied] = useState(false);
   const [roulettePick, setRoulettePick] = useState<SharedListItem | null>(null);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     if (user?.id) hydrate(user.id);
@@ -284,10 +301,7 @@ function ListDetail({ listId }: { listId: string }) {
     };
   }, [searchQ]);
 
-  const memberIds = useMemo(
-    () => new Set(detail?.members.map((m) => m.userId) ?? []),
-    [detail],
-  );
+  const memberIds = useMemo(() => new Set(detail?.members.map((m) => m.userId) ?? []), [detail]);
   const itemAnilistIds = useMemo(
     () => new Set(detail?.items.map((i) => i.anilistId) ?? []),
     [detail],
@@ -300,7 +314,9 @@ function ListDetail({ listId }: { listId: string }) {
     if (statusFilter !== "all") items = items.filter((i) => i.status === statusFilter);
     items = [...items];
     if (sortBy === "votes") {
-      items.sort((a, b) => b.voteCount - a.voteCount || +new Date(b.createdAt) - +new Date(a.createdAt));
+      items.sort(
+        (a, b) => b.voteCount - a.voteCount || +new Date(b.createdAt) - +new Date(a.createdAt),
+      );
     } else if (sortBy === "title") {
       items.sort((a, b) => a.title.localeCompare(b.title, "fr"));
     } else {
@@ -313,11 +329,13 @@ function ListDetail({ listId }: { listId: string }) {
     const pool = (detail?.items ?? []).filter(
       (i) => i.status === "planned" || i.status === "watching",
     );
-    return [...pool].sort(
-      (a, b) =>
-        (b.status === "watching" ? 1 : 0) - (a.status === "watching" ? 1 : 0) ||
-        b.voteCount - a.voteCount,
-    )[0] ?? null;
+    return (
+      [...pool].sort(
+        (a, b) =>
+          (b.status === "watching" ? 1 : 0) - (a.status === "watching" ? 1 : 0) ||
+          b.voteCount - a.voteCount,
+      )[0] ?? null
+    );
   }, [detail]);
 
   if (authLoading || loading) {
@@ -344,7 +362,9 @@ function ListDetail({ listId }: { listId: string }) {
         <p className="text-dim">Liste introuvable ou accès refusé.</p>
         <button
           type="button"
-          onClick={() => void navigate({ to: "/lists", search: { id: undefined, join: undefined } })}
+          onClick={() =>
+            void navigate({ to: "/lists", search: { id: undefined, join: undefined } })
+          }
           className="mt-3 text-sm font-semibold text-lime"
         >
           Retour aux listes
@@ -367,7 +387,9 @@ function ListDetail({ listId }: { listId: string }) {
       <div className="flex items-start gap-2.5">
         <button
           type="button"
-          onClick={() => void navigate({ to: "/lists", search: { id: undefined, join: undefined } })}
+          onClick={() =>
+            void navigate({ to: "/lists", search: { id: undefined, join: undefined } })
+          }
           className="mt-1 shrink-0 rounded-[10px] border border-line bg-raised p-2.5 text-dim transition hover:border-lime/40 hover:text-ink"
           aria-label="Retour aux listes"
         >
@@ -405,11 +427,13 @@ function ListDetail({ listId }: { listId: string }) {
                   type="button"
                   disabled={busy}
                   onClick={() => {
-                    if (!window.confirm("Supprimer cette liste pour tout le monde ?")) return;
-                    void run(async () => {
-                      await deleteSharedList(list.id);
-                      void navigate({ to: "/lists", search: { id: undefined, join: undefined } });
-                    });
+                    void (async () => {
+                      if (!(await confirm("Supprimer cette liste pour tout le monde ?"))) return;
+                      void run(async () => {
+                        await deleteSharedList(list.id);
+                        void navigate({ to: "/lists", search: { id: undefined, join: undefined } });
+                      });
+                    })();
                   }}
                   className="rounded-[10px] border border-line px-2.5 py-2 text-xs font-semibold text-dim transition hover:border-crimson/40 hover:text-crimson"
                 >
@@ -466,19 +490,31 @@ function ListDetail({ listId }: { listId: string }) {
         </form>
       ) : null}
 
-      {error ? <p className="mb-4 text-sm text-crimson">{error}</p> : null}
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-crimson/30 bg-crimson/10 px-3.5 py-3 text-sm text-crimson"
+        >
+          <span className="min-w-0 flex-1">{error}</span>
+          <button
+            type="button"
+            onClick={() => void reload()}
+            className="shrink-0 rounded-[8px] border border-crimson/40 px-2.5 py-1.5 text-xs font-bold transition hover:bg-crimson/15"
+          >
+            Réessayer
+          </button>
+        </div>
+      ) : null}
 
       {/* Next session */}
       {nextUp ? (
         <section className="mb-5 overflow-hidden rounded-[14px] border border-lime/35 bg-lime/5">
           <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
             {nextUp.image ? (
-              <img
+              <Cover
                 src={nextUp.image}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="mx-auto h-28 w-20 rounded-lg object-cover sm:mx-0"
+                title={nextUp.title}
+                className="mx-auto h-28 w-20 rounded-lg sm:mx-0"
               />
             ) : (
               <div className="mx-auto h-28 w-20 rounded-lg bg-line sm:mx-0" />
@@ -492,7 +528,9 @@ function ListDetail({ listId }: { listId: string }) {
               </div>
               <div className="mt-1 text-xs text-dim">
                 {STATUS_LABEL[nextUp.status] || nextUp.status}
-                {nextUp.voteCount > 0 ? ` · ${nextUp.voteCount} vote${nextUp.voteCount > 1 ? "s" : ""}` : ""}
+                {nextUp.voteCount > 0
+                  ? ` · ${nextUp.voteCount} vote${nextUp.voteCount > 1 ? "s" : ""}`
+                  : ""}
               </div>
               {canEdit ? (
                 <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
@@ -627,7 +665,9 @@ function ListDetail({ listId }: { listId: string }) {
         {memberOpen ? (
           <div className="mb-3 rounded-[10px] border border-line bg-bg p-2">
             {invitable.length === 0 ? (
-              <p className="px-2 py-1 text-xs text-dim">Aucun ami à inviter (ou utilise le lien).</p>
+              <p className="px-2 py-1 text-xs text-dim">
+                Aucun ami à inviter (ou utilise le lien).
+              </p>
             ) : (
               <ul className="max-h-40 space-y-1 overflow-y-auto">
                 {invitable.map((f) => (
@@ -637,7 +677,9 @@ function ListDetail({ listId }: { listId: string }) {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void run(() => addSharedListMember(list.id, f.userId, "editor"))}
+                      onClick={() =>
+                        void run(() => addSharedListMember(list.id, f.userId, "editor"))
+                      }
                       className="text-xs font-semibold text-lime"
                     >
                       Ajouter
@@ -702,11 +744,7 @@ function ListDetail({ listId }: { listId: string }) {
             Tous
           </FilterChip>
           {STATUS_ORDER.map((s) => (
-            <FilterChip
-              key={s}
-              active={statusFilter === s}
-              onClick={() => setStatusFilter(s)}
-            >
+            <FilterChip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
               {STATUS_LABEL[s]}
             </FilterChip>
           ))}
@@ -746,7 +784,7 @@ function ListDetail({ listId }: { listId: string }) {
                       return (
                         <li key={m.id} className="flex items-center gap-2 px-1 py-1">
                           {image ? (
-                            <img src={image} alt="" loading="lazy" decoding="async" className="h-9 w-6 rounded object-cover" />
+                            <Cover src={image} title={title} className="h-9 w-6 rounded" />
                           ) : (
                             <div className="h-9 w-6 rounded bg-line" />
                           )}
@@ -827,7 +865,7 @@ function ListDetail({ listId }: { listId: string }) {
                           {selected ? <Check className="size-3" /> : null}
                         </button>
                         {e.image ? (
-                          <img src={e.image} alt="" loading="lazy" decoding="async" className="h-9 w-6 rounded object-cover" />
+                          <Cover src={e.image} title={e.title} className="h-9 w-6 rounded" />
                         ) : (
                           <div className="h-9 w-6 rounded bg-line" />
                         )}
@@ -869,7 +907,7 @@ function ListDetail({ listId }: { listId: string }) {
                 className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-2.5 py-2"
               >
                 {item.image ? (
-                  <img src={item.image} alt="" loading="lazy" decoding="async" className="h-14 w-10 rounded object-cover" />
+                  <Cover src={item.image} title={item.title} className="h-14 w-10 rounded" />
                 ) : (
                   <div className="h-14 w-10 rounded bg-line" />
                 )}
@@ -887,7 +925,9 @@ function ListDetail({ listId }: { listId: string }) {
                           key={s}
                           type="button"
                           disabled={busy || item.status === s}
-                          onClick={() => void run(() => setSharedListItemStatus(list.id, item.id, s))}
+                          onClick={() =>
+                            void run(() => setSharedListItemStatus(list.id, item.id, s))
+                          }
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[10px] font-semibold",
                             item.status === s
@@ -930,6 +970,7 @@ function ListDetail({ listId }: { listId: string }) {
           </ul>
         )}
       </section>
+      {confirmDialog}
     </div>
   );
 }

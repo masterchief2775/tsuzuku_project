@@ -16,14 +16,11 @@ import {
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { Cover } from "@/components/tsuzuku/cover";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { useConfirmDialog } from "@/components/tsuzuku/use-confirm-dialog";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useVisiblePolling } from "@/lib/polling";
 import { useWatchlistStore } from "@/store/watchlist-store";
-import {
-  fetchMediaById,
-  searchMetaLine,
-  type AniListMedia,
-} from "@/lib/watchlist";
+import { fetchMediaById, searchMetaLine, type AniListMedia } from "@/lib/watchlist";
 import {
   closeParty,
   getParty,
@@ -74,6 +71,7 @@ function PartyRoomPage() {
   const [chatBody, setChatBody] = useState("");
   const [copied, setCopied] = useState(false);
   const [epDraft, setEpDraft] = useState("");
+  const { confirm, confirmDialog } = useConfirmDialog();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMsgId = useRef<string | null>(null);
 
@@ -155,9 +153,7 @@ function PartyRoomPage() {
   // downgrades someone ahead, never touches Completed, and never self-bumps
   // the host on room creation (armed silently on first load).
   const myEntry =
-    detail?.anilistId != null
-      ? entries.find((e) => e.anilistId === detail.anilistId)
-      : undefined;
+    detail?.anilistId != null ? entries.find((e) => e.anilistId === detail.anilistId) : undefined;
   useEffect(() => {
     if (!detail) return;
     const firstLoad = lastSyncedEpisode.current === null;
@@ -358,7 +354,9 @@ function PartyRoomPage() {
                 Ajouter à ma liste
               </button>
             ) : (
-              <p className="text-xs text-dim">Ajoute ce titre depuis la recherche pour le suivre.</p>
+              <p className="text-xs text-dim">
+                Ajoute ce titre depuis la recherche pour le suivre.
+              </p>
             )}
           </div>
         </div>
@@ -374,7 +372,11 @@ function PartyRoomPage() {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void run(() => setPartyEpisode({ data: { roomId, episode: detail.episode - 1 } }))}
+                  onClick={() =>
+                    void run(() =>
+                      setPartyEpisode({ data: { roomId, episode: detail.episode - 1 } }),
+                    )
+                  }
                   className="flex size-11 items-center justify-center rounded-[8px] border border-line bg-bg text-dim hover:text-ink disabled:opacity-40 sm:h-auto sm:w-auto sm:p-1.5"
                   aria-label="Épisode précédent"
                 >
@@ -386,7 +388,11 @@ function PartyRoomPage() {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void run(() => setPartyEpisode({ data: { roomId, episode: detail.episode + 1 } }))}
+                  onClick={() =>
+                    void run(() =>
+                      setPartyEpisode({ data: { roomId, episode: detail.episode + 1 } }),
+                    )
+                  }
                   className="flex size-11 items-center justify-center rounded-[8px] border border-line bg-bg text-dim hover:text-ink disabled:opacity-40 sm:h-auto sm:w-auto sm:p-1.5"
                   aria-label="Épisode suivant"
                 >
@@ -466,7 +472,9 @@ function PartyRoomPage() {
                 <div className="truncate text-sm font-semibold">
                   {m.displayName}
                   {m.isHost ? <span className="ml-1.5 text-[10px] text-dim">HÔTE</span> : null}
-                  {m.userId === user.id ? <span className="ml-1.5 text-[10px] text-lime">toi</span> : null}
+                  {m.userId === user.id ? (
+                    <span className="ml-1.5 text-[10px] text-lime">toi</span>
+                  ) : null}
                 </div>
               </div>
               <span
@@ -560,8 +568,9 @@ function PartyRoomPage() {
             type="button"
             disabled={busy}
             onClick={() => {
-              if (!window.confirm("Fermer la session pour tout le monde ? (chat effacé)")) return;
               void (async () => {
+                if (!(await confirm("Fermer la session pour tout le monde ? (chat effacé)")))
+                  return;
                 await closeParty({ data: { roomId } });
                 await refreshParties();
                 void navigate({ to: "/lists", search: { id: undefined, join: undefined } });
@@ -590,6 +599,7 @@ function PartyRoomPage() {
           </button>
         )}
       </div>
+      {confirmDialog}
     </div>
   );
 }

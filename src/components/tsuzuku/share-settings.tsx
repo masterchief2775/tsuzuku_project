@@ -31,9 +31,7 @@ export function ShareSettings({ open, onClose }: { open: boolean; onClose: () =>
   if (!open) return null;
 
   const shareUrl =
-    token && typeof window !== "undefined"
-      ? `${window.location.origin}/share/${token}`
-      : "";
+    token && typeof window !== "undefined" ? `${window.location.origin}/share/${token}` : "";
 
   const toggle = async () => {
     setLoading(true);

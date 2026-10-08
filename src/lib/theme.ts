@@ -18,7 +18,14 @@ const STORAGE_KEY = "tsuzuku-theme";
 const SECRET_STORAGE_KEY = "tsuzuku-secret-themes";
 const LEGACY_SECRET_STORAGE_KEY = "tsuzuku-secret-theme";
 
-const STANDARD_THEME_IDS: StandardThemeId[] = ["dark", "light", "sakura", "ocean", "foret", "soleil"];
+const STANDARD_THEME_IDS: StandardThemeId[] = [
+  "dark",
+  "light",
+  "sakura",
+  "ocean",
+  "foret",
+  "soleil",
+];
 
 const ALL_SECRET_THEME_IDS: SecretThemeId[] = [
   "void",
@@ -100,7 +107,10 @@ export function getUnlockedSecretThemes(): SecretThemeId[] {
     }
   }
 
-  if (window.localStorage.getItem(LEGACY_SECRET_STORAGE_KEY) === "true" && !unlocked.includes("void")) {
+  if (
+    window.localStorage.getItem(LEGACY_SECRET_STORAGE_KEY) === "true" &&
+    !unlocked.includes("void")
+  ) {
     unlocked.push("void");
   }
 

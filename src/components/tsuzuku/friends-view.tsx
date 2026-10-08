@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  Check,
-  Loader2,
-  Search,
-  Ban,
-  UserMinus,
-  UserPlus,
-  X,
-} from "lucide-react";
+import { Check, Loader2, Search, Ban, UserMinus, UserPlus, X } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { Cover } from "@/components/tsuzuku/cover";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
@@ -22,22 +15,14 @@ import {
   type FriendProfile,
   type FriendRequest,
 } from "@/lib/friends";
-import {
-  blockUser,
-  listBlockedUsers,
-  unblockUser,
-  type BlockedUser,
-} from "@/lib/blocks";
-import {
-  fetchFriendActivity,
-  markActivityRead,
-  type ActivityItem,
-} from "@/lib/activity-client";
+import { blockUser, listBlockedUsers, unblockUser, type BlockedUser } from "@/lib/blocks";
+import { fetchFriendActivity, markActivityRead, type ActivityItem } from "@/lib/activity-client";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 import { useVisiblePolling } from "@/lib/polling";
 import { FriendCompareButton } from "@/components/tsuzuku/friend-compare";
 import { PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
+import { useConfirmDialog } from "@/components/tsuzuku/use-confirm-dialog";
 
 function presenceLabel(friend: FriendProfile): string {
   if (friend.isOnline) return "En ligne";
@@ -65,6 +50,7 @@ export function FriendsView() {
   const [okMsg, setOkMsg] = useState("");
 
   const [searchQ, setSearchQ] = useState("");
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [searchResults, setSearchResults] = useState<PublicProfile[]>([]);
   const [searching, setSearching] = useState(false);
 
@@ -156,306 +142,324 @@ export function FriendsView() {
         title="Amis"
         description="Demandes, comparaisons et activité de ton cercle."
       />
-        {error ? (
-          <p className="rounded-[10px] border border-crimson/30 bg-crimson/10 px-3 py-2 text-sm text-crimson">
-            {error}
-          </p>
-        ) : null}
-        {okMsg ? (
-          <p className="rounded-[10px] border border-lime/30 bg-lime/10 px-3 py-2 text-sm text-lime">
-            {okMsg}
-          </p>
-        ) : null}
+      {error ? (
+        <p className="rounded-[10px] border border-crimson/30 bg-crimson/10 px-3 py-2 text-sm text-crimson">
+          {error}
+        </p>
+      ) : null}
+      {okMsg ? (
+        <p className="rounded-[10px] border border-lime/30 bg-lime/10 px-3 py-2 text-sm text-lime">
+          {okMsg}
+        </p>
+      ) : null}
 
-        {/* Search & add */}
-        <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <SectionTitle title="Ajouter un ami" />
-          <p className="-mt-1 mb-3 text-xs text-dim">
-            Cherche un pseudo Tsuzuku et envoie une demande.
-          </p>
-          <div className="relative mt-3">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-dim" />
-            <input
-              value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="Pseudo ou nom…"
-              className="w-full rounded-[10px] border border-line bg-bg py-2.5 pr-3 pl-10 text-sm outline-none focus:border-lime/50"
-            />
-          </div>
-          {searching ? <p className="mt-2 text-xs text-dim">Recherche…</p> : null}
-          {searchResults.length > 0 ? (
-            <ul className="mt-3 space-y-1">
-              {searchResults
-                .filter((p) => p.userId !== user.id)
-                .map((p) => {
-                  const alreadyFriend = friends.some((f) => f.userId === p.userId);
-                  const pendingOut = outgoing.some((r) => r.other.userId === p.userId);
-                  const pendingIn = incoming.some((r) => r.other.userId === p.userId);
-                  return (
-                    <li
-                      key={p.userId}
-                      className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2"
-                    >
-                      <Link to="/u/$username" params={{ username: p.username }} className="shrink-0">
-                        <ProfileAvatar name={p.displayName} src={p.avatarUrl} size="sm" />
-                      </Link>
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          to="/u/$username"
-                          params={{ username: p.username }}
-                          className="block truncate text-sm font-semibold hover:text-lime"
-                        >
-                          {p.displayName}
-                        </Link>
-                        <div className="text-xs text-dim">@{p.username}</div>
-                      </div>
-                      {alreadyFriend ? (
-                        <span className="text-xs font-semibold text-lime">Ami</span>
-                      ) : pendingOut ? (
-                        <span className="text-xs text-dim">Demande envoyée</span>
-                      ) : pendingIn ? (
-                        <span className="text-xs text-dim">Te l’a demandée</span>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={busyId === p.userId}
-                          onClick={() =>
-                            void run(
-                              p.userId,
-                              () => sendFriendRequest({ data: { userId: p.userId } }),
-                              "Demande envoyée",
-                            )
-                          }
-                          className="inline-flex items-center gap-1 rounded-[8px] border border-lime/40 bg-lime/10 px-2.5 py-1.5 text-xs font-semibold text-lime disabled:opacity-50"
-                        >
-                          <UserPlus className="size-3.5" />
-                          Ajouter
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
-            </ul>
-          ) : null}
-        </section>
-
-        {/* Incoming */}
-        {incoming.length > 0 ? (
-          <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-            <SectionTitle title={`Demandes reçues`} count={incoming.length} />
-            <ul className="mt-3 space-y-2">
-              {incoming.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
-                >
-                  <Link
-                    to="/u/$username"
-                    params={{ username: r.other.username }}
-                    className="shrink-0"
+      {/* Search & add */}
+      <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
+        <SectionTitle title="Ajouter un ami" />
+        <p className="-mt-1 mb-3 text-xs text-dim">
+          Cherche un pseudo Tsuzuku et envoie une demande.
+        </p>
+        <div className="relative mt-3">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-dim" />
+          <input
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            placeholder="Pseudo ou nom…"
+            className="w-full rounded-[10px] border border-line bg-bg py-2.5 pr-3 pl-10 text-sm outline-none focus:border-lime/50"
+          />
+        </div>
+        {searching ? <p className="mt-2 text-xs text-dim">Recherche…</p> : null}
+        {searchResults.length > 0 ? (
+          <ul className="mt-3 space-y-1">
+            {searchResults
+              .filter((p) => p.userId !== user.id)
+              .map((p) => {
+                const alreadyFriend = friends.some((f) => f.userId === p.userId);
+                const pendingOut = outgoing.some((r) => r.other.userId === p.userId);
+                const pendingIn = incoming.some((r) => r.other.userId === p.userId);
+                return (
+                  <li
+                    key={p.userId}
+                    className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2"
                   >
-                    <ProfileAvatar name={r.other.displayName} src={r.other.avatarUrl} size="sm" />
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold">{r.other.displayName}</div>
-                    <div className="text-xs text-dim">@{r.other.username}</div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={busyId === r.id}
-                    onClick={() =>
-                      void run(r.id, () => acceptFriendRequest({ data: { requestId: r.id } }), "Ami ajouté")
-                    }
-                    className="inline-flex items-center gap-1 rounded-[8px] bg-lime px-2.5 py-1.5 text-xs font-bold text-bg disabled:opacity-50"
-                  >
-                    <Check className="size-3.5" />
-                    Accepter
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busyId === r.id}
-                    onClick={() =>
-                      void run(r.id, () => rejectFriendRequest({ data: { requestId: r.id } }), "Demande refusée")
-                    }
-                    className="inline-flex items-center gap-1 rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim disabled:opacity-50"
-                  >
-                    <X className="size-3.5" />
-                    Refuser
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {/* Outgoing */}
-        {outgoing.length > 0 ? (
-          <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-            <SectionTitle title="Demandes envoyées" count={outgoing.length} />
-            <ul className="mt-3 space-y-2">
-              {outgoing.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
-                >
-                  <Link
-                    to="/u/$username"
-                    params={{ username: r.other.username }}
-                    className="shrink-0"
-                  >
-                    <ProfileAvatar name={r.other.displayName} src={r.other.avatarUrl} size="sm" />
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold">{r.other.displayName}</div>
-                    <div className="text-xs text-dim">En attente</div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={busyId === r.id}
-                    onClick={() =>
-                      void run(
-                        r.id,
-                        () => removeFriendship({ data: { requestId: r.id } }),
-                        "Demande annulée",
-                      )
-                    }
-                    className="rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim disabled:opacity-50"
-                  >
-                    Annuler
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-
-        <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <SectionTitle title="Activité récente" />
-          {activity.length === 0 ? (
-            <p className="mt-3 text-sm text-dim">
-              Quand un ami termine un titre, le note, ou t’envoie une demande, ça apparaît ici.
-            </p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {activity.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex items-start gap-2.5 rounded-[10px] border border-line bg-bg px-3 py-2 text-sm"
-                >
-                  <ProfileAvatar name={a.actorName} src={a.actorAvatar} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-dim">
+                    <Link to="/u/$username" params={{ username: p.username }} className="shrink-0">
+                      <ProfileAvatar name={p.displayName} src={p.avatarUrl} size="sm" />
+                    </Link>
+                    <div className="min-w-0 flex-1">
                       <Link
                         to="/u/$username"
-                        params={{ username: a.actorUsername }}
-                        className="font-semibold text-ink hover:text-lime"
+                        params={{ username: p.username }}
+                        className="block truncate text-sm font-semibold hover:text-lime"
                       >
-                        {a.actorName}
-                      </Link>{" "}
-                      {a.kind === "completed" && (
-                        <>
-                          a terminé <span className="font-semibold text-ink">{a.title}</span>
-                        </>
-                      )}
-                      {a.kind === "rated" && (
-                        <>
-                          a noté <span className="font-semibold text-ink">{a.title}</span>
-                          {a.rating != null ? ` · ${a.rating}/10` : ""}
-                        </>
-                      )}
-                      {a.kind === "friend_request" && <>t’a envoyé une demande d’ami</>}
-                      {a.kind === "friend_accept" && <>a accepté ta demande d’ami</>}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-dim">
-                      {new Date(a.createdAt).toLocaleString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                  {a.image ? (
-                    <img src={a.image} alt="" loading="lazy" decoding="async" className="h-11 w-8 rounded object-cover" />
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                        {p.displayName}
+                      </Link>
+                      <div className="text-xs text-dim">@{p.username}</div>
+                    </div>
+                    {alreadyFriend ? (
+                      <span className="text-xs font-semibold text-lime">Ami</span>
+                    ) : pendingOut ? (
+                      <span className="text-xs text-dim">Demande envoyée</span>
+                    ) : pendingIn ? (
+                      <span className="text-xs text-dim">Te l’a demandée</span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busyId === p.userId}
+                        onClick={() =>
+                          void run(
+                            p.userId,
+                            () => sendFriendRequest({ data: { userId: p.userId } }),
+                            "Demande envoyée",
+                          )
+                        }
+                        className="inline-flex items-center gap-1 rounded-[8px] border border-lime/40 bg-lime/10 px-2.5 py-1.5 text-xs font-semibold text-lime disabled:opacity-50"
+                      >
+                        <UserPlus className="size-3.5" />
+                        Ajouter
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+          </ul>
+        ) : null}
+      </section>
 
-        {/* Friend list */}
+      {/* Incoming */}
+      {incoming.length > 0 ? (
         <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <SectionTitle title="Ma liste d'amis" count={friends.length} />
-          {loading ? (
-            <div className="flex justify-center py-10 text-dim">
-              <Loader2 className="size-5 animate-spin" />
-            </div>
-          ) : friends.length === 0 ? (
-            <p className="mt-3 text-sm text-dim">
-              Aucun ami pour l’instant. Cherche un pseudo ci-dessus pour envoyer une demande.
-            </p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {friends.map((f) => (
-                <li
-                  key={f.userId}
-                  className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
+          <SectionTitle title={`Demandes reçues`} count={incoming.length} />
+          <ul className="mt-3 space-y-2">
+            {incoming.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
+              >
+                <Link
+                  to="/u/$username"
+                  params={{ username: r.other.username }}
+                  className="shrink-0"
                 >
-                  <Link to="/u/$username" params={{ username: f.username }} className="relative shrink-0">
-                    <ProfileAvatar name={f.displayName} src={f.avatarUrl} size="sm" />
-                    <span
-                      className={cn(
-                        "absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-bg",
-                        f.isOnline ? "bg-status-completed" : "bg-dim/70",
-                      )}
-                      title={f.isOnline ? "En ligne" : "Hors ligne"}
-                      aria-label={f.isOnline ? "En ligne" : "Hors ligne"}
-                    />
-                  </Link>
-                  <div className="min-w-0 flex-1">
+                  <ProfileAvatar name={r.other.displayName} src={r.other.avatarUrl} size="sm" />
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{r.other.displayName}</div>
+                  <div className="text-xs text-dim">@{r.other.username}</div>
+                </div>
+                <button
+                  type="button"
+                  disabled={busyId === r.id}
+                  onClick={() =>
+                    void run(
+                      r.id,
+                      () => acceptFriendRequest({ data: { requestId: r.id } }),
+                      "Ami ajouté",
+                    )
+                  }
+                  className="inline-flex items-center gap-1 rounded-[8px] bg-lime px-2.5 py-1.5 text-xs font-bold text-bg disabled:opacity-50"
+                >
+                  <Check className="size-3.5" />
+                  Accepter
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === r.id}
+                  onClick={() =>
+                    void run(
+                      r.id,
+                      () => rejectFriendRequest({ data: { requestId: r.id } }),
+                      "Demande refusée",
+                    )
+                  }
+                  className="inline-flex items-center gap-1 rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim disabled:opacity-50"
+                >
+                  <X className="size-3.5" />
+                  Refuser
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Outgoing */}
+      {outgoing.length > 0 ? (
+        <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
+          <SectionTitle title="Demandes envoyées" count={outgoing.length} />
+          <ul className="mt-3 space-y-2">
+            {outgoing.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
+              >
+                <Link
+                  to="/u/$username"
+                  params={{ username: r.other.username }}
+                  className="shrink-0"
+                >
+                  <ProfileAvatar name={r.other.displayName} src={r.other.avatarUrl} size="sm" />
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{r.other.displayName}</div>
+                  <div className="text-xs text-dim">En attente</div>
+                </div>
+                <button
+                  type="button"
+                  disabled={busyId === r.id}
+                  onClick={() =>
+                    void run(
+                      r.id,
+                      () => removeFriendship({ data: { requestId: r.id } }),
+                      "Demande annulée",
+                    )
+                  }
+                  className="rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
+        <SectionTitle title="Activité récente" />
+        {activity.length === 0 ? (
+          <p className="mt-3 text-sm text-dim">
+            Quand un ami termine un titre, le note, ou t’envoie une demande, ça apparaît ici.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {activity.map((a) => (
+              <li
+                key={a.id}
+                className="flex items-start gap-2.5 rounded-[10px] border border-line bg-bg px-3 py-2 text-sm"
+              >
+                <ProfileAvatar name={a.actorName} src={a.actorAvatar} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-dim">
                     <Link
                       to="/u/$username"
-                      params={{ username: f.username }}
-                      className="block truncate text-sm font-semibold hover:text-lime"
+                      params={{ username: a.actorUsername }}
+                      className="font-semibold text-ink hover:text-lime"
                     >
-                      {f.displayName}
-                    </Link>
-                    <div className="flex items-center gap-1.5 text-xs text-dim">
-                      <span>@{f.username}</span>
-                      <span className={f.isOnline ? "text-status-completed" : "text-dim"}>
-                        · {presenceLabel(f)}
-                      </span>
-                    </div>
+                      {a.actorName}
+                    </Link>{" "}
+                    {a.kind === "completed" && (
+                      <>
+                        a terminé <span className="font-semibold text-ink">{a.title}</span>
+                      </>
+                    )}
+                    {a.kind === "rated" && (
+                      <>
+                        a noté <span className="font-semibold text-ink">{a.title}</span>
+                        {a.rating != null ? ` · ${a.rating}/10` : ""}
+                      </>
+                    )}
+                    {a.kind === "friend_request" && <>t’a envoyé une demande d’ami</>}
+                    {a.kind === "friend_accept" && <>a accepté ta demande d’ami</>}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-dim">
+                    {new Date(a.createdAt).toLocaleString("fr-FR", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                {a.image ? (
+                  <Cover
+                    src={a.image}
+                    title={a.title ?? a.actorName}
+                    className="h-11 w-8 rounded"
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Friend list */}
+      <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
+        <SectionTitle title="Ma liste d'amis" count={friends.length} />
+        {loading ? (
+          <div className="flex justify-center py-10 text-dim">
+            <Loader2 className="size-5 animate-spin" />
+          </div>
+        ) : friends.length === 0 ? (
+          <p className="mt-3 text-sm text-dim">
+            Aucun ami pour l’instant. Cherche un pseudo ci-dessus pour envoyer une demande.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {friends.map((f) => (
+              <li
+                key={f.userId}
+                className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
+              >
+                <Link
+                  to="/u/$username"
+                  params={{ username: f.username }}
+                  className="relative shrink-0"
+                >
+                  <ProfileAvatar name={f.displayName} src={f.avatarUrl} size="sm" />
+                  <span
+                    className={cn(
+                      "absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-bg",
+                      f.isOnline ? "bg-status-completed" : "bg-dim/70",
+                    )}
+                    title={f.isOnline ? "En ligne" : "Hors ligne"}
+                    aria-label={f.isOnline ? "En ligne" : "Hors ligne"}
+                  />
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link
+                    to="/u/$username"
+                    params={{ username: f.username }}
+                    className="block truncate text-sm font-semibold hover:text-lime"
+                  >
+                    {f.displayName}
+                  </Link>
+                  <div className="flex items-center gap-1.5 text-xs text-dim">
+                    <span>@{f.username}</span>
+                    <span className={f.isOnline ? "text-status-completed" : "text-dim"}>
+                      · {presenceLabel(f)}
+                    </span>
                   </div>
-                  <FriendCompareButton friendUserId={f.userId} friendName={f.displayName} />
-                  <button
-                    type="button"
-                    disabled={busyId === f.userId}
-                    onClick={() => {
-                      if (!window.confirm(`Retirer ${f.displayName} de tes amis ?`)) return;
+                </div>
+                <FriendCompareButton friendUserId={f.userId} friendName={f.displayName} />
+                <button
+                  type="button"
+                  disabled={busyId === f.userId}
+                  onClick={() => {
+                    void (async () => {
+                      if (!(await confirm(`Retirer ${f.displayName} de tes amis ?`))) return;
                       void run(
                         f.userId,
                         () => removeFriendship({ data: { userId: f.userId } }),
                         "Ami retiré",
                       );
-                    }}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50",
-                    )}
-                  >
-                    <UserMinus className="size-3.5" />
-                    Retirer
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busyId === f.userId}
-                    onClick={() => {
+                    })();
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50",
+                  )}
+                >
+                  <UserMinus className="size-3.5" />
+                  Retirer
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === f.userId}
+                  onClick={() => {
+                    void (async () => {
                       if (
-                        !window.confirm(
+                        !(await confirm(
                           `Bloquer ${f.displayName} ? Amis retirés, plus de demandes possibles.`,
-                        )
+                        ))
                       )
                         return;
                       void run(
@@ -463,54 +467,55 @@ export function FriendsView() {
                         () => blockUser({ data: { userId: f.userId } }),
                         "Utilisateur bloqué",
                       );
-                    }}
-                    className="inline-flex items-center gap-1 rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50"
-                  >
-                    <Ban className="size-3.5" />
-                    Bloquer
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <SectionTitle icon={Ban} title="Utilisateurs bloqués" count={blocked.length} />
-          {blocked.length === 0 ? (
-            <p className="mt-3 text-sm text-dim">Personne n’est bloqué pour le moment.</p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {blocked.map((b) => (
-                <li
-                  key={b.userId}
-                  className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
+                    })();
+                  }}
+                  className="inline-flex items-center gap-1 rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson disabled:opacity-50"
                 >
-                  <ProfileAvatar name={b.displayName} src={b.avatarUrl} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold">{b.displayName}</div>
-                    <div className="text-xs text-dim">@{b.username}</div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={busyId === b.userId}
-                    onClick={() =>
-                      void run(
-                        b.userId,
-                        () => unblockUser({ data: { userId: b.userId } }),
-                        "Utilisateur débloqué",
-                      )
-                    }
-                    className="rounded-[8px] border border-lime/40 bg-lime/10 px-2.5 py-1.5 text-xs font-semibold text-lime disabled:opacity-50"
-                  >
-                    Débloquer
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                  <Ban className="size-3.5" />
+                  Bloquer
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
+        <SectionTitle icon={Ban} title="Utilisateurs bloqués" count={blocked.length} />
+        {blocked.length === 0 ? (
+          <p className="mt-3 text-sm text-dim">Personne n’est bloqué pour le moment.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {blocked.map((b) => (
+              <li
+                key={b.userId}
+                className="flex items-center gap-3 rounded-[10px] border border-line bg-bg px-3 py-2.5"
+              >
+                <ProfileAvatar name={b.displayName} src={b.avatarUrl} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{b.displayName}</div>
+                  <div className="text-xs text-dim">@{b.username}</div>
+                </div>
+                <button
+                  type="button"
+                  disabled={busyId === b.userId}
+                  onClick={() =>
+                    void run(
+                      b.userId,
+                      () => unblockUser({ data: { userId: b.userId } }),
+                      "Utilisateur débloqué",
+                    )
+                  }
+                  className="rounded-[8px] border border-lime/40 bg-lime/10 px-2.5 py-1.5 text-xs font-semibold text-lime disabled:opacity-50"
+                >
+                  Débloquer
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {confirmDialog}
     </div>
   );
 }
-

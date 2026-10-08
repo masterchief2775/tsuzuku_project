@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -44,121 +44,166 @@ export function AppPrimaryNav({ className }: { className?: string }) {
   const view = useWatchlistStore((s) => s.view);
   const setView = useWatchlistStore((s) => s.setView);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const onHome = pathname === "/" || pathname === "";
   // Shared cache: zero extra queries when NotificationsCenter already polls.
   const { unreadMessages } = useBadgeCounts(useCurrentUserState().user?.id);
 
-  return (
-    <nav
-      className={cn(
-        "ui-panel flex max-w-full flex-col gap-1 p-1 sm:flex-row sm:overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-        className,
-      )}
-      aria-label="Navigation principale"
-    >
-      <button
-        type="button"
-        className="flex items-center justify-between rounded-[10px] px-2.5 py-2 text-xs font-semibold text-dim hover:bg-bg hover:text-ink sm:hidden"
-        onClick={() => setMobileOpen((value) => !value)}
-        aria-expanded={mobileOpen}
-        aria-controls="primary-navigation-items"
-      >
-        <span className="flex items-center gap-2">
-          {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
-          Menu
-        </span>
-        <span className="text-[11px] text-dim">{ITEMS.find((item) => {
-          if (item.kind === "route") return pathname === item.to || pathname.startsWith(item.to + "/");
-          return onHome && view === item.id;
-        })?.short ?? "Navigation"}</span>
-      </button>
-      <div
-        id="primary-navigation-items"
-        className={cn(
-          "max-w-full gap-1 sm:flex sm:flex-row sm:overflow-x-auto",
-          mobileOpen ? "flex flex-col" : "hidden",
-        )}
-      >
-      {ITEMS.map((item) => {
-        const Icon = item.icon;
-        const active =
-          item.kind === "route"
-            ? pathname === item.to || pathname.startsWith(item.to + "/")
-            : onHome && view === item.id;
+  const isActive = (item: NavItem) =>
+    item.kind === "route"
+      ? pathname === item.to || pathname.startsWith(item.to + "/")
+      : onHome && view === item.id;
 
-        const baseClass = cn(
-          "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-xs font-semibold transition-all duration-200 sm:px-3 sm:text-[13px]",
-          active
-            ? "bg-lime text-bg shadow-[0_8px_18px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]"
-            : "text-dim hover:bg-bg hover:text-ink",
-        );
+  const currentLabel = ITEMS.find((item) => isActive(item))?.short ?? "Navigation";
 
-        if (item.kind === "route") {
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cn(baseClass, "relative")}
-              title={item.label}
-              aria-current={active ? "page" : undefined}
-              onClick={() => setMobileOpen(false)}
-            >
-              <Icon className="size-3.5 shrink-0 sm:size-4" />
-              <span className="hidden sm:inline">{item.label}</span>
-              <span className="sm:hidden">{item.short}</span>
-              {item.to === "/messages" && unreadMessages > 0 ? (
-                <span
-                  className={cn(
-                    "flex size-4 items-center justify-center rounded-full text-[9px] font-bold",
-                    active ? "bg-bg text-lime" : "bg-crimson text-white",
-                  )}
-                  aria-label={`${unreadMessages} message${unreadMessages > 1 ? "s" : ""} non lu${unreadMessages > 1 ? "s" : ""}`}
-                >
-                  {unreadMessages > 9 ? "9+" : unreadMessages}
-                </span>
-              ) : null}
-            </Link>
-          );
-        }
+  // The mobile panel floats above the page (it must never push content down).
+  // Close it on outside tap and on Escape.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    panelRef.current?.focus({ preventScroll: true });
+    const onPointerDown = (event: PointerEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setMobileOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mobileOpen]);
 
-        if (!onHome) {
-          return (
-            <Link
-              key={item.id}
-              to="/"
-              className={baseClass}
-              title={item.label}
-              aria-current={active ? "page" : undefined}
-              onClick={() => {
-                setMobileOpen(false);
-                window.setTimeout(() => setView(item.id), 0);
-              }}
-            >
-              <Icon className="size-3.5 shrink-0 sm:size-4" />
-              <span className="hidden sm:inline">{item.label}</span>
-              <span className="sm:hidden">{item.short}</span>
-            </Link>
-          );
-        }
+  const goView = (id: ViewId) => {
+    setMobileOpen(false);
+    if (onHome) {
+      setView(id);
+    } else {
+      window.setTimeout(() => setView(id), 0);
+    }
+  };
 
-        return (
-          <button
-            key={item.id}
-            type="button"
-            className={baseClass}
-            title={item.label}
-            aria-current={active ? "page" : undefined}
-            onClick={() => {
-              setMobileOpen(false);
-              setView(item.id);
-            }}
+  const renderItem = (item: NavItem, variant: "bar" | "overlay") => {
+    const Icon = item.icon;
+    const active = isActive(item);
+    const overlay = variant === "overlay";
+
+    const itemClass = cn(
+      "flex items-center gap-1.5 rounded-[10px] font-semibold transition-all duration-200",
+      overlay
+        ? "min-h-12 gap-3 px-3 py-3 text-sm"
+        : "shrink-0 px-2.5 py-1.5 text-xs sm:px-3 sm:text-[13px]",
+      active
+        ? "bg-lime text-bg shadow-[0_8px_18px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]"
+        : "text-dim hover:bg-bg hover:text-ink",
+    );
+
+    const content = (
+      <>
+        <Icon className={cn("shrink-0", overlay ? "size-5" : "size-3.5 sm:size-4")} />
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        {item.kind === "route" && item.to === "/messages" && unreadMessages > 0 ? (
+          <span
+            className={cn(
+              "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold",
+              active ? "bg-bg text-lime" : "bg-crimson text-bg",
+            )}
+            aria-label={`${unreadMessages} message${unreadMessages > 1 ? "s" : ""} non lu${unreadMessages > 1 ? "s" : ""}`}
           >
-            <Icon className="size-3.5 shrink-0 sm:size-4" />
-            <span className="hidden sm:inline">{item.label}</span>
-            <span className="sm:hidden">{item.short}</span>
-          </button>
-        );
-      })}
+            {unreadMessages > 9 ? "9+" : unreadMessages}
+          </span>
+        ) : null}
+      </>
+    );
+
+    if (item.kind === "route") {
+      return (
+        <Link
+          key={item.to}
+          to={item.to}
+          className={cn(itemClass, "relative")}
+          title={item.label}
+          aria-current={active ? "page" : undefined}
+          onClick={() => setMobileOpen(false)}
+        >
+          {content}
+        </Link>
+      );
+    }
+
+    if (!onHome) {
+      return (
+        <Link
+          key={item.id}
+          to="/"
+          className={itemClass}
+          title={item.label}
+          aria-current={active ? "page" : undefined}
+          onClick={() => goView(item.id)}
+        >
+          {content}
+        </Link>
+      );
+    }
+
+    return (
+      <button
+        key={item.id}
+        type="button"
+        className={cn(itemClass, overlay && "w-full text-left")}
+        title={item.label}
+        aria-current={active ? "page" : undefined}
+        onClick={() => goView(item.id)}
+      >
+        {content}
+      </button>
+    );
+  };
+
+  return (
+    <nav aria-label="Navigation principale" className={cn("relative", className)}>
+      {/* Mobile: compact bar + floating overlay panel (never pushes content). */}
+      <div className="sm:hidden">
+        <button
+          type="button"
+          className="flex min-h-12 w-full items-center justify-between gap-2 rounded-[12px] border border-line bg-raised px-3.5 text-sm font-semibold text-ink transition hover:border-lime/40"
+          onClick={() => setMobileOpen((value) => !value)}
+          aria-expanded={mobileOpen}
+          aria-controls="primary-navigation-items"
+        >
+          <span className="flex min-w-0 items-center gap-2.5">
+            {mobileOpen ? <X className="size-5 shrink-0" /> : <Menu className="size-5 shrink-0" />}
+            <span className="truncate">{mobileOpen ? "Fermer" : "Menu"}</span>
+          </span>
+          <span className="shrink-0 rounded-full bg-lime/15 px-2.5 py-1 text-[11px] font-bold text-lime">
+            {currentLabel}
+          </span>
+        </button>
+      </div>
+
+      {mobileOpen ? (
+        <div
+          ref={panelRef}
+          tabIndex={-1}
+          className="absolute inset-x-0 top-[calc(100%+8px)] z-50 outline-none sm:hidden"
+        >
+          <div
+            id="primary-navigation-items"
+            className="max-h-[70dvh] overflow-y-auto rounded-[14px] border border-line bg-raised p-2 shadow-2xl"
+          >
+            <div className="grid grid-cols-2 gap-1">
+              {ITEMS.map((item) => renderItem(item, "overlay"))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Desktop and up: wrapping pill row, no horizontal scrolling. */}
+      <div className="ui-panel hidden max-w-full flex-row flex-wrap gap-1 p-1 sm:flex">
+        {ITEMS.map((item) => renderItem(item, "bar"))}
       </div>
     </nav>
   );

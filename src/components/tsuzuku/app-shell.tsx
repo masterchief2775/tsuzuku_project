@@ -131,7 +131,10 @@ export function AppShell() {
       if (s.view === prev.view && s.activeEntryId === prev.activeEntryId) return;
       if (router.state.location.pathname !== "/") return;
       const params = new URLSearchParams(router.state.location.search);
-      if (params.get("v") === s.view && (params.get("entry") ?? null) === (s.activeEntryId ?? null)) {
+      if (
+        params.get("v") === s.view &&
+        (params.get("entry") ?? null) === (s.activeEntryId ?? null)
+      ) {
         return;
       }
       const next = new URLSearchParams();
@@ -141,9 +144,25 @@ export function AppShell() {
     });
   }, [router]);
   // Tab title follows the view on home (share/profile routes set their own).
+  // Standalone routes (friends, lists, messages, profile, admin) used to keep
+  // the previous home view's title — each gets its own.
   useEffect(() => {
-    if (onHome) document.title = viewTitle(view);
-  }, [view, onHome]);
+    if (onHome) {
+      document.title = viewTitle(view);
+      return;
+    }
+    const routeTitles: [string, string][] = [
+      ["/friends", "Amis — Tsuzuku"],
+      ["/lists", "Listes partagées — Tsuzuku"],
+      ["/messages", "Messages — Tsuzuku"],
+      ["/profile", "Mon profil — Tsuzuku"],
+      ["/admin", "Administration — Tsuzuku"],
+    ];
+    const match = routeTitles.find(
+      ([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    );
+    if (match) document.title = match[1];
+  }, [view, onHome, pathname]);
 
   const refreshParties = useWatchlistStore((s) => s.refreshParties);
   // Slow background poll so the session badge appears/disappears on its own
@@ -230,8 +249,7 @@ export function AppShell() {
       const state = useWatchlistStore.getState();
       const target = ev.target as HTMLElement | null;
       const tag = target?.tagName;
-      const typing =
-        tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable;
+      const typing = tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable;
 
       if (ev.key === "Escape") {
         window.dispatchEvent(new CustomEvent("tsuzuku:close-help"));
@@ -294,7 +312,10 @@ export function AppShell() {
         <main className="mx-auto max-w-[1100px] px-4 py-6 sm:px-7">
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-[76px] animate-pulse rounded-[10px] border border-line bg-raised" />
+              <div
+                key={i}
+                className="h-[76px] animate-pulse rounded-[10px] border border-line bg-raised"
+              />
             ))}
           </div>
         </main>
@@ -326,7 +347,10 @@ export function AppShell() {
       >
         Aller au contenu
       </a>
-      <header ref={setHeaderRef} className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4">
+      <header
+        ref={setHeaderRef}
+        className="sticky top-0 z-30 border-b border-line/80 bg-bg/80 px-4 py-3 backdrop-blur-xl sm:px-7 sm:py-4"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           <Link to="/" className="flex items-center gap-3" onClick={() => setView("dashboard")}>
             <BrandMark />
@@ -368,11 +392,17 @@ export function AppShell() {
         </div>
       </header>
 
-      <main id="contenu" className="mx-auto w-full max-w-[1100px] flex-1 px-4 pt-6 pb-10 sm:px-7 sm:pb-12">
+      <main
+        id="contenu"
+        className="mx-auto w-full max-w-[1100px] flex-1 px-4 pt-6 pb-10 sm:px-7 sm:pb-12"
+      >
         {!hydrated ? (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-[76px] animate-pulse rounded-[10px] border border-line bg-raised" />
+              <div
+                key={i}
+                className="h-[76px] animate-pulse rounded-[10px] border border-line bg-raised"
+              />
             ))}
           </div>
         ) : pathname.startsWith("/profile") ? (

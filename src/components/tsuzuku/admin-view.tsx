@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck, Trash2 } from "lucide-react";
-import { deleteAdminUser, getAdminStatus, listAdminUsers, setAdminRole, type AdminUser } from "@/lib/admin";
+import {
+  deleteAdminUser,
+  getAdminStatus,
+  listAdminUsers,
+  setAdminRole,
+  type AdminUser,
+} from "@/lib/admin";
+import { useConfirmDialog } from "@/components/tsuzuku/use-confirm-dialog";
 
 export function AdminView() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   async function load() {
     setError("");
@@ -30,7 +38,9 @@ export function AdminView() {
     setError("");
     try {
       await setAdminRole({ data: { userId: user.id, role } });
-      setUsers((current) => current.map((item) => (item.id === user.id ? { ...item, role } : item)));
+      setUsers((current) =>
+        current.map((item) => (item.id === user.id ? { ...item, role } : item)),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de modifier le rôle.");
     } finally {
@@ -39,7 +49,7 @@ export function AdminView() {
   }
 
   async function deleteUser(user: AdminUser) {
-    if (!window.confirm(`Supprimer définitivement le compte ${user.email} ?`)) return;
+    if (!(await confirm(`Supprimer définitivement le compte ${user.email} ?`))) return;
     setBusyId(user.id);
     setError("");
     try {
@@ -72,7 +82,11 @@ export function AdminView() {
           <p className="text-sm text-dim">Gestion des utilisateurs et des rôles.</p>
         </div>
       </div>
-      {error ? <p className="mb-4 rounded-md border border-crimson/30 bg-crimson/10 p-3 text-sm text-crimson">{error}</p> : null}
+      {error ? (
+        <p className="mb-4 rounded-md border border-crimson/30 bg-crimson/10 p-3 text-sm text-crimson">
+          {error}
+        </p>
+      ) : null}
       <section className="ui-panel overflow-hidden p-2 sm:p-3">
         <div className="divide-y divide-line">
           {users.map((user) => (
@@ -107,6 +121,7 @@ export function AdminView() {
           ))}
         </div>
       </section>
+      {confirmDialog}
     </div>
   );
 }

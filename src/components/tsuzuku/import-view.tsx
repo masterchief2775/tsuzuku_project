@@ -197,9 +197,9 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
           {phase === "idle" ? (
             <>
               <p className="text-sm text-dim">
-                Dépose un export <strong className="text-ink">XML MyAnimeList</strong> ou un
-                fichier <strong className="text-ink">JSON AniList</strong>. Les doublons
-                (même id AniList) sont ignorés.
+                Dépose un export <strong className="text-ink">XML MyAnimeList</strong> ou un fichier{" "}
+                <strong className="text-ink">JSON AniList</strong>. Les doublons (même id AniList)
+                sont ignorés.
               </p>
               <div
                 onDragOver={(e) => {
@@ -261,9 +261,9 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
               </div>
               {preview.counts.ambiguous > 0 ? (
                 <p className="rounded-[8px] border border-status-hold/30 bg-status-hold/10 px-3 py-2 text-[12.5px] text-status-hold">
-                  {preview.counts.ambiguous} statut{preview.counts.ambiguous > 1 ? "s" : ""}{" "}
-                  ambigu{preview.counts.ambiguous > 1 ? "s" : ""} (ex. Rewatching) → mappé
-                  vers « En cours » à la confirmation, plutôt que deviné silencieusement.
+                  {preview.counts.ambiguous} statut{preview.counts.ambiguous > 1 ? "s" : ""} ambigu
+                  {preview.counts.ambiguous > 1 ? "s" : ""} (ex. Rewatching) → mappé vers « En cours
+                  » à la confirmation, plutôt que deviné silencieusement.
                 </p>
               ) : null}
               <div className="flex gap-2 pt-1">

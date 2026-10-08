@@ -241,14 +241,7 @@ html[data-theme="pride"] body {
     radial-gradient(ellipse 120% 80% at 10% 0%, rgba(255, 0, 90, 0.22), transparent 55%),
     radial-gradient(ellipse 100% 70% at 90% 10%, rgba(255, 200, 0, 0.18), transparent 50%),
     radial-gradient(ellipse 90% 60% at 50% 100%, rgba(0, 200, 255, 0.16), transparent 55%),
-    linear-gradient(
-      125deg,
-      #1a0f24 0%,
-      #2a1230 25%,
-      #1a2038 50%,
-      #1a0f24 75%,
-      #251028 100%
-    );
+    linear-gradient(125deg, #1a0f24 0%, #2a1230 25%, #1a2038 50%, #1a0f24 75%, #251028 100%);
   background-attachment: fixed;
 }
 
@@ -259,16 +252,7 @@ html[data-theme="pride"] .ambient-bg::before {
   inset: 0;
   z-index: 0;
   opacity: 0.35;
-  background: linear-gradient(
-    90deg,
-    #e40303,
-    #ff8c00,
-    #ffed00,
-    #008026,
-    #24408e,
-    #732982,
-    #e40303
-  );
+  background: linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #24408e, #732982, #e40303);
   background-size: 300% 100%;
   animation: pride-rainbow-shift 12s linear infinite;
   mix-blend-mode: soft-light;
@@ -280,23 +264,18 @@ html[data-theme="pride"] .ambient-bg > * {
 }
 
 @keyframes pride-rainbow-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 300% 50%;
+  }
 }
 
 html[data-theme="pride"] .font-serif,
 html[data-theme="pride"] h1,
 html[data-theme="pride"] h2 {
-  background: linear-gradient(
-    90deg,
-    #ff4d6d,
-    #ff9f1c,
-    #ffd60a,
-    #2ec4b6,
-    #4cc9f0,
-    #b5179e,
-    #ff4d6d
-  );
+  background: linear-gradient(90deg, #ff4d6d, #ff9f1c, #ffd60a, #2ec4b6, #4cc9f0, #b5179e, #ff4d6d);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -305,7 +284,9 @@ html[data-theme="pride"] h2 {
 }
 
 @keyframes pride-text-shift {
-  to { background-position: 200% center; }
+  to {
+    background-position: 200% center;
+  }
 }
 
 html[data-theme="pride"] .text-lime,
@@ -368,7 +349,11 @@ html[data-theme="pride"] .border-lime\/50 {
   html,
   body {
     background:
-      radial-gradient(circle at top, color-mix(in oklab, var(--color-lime) 8%, transparent), transparent 28%),
+      radial-gradient(
+        circle at top,
+        color-mix(in oklab, var(--color-lime) 8%, transparent),
+        transparent 28%
+      ),
       var(--color-bg);
     color: var(--color-ink);
     min-height: 100%;
@@ -529,7 +514,9 @@ html[data-theme="pride"] .border-lime\/50 {
     font: inherit;
     text-align: inherit;
     line-height: inherit;
-    transition: background-color 150ms ease, box-shadow 150ms ease;
+    transition:
+      background-color 150ms ease,
+      box-shadow 150ms ease;
   }
 
   .profile-inline-field::placeholder {
@@ -557,7 +544,9 @@ html[data-theme="pride"] .border-lime\/50 {
   .profile-inline-edit-avatar {
     cursor: pointer;
     border-radius: 999px;
-    transition: opacity 180ms ease, transform 180ms ease;
+    transition:
+      opacity 180ms ease,
+      transform 180ms ease;
   }
 
   .profile-inline-edit-avatar:hover {
@@ -566,11 +555,7 @@ html[data-theme="pride"] .border-lime\/50 {
   }
 
   .glass-panel {
-    background: color-mix(
-      in oklab,
-      var(--color-raised) 82%,
-      transparent
-    );
+    background: color-mix(in oklab, var(--color-raised) 82%, transparent);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
   }
@@ -584,22 +569,10 @@ html[data-theme="pride"] .border-lime\/50 {
 
   .hover-lift:hover {
     transform: translateY(-3px);
-    border-color: color-mix(
-      in oklab,
-      var(--color-lime) 38%,
-      var(--color-line)
-    );
+    border-color: color-mix(in oklab, var(--color-lime) 38%, var(--color-line));
     box-shadow:
-      0 12px 32px color-mix(
-        in oklab,
-        var(--color-bg) 48%,
-        transparent
-      ),
-      0 0 0 1px color-mix(
-        in oklab,
-        var(--color-lime) 8%,
-        transparent
-      );
+      0 12px 32px color-mix(in oklab, var(--color-bg) 48%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--color-lime) 8%, transparent);
   }
 
   .btn-glow {
@@ -614,36 +587,16 @@ html[data-theme="pride"] .border-lime\/50 {
 
   .btn-glow:not(:disabled) {
     box-shadow:
-      0 0 0 1px color-mix(
-        in oklab,
-        var(--color-lime) 18%,
-        transparent
-      ),
-      0 0 18px color-mix(
-        in oklab,
-        var(--color-lime) 16%,
-        transparent
-      );
+      0 0 0 1px color-mix(in oklab, var(--color-lime) 18%, transparent),
+      0 0 18px color-mix(in oklab, var(--color-lime) 16%, transparent);
   }
 
   .btn-glow:not(:disabled):hover {
     transform: translateY(-1px);
     box-shadow:
-      0 0 0 1px color-mix(
-        in oklab,
-        var(--color-lime) 30%,
-        transparent
-      ),
-      0 0 30px color-mix(
-        in oklab,
-        var(--color-lime) 38%,
-        transparent
-      ),
-      0 8px 24px color-mix(
-        in oklab,
-        var(--color-bg) 35%,
-        transparent
-      );
+      0 0 0 1px color-mix(in oklab, var(--color-lime) 30%, transparent),
+      0 0 30px color-mix(in oklab, var(--color-lime) 38%, transparent),
+      0 8px 24px color-mix(in oklab, var(--color-bg) 35%, transparent);
   }
 
   .btn-glow:not(:disabled):active {
@@ -651,10 +604,7 @@ html[data-theme="pride"] .border-lime\/50 {
   }
 
   .animate-fade-up {
-    animation:
-      tsuzuku-fade-up 0.45s
-      cubic-bezier(0.22, 1, 0.36, 1)
-      both;
+    animation: tsuzuku-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   /* =========================
@@ -662,11 +612,7 @@ html[data-theme="pride"] .border-lime\/50 {
      ========================= */
 
   .animate-spin-glow {
-    animation:
-      tsuzuku-spin-glow
-      1.35s
-      ease-in-out
-      infinite;
+    animation: tsuzuku-spin-glow 1.35s ease-in-out infinite;
   }
 
   /* =========================
@@ -674,11 +620,7 @@ html[data-theme="pride"] .border-lime\/50 {
      ========================= */
 
   .animate-marker-pulse {
-    animation:
-      tsuzuku-marker-pulse
-      0.95s
-      ease-in-out
-      infinite;
+    animation: tsuzuku-marker-pulse 0.95s ease-in-out infinite;
   }
 
   /* =========================
@@ -698,21 +640,16 @@ html[data-theme="pride"] .border-lime\/50 {
     z-index: 2;
     pointer-events: none;
 
-    background:
-      linear-gradient(
-        105deg,
-        transparent 35%,
-        rgb(255 255 255 / 0.38) 48%,
-        rgb(255 255 255 / 0.14) 52%,
-        transparent 65%
-      );
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      rgb(255 255 255 / 0.38) 48%,
+      rgb(255 255 255 / 0.14) 52%,
+      transparent 65%
+    );
 
     transform: translateX(-130%);
-    animation:
-      tsuzuku-shimmer
-      2.1s
-      cubic-bezier(0.22, 1, 0.36, 1)
-      infinite;
+    animation: tsuzuku-shimmer 2.1s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   }
 
   /* =========================
@@ -720,11 +657,7 @@ html[data-theme="pride"] .border-lime\/50 {
      ========================= */
 
   .animate-winner-pop {
-    animation:
-      tsuzuku-winner-pop
-      560ms
-      cubic-bezier(0.16, 1, 0.3, 1)
-      both;
+    animation: tsuzuku-winner-pop 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 }
 
@@ -747,72 +680,34 @@ html[data-theme="pride"] .border-lime\/50 {
 @keyframes tsuzuku-spin-glow {
   0%,
   100% {
-    border-color: color-mix(
-      in oklab,
-      var(--color-lime) 45%,
-      var(--color-line)
-    );
+    border-color: color-mix(in oklab, var(--color-lime) 45%, var(--color-line));
 
     box-shadow:
-      0 0 0 1px color-mix(
-        in oklab,
-        var(--color-lime) 15%,
-        transparent
-      ),
-      0 0 16px color-mix(
-        in oklab,
-        var(--color-lime) 14%,
-        transparent
-      ),
-      inset 0 0 18px color-mix(
-        in oklab,
-        var(--color-lime) 4%,
-        transparent
-      );
+      0 0 0 1px color-mix(in oklab, var(--color-lime) 15%, transparent),
+      0 0 16px color-mix(in oklab, var(--color-lime) 14%, transparent),
+      inset 0 0 18px color-mix(in oklab, var(--color-lime) 4%, transparent);
   }
 
   50% {
     border-color: var(--color-lime);
 
     box-shadow:
-      0 0 0 1px color-mix(
-        in oklab,
-        var(--color-lime) 42%,
-        transparent
-      ),
-      0 0 42px color-mix(
-        in oklab,
-        var(--color-lime) 32%,
-        transparent
-      ),
-      inset 0 0 24px color-mix(
-        in oklab,
-        var(--color-lime) 9%,
-        transparent
-      );
+      0 0 0 1px color-mix(in oklab, var(--color-lime) 42%, transparent),
+      0 0 42px color-mix(in oklab, var(--color-lime) 32%, transparent),
+      inset 0 0 24px color-mix(in oklab, var(--color-lime) 9%, transparent);
   }
 }
 
 @keyframes tsuzuku-marker-pulse {
   0%,
   100% {
-    box-shadow:
-      0 0 14px color-mix(
-        in oklab,
-        var(--color-lime) 24%,
-        transparent
-      );
+    box-shadow: 0 0 14px color-mix(in oklab, var(--color-lime) 24%, transparent);
 
     transform: scale(1);
   }
 
   50% {
-    box-shadow:
-      0 0 38px color-mix(
-        in oklab,
-        var(--color-lime) 58%,
-        transparent
-      );
+    box-shadow: 0 0 38px color-mix(in oklab, var(--color-lime) 58%, transparent);
 
     transform: scale(1.015);
   }
@@ -832,26 +727,19 @@ html[data-theme="pride"] .border-lime\/50 {
 @keyframes tsuzuku-winner-pop {
   0% {
     opacity: 0;
-    transform:
-      scale(0.9)
-      translateY(12px);
+    transform: scale(0.9) translateY(12px);
   }
 
   55% {
     opacity: 1;
-    transform:
-      scale(1.035)
-      translateY(0);
+    transform: scale(1.035) translateY(0);
   }
 
   100% {
     opacity: 1;
-    transform:
-      scale(1)
-      translateY(0);
+    transform: scale(1) translateY(0);
   }
 }
-
 
 .confetti-bit {
   position: absolute;
@@ -866,12 +754,7 @@ html[data-theme="pride"] .border-lime\/50 {
   background: var(--color-lime);
   opacity: 1;
 
-  box-shadow:
-    0 0 8px color-mix(
-      in oklab,
-      var(--color-lime) 55%,
-      transparent
-    );
+  box-shadow: 0 0 8px color-mix(in oklab, var(--color-lime) 55%, transparent);
 }
 
 /* =========================
@@ -897,22 +780,13 @@ html[data-theme="pride"] .border-lime\/50 {
   z-index: 30;
   pointer-events: none;
 
-  background:
-    radial-gradient(
-      circle at 50% 50%,
-      color-mix(
-        in oklab,
-        var(--color-lime) 55%,
-        transparent
-      ),
-      transparent 70%
-    );
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in oklab, var(--color-lime) 55%, transparent),
+    transparent 70%
+  );
 
-  animation:
-    tsuzuku-stage-flash
-    550ms
-    cubic-bezier(0.16, 1, 0.3, 1)
-    forwards;
+  animation: tsuzuku-stage-flash 550ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* =========================
@@ -972,7 +846,12 @@ html[data-theme="lagtrain"] body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(5, 7, 13, 0.92) 0%, rgba(5, 7, 13, 0.86) 45%, rgba(5, 7, 13, 0.94) 100%),
+    linear-gradient(
+      180deg,
+      rgba(5, 7, 13, 0.92) 0%,
+      rgba(5, 7, 13, 0.86) 45%,
+      rgba(5, 7, 13, 0.94) 100%
+    ),
     radial-gradient(ellipse 80% 50% at 50% 20%, rgba(20, 30, 55, 0.14), transparent 60%);
 }
 
@@ -1042,7 +921,12 @@ html[data-theme="lost-umbrella"] body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(6, 7, 12, 0.92) 0%, rgba(6, 7, 12, 0.86) 45%, rgba(6, 7, 12, 0.94) 100%),
+    linear-gradient(
+      180deg,
+      rgba(6, 7, 12, 0.92) 0%,
+      rgba(6, 7, 12, 0.86) 45%,
+      rgba(6, 7, 12, 0.94) 100%
+    ),
     radial-gradient(ellipse 80% 50% at 50% 20%, rgba(24, 28, 46, 0.14), transparent 60%);
 }
 
