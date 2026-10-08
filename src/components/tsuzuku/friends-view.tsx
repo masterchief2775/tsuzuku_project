@@ -7,7 +7,6 @@ import {
   Ban,
   UserMinus,
   UserPlus,
-  Users,
   X,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";

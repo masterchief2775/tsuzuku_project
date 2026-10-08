@@ -1,7 +1,6 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { lenientObject, z, zValidator } from "@/lib/validation";
-import { isoDate } from "@/lib/ids";
 
 export const NOTIF_KINDS = [
   "completed",
@@ -26,7 +25,7 @@ const ALL_ON: NotifPrefs = {
 };
 
 const publishActivityInput = lenientObject({
-  kind: z.enum(["completed", "rated"], { message: "Type d’activité invalide" }),
+  kind: z.enum(["completed", "rated"], { message: "Type dâ€™activitÃ© invalide" }),
   // Mirrors the old manual behavior: coerce to string, trim, cap at 200, required.
   title: z.preprocess(
     (v) => String(v ?? "").trim().slice(0, 200),
@@ -47,13 +46,6 @@ const publishActivityInput = lenientObject({
     (v) => (typeof v === "number" && v >= 0 && v <= 10 ? v : null),
     z.number().min(0).max(10).nullable(),
   ),
-});
-
-const activityLimitInput = lenientObject({
-  limit: z
-    .unknown()
-    .optional()
-    .transform((v) => Math.min(50, Math.max(1, Number(v) || 20))),
 });
 
 export type ActivityKind =
@@ -94,88 +86,6 @@ export const publishWatchActivity = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const listFriendActivity = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .validator(zValidator(activityLimitInput))
-  .handler(async ({ context, data }): Promise<ActivityItem[]> => {
-    const { getSql } = await import("@/lib/db");
-    const sql = await getSql();
-    try {
-      const rows = await sql<{
-        id: string;
-        actor_id: string;
-        kind: string;
-        title: string | null;
-        anilist_id: number | null;
-        image: string | null;
-        rating: number | null;
-        created_at: string | Date;
-        read_at: string | Date | null;
-        display_name: string | null;
-        username: string | null;
-        avatar_url: string | null;
-        name: string | null;
-        user_image: string | null;
-      }>`
-        select
-          a."id", a."actor_id", a."kind", a."title", a."anilist_id", a."image",
-          a."rating", a."created_at", a."read_at",
-          p."display_name", p."username", p."avatar_url",
-          u."name", u."image" as user_image
-        from "friend_activity" a
-        join "user" u on u."id" = a."actor_id"
-        left join "user_profile" p on p."user_id" = a."actor_id"
-        where a."recipient_id" = ${context.userId}
-        order by a."created_at" desc
-        limit ${data.limit}
-      `;
-      return rows.map((r) => ({
-        id: r.id,
-        actorId: r.actor_id,
-        actorName: r.display_name || r.name || r.username || "Ami",
-        actorUsername: r.username || "user",
-        actorAvatar: r.avatar_url || r.user_image || null,
-        kind: r.kind as ActivityKind,
-        title: r.title,
-        anilistId: r.anilist_id,
-        image: r.image,
-        rating: r.rating,
-        createdAt: isoDate(r.created_at) || new Date().toISOString(),
-        readAt: isoDate(r.read_at),
-      }));
-    } catch {
-      return [];
-    }
-  });
-
-export const getActivityBadge = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const { getSql } = await import("@/lib/db");
-    const sql = await getSql();
-    let unreadActivity = 0;
-    let pendingFriendRequests = 0;
-    try {
-      const a = await sql<{ n: string }>`
-        select count(*)::text as n from "friend_activity"
-        where "recipient_id" = ${context.userId} and "read_at" is null
-      `;
-      unreadActivity = Number(a[0]?.n || 0);
-    } catch {
-      /* */
-    }
-    try {
-      const f = await sql<{ n: string }>`
-        select count(*)::text as n from "friendship"
-        where "addressee_id" = ${context.userId} and "status" = 'pending'
-      `;
-      pendingFriendRequests = Number(f[0]?.n || 0);
-    } catch {
-      /* */
-    }
-    return { unreadActivity, pendingFriendRequests };
-  });
-
 async function readPrefs(userId: string): Promise<NotifPrefs> {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
@@ -212,7 +122,7 @@ export const setNotifPrefs = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<NotifPrefs> => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    // Keys come from the fixed NOTIF_KINDS allowlist — never raw user input —
+    // Keys come from the fixed NOTIF_KINDS allowlist â€” never raw user input â€”
     // so interpolating them as identifiers is safe; values stay parameterized.
     const cols = NOTIF_KINDS.filter((k) => data[k] !== undefined);
     if (cols.length === 0) return readPrefs(context.userId);
@@ -238,7 +148,7 @@ export type DigestItem = {
   lastAt: string;
 };
 
-/** "Cette semaine chez tes amis" — grouped, read-only rollup (no extra writes). */
+/** "Cette semaine chez tes amis" â€” grouped, read-only rollup (no extra writes). */
 export const getWeeklyDigest = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<DigestItem[]> => {

@@ -16,7 +16,6 @@ import {
 export {
   SHARED_ITEM_STATUSES,
   SHARED_ITEM_STATUS_LABELS,
-  asSharedItemStatus as asItemStatus,
   type SharedItemStatus,
 } from "@/lib/shared-list-status";
 

@@ -13,7 +13,6 @@ import {
   type ConversationSummary,
   type PrivateMessage,
 } from "@/lib/messages";
-import { getBadgeCounts } from "@/lib/activity-client";
 
 const THREAD_POLL_MS = 4000;
 const LIST_POLL_MS = 15000;
@@ -459,22 +458,7 @@ export function MessagesView() {
   );
 }
 
-/**
- * Shared badge cache (60s visible poll, one query for all counts).
- * Previously a standalone 15s poller mounted twice (nav + bell) — the top
- * per-user Neon read in the app. Kept as a compat export.
- */
-export function useUnreadMessageCount() {
-  const { user } = useCurrentUserState();
-  const [count, setCount] = useState(0);
-  usePolling(
-    () => {
-      void getBadgeCounts()
-        .then((b) => setCount(b.unreadMessages))
-        .catch(() => {});
-    },
-    60000,
-    Boolean(user?.id),
-  );
-  return count;
-}
+// The unread-message badge now comes from the shared `useBadgeCounts()` poller
+// (one 60s query for every header badge). A standalone 15s poller used to be
+// mounted twice, nav + bell, and was the app's top per-user Neon read; it is
+// gone rather than kept as a compat export.

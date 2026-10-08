@@ -53,7 +53,7 @@ export function SearchView({ inputRef }: { inputRef: RefObject<HTMLInputElement 
       abortRef.current?.abort();
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Mount-only: re-running would drop the in-flight debounce timer.
   }, []);
 
   async function loadDefault() {

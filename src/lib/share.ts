@@ -8,9 +8,9 @@ import { newToken } from "@/lib/ids";
 
 // The projection, its allow-list and the card title live in `./share-public`
 // (no server imports) so they can be unit-tested — see the note there.
+// The field whitelists are imported from `@/lib/share-public` directly by the
+// share route and its tests, so they are not re-exported here.
 export {
-  PRIVATE_ENTRY_FIELDS,
-  PUBLIC_SHARE_FIELDS,
   shareCardTitle,
   toPublic,
   type PublicShareEntry,

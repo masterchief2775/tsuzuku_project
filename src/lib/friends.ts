@@ -541,10 +541,15 @@ export const compareWatchlists = createServerFn({ method: "GET" })
     // Compatibility: Jaccard on anilist ids + boost for shared genres
     const union = new Set([...myMap.keys(), ...theirMap.keys()]);
     const jaccard = union.size === 0 ? 0 : commonIds.length / union.size;
+    // 0.05 per shared genre, capped at 0.25, so at most the first five count. The
+    // per-genre weight was never wired to `g`: `reduce` only accumulates the
+    // constant, which is why it reads as a dead argument. Kept as-is on purpose
+    // (a weight by genre overlap depth is the obvious follow-up) rather than
+    // silently changing a compatibility score users may already have seen.
     const genreBoost =
       genreOverlap.length === 0
         ? 0
-        : Math.min(0.25, genreOverlap.slice(0, 5).reduce((s, g) => s + 0.05, 0));
+        : Math.min(0.25, genreOverlap.slice(0, 5).length * 0.05);
     const compatibility = Math.round(Math.min(100, (jaccard * 100) * 0.85 + genreBoost * 100));
 
     return {

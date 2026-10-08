@@ -18,14 +18,6 @@ const sendToUserInput = lenientObject({
   receiverId: requiredString("Destinataire manquant", 128),
   body: messageBodyField,
 });
-const sendByUsernameInput = lenientObject({
-  username: z.preprocess(
-    (v) => (typeof v === "string" ? v.trim().toLowerCase() : ""),
-    z.string().min(1, "Pseudo du destinataire requis").max(64),
-  ),
-  body: messageBodyField,
-});
-
 export type PrivateMessage = {
   id: string;
   senderId: string;
@@ -45,16 +37,6 @@ export type ConversationSummary = {
   lastMessageFromMe: boolean;
   unreadCount: number;
 };
-
-
-
-async function resolveUserId(username: string): Promise<string | null> {
-  const sql = await getSql();
-  const rows = await sql<{ user_id: string }>`
-    select "user_id" from "user_profile" where lower("username") = lower(${username}) limit 1
-  `;
-  return rows[0]?.user_id ?? null;
-}
 
 /** One row per contact you've exchanged messages with, most recent first — the inbox landing view. */
 export const listConversations = createServerFn({ method: "GET" })
@@ -122,18 +104,6 @@ export const listConversations = createServerFn({ method: "GET" })
       })
       .filter((c): c is ConversationSummary => c !== null)
       .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
-  });
-
-/** Total unread count across all conversations — for the nav badge. Cheap: one aggregate query. */
-export const getUnreadMessageCount = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }): Promise<number> => {
-    const sql = await getSql();
-    const rows = await sql<{ n: number }>`
-      select count(*)::int as n from "private_message"
-      where "receiver_id" = ${context.userId} and "read_at" is null
-    `;
-    return rows[0]?.n ?? 0;
   });
 
 export type ThreadPage = {
@@ -271,25 +241,6 @@ export const sendMessageToUser = createServerFn({ method: "POST" })
       createdAt: isoDateRequired(rows[0].created_at),
       readAt: null,
     };
-  });
-
-/** Start (or continue) a conversation by username — used from the "new message" search box. */
-export const sendPrivateMessage = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator(zValidator(sendByUsernameInput))
-  .handler(async ({ context, data }): Promise<{ receiverId: string }> => {
-    const receiverId = await resolveUserId(data.username);
-    if (!receiverId) throw new Error("Utilisateur introuvable");
-    if (receiverId === context.userId) throw new Error("Tu ne peux pas t'envoyer un message");
-    if (await isBlockedBetween(context.userId, receiverId)) {
-      throw new Error("Impossible d'envoyer un message à cet utilisateur");
-    }
-    const sql = await getSql();
-    await sql`
-      insert into "private_message" ("id", "sender_id", "receiver_id", "body")
-      values (${newId("msg")}, ${context.userId}, ${receiverId}, ${data.body})
-    `;
-    return { receiverId };
   });
 
 /** Mark every message from one contact as read (called on opening/polling a thread). */

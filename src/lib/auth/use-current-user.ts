@@ -41,21 +41,25 @@ export type CurrentUserState = {
  * depend on `user` would re-fire every render (profile page flash loop).
  */
 export function useCurrentUserState(): CurrentUserState {
+  // Conditional hook: `authEnabled` is a build-time constant for the app's
+  // lifetime, so the branch never changes between renders.
   if (!authEnabled) return { user: DEV_USER, isPending: false };
-  // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime
   const { data, isPending } = authClient.useSession();
-  const raw = data?.user;
+  const { id, name, email, image } = data?.user ?? {};
+  // Destructured before the memo so the dependency list matches what is actually
+  // read: depending on the whole `user` object would change identity on every
+  // session refetch and defeat the point of memoizing.
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const user = useMemo<AppUser | null>(() => {
-    if (!raw) return null;
+    if (!id) return null;
     return {
-      id: raw.id,
-      displayName: raw.name ?? null,
-      primaryEmail: raw.email ?? null,
-      profileImageUrl: raw.image ?? null,
+      id,
+      displayName: name ?? null,
+      primaryEmail: email ?? null,
+      profileImageUrl: image ?? null,
       isDevFallback: false,
     };
-  }, [raw?.id, raw?.name, raw?.email, raw?.image]);
+  }, [id, name, email, image]);
   return { user, isPending };
 }
 

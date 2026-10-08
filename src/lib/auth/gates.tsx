@@ -1,9 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 import { authEnabled, signOut } from "./client";
 import { useWatchlistStore } from "@/store/watchlist-store";
-import { useCurrentUser, useCurrentUserState } from "./use-current-user";
+import { useCurrentUser } from "./use-current-user";
 import { getMyProfile } from "@/lib/profile";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 
@@ -19,22 +19,6 @@ import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
 
 /** Where `RedirectToSignIn` sends signed-out visitors. Create this route. */
 export const SIGN_IN_PATH = "/login";
-
-/** Render children only when a user is present (real session, or the disabled-auth dev user). */
-export function SignedIn({ children }: { children: ReactNode }) {
-  const { user } = useCurrentUserState();
-  return user ? <>{children}</> : null;
-}
-
-/**
- * Render children only once we KNOW the visitor is signed out (`isPending` has
- * cleared and there is no user). Hidden while the session is still loading.
- */
-export function SignedOut({ children }: { children: ReactNode }) {
-  const { user, isPending } = useCurrentUserState();
-  if (isPending || user) return null;
-  return <>{children}</>;
-}
 
 /**
  * Client-side redirect to the sign-in route (TanStack `<Navigate>` — NOT a full

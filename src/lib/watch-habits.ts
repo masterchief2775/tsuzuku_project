@@ -88,11 +88,6 @@ export function setWeeklyGoal(userId: string | null | undefined, goal: number) {
   return state.weeklyGoal;
 }
 
-function parseDay(key: string) {
-  const [y, m, d] = key.split("-").map(Number);
-  return new Date(y!, m! - 1, d!);
-}
-
 /** Monday-start week keys containing `ref`. */
 export function weekDateKeys(ref = new Date()): string[] {
   const s = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());

@@ -1,4 +1,4 @@
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
 import { mediaTitle, searchMetaLine, type AniListMedia } from "@/lib/watchlist";
 
@@ -76,15 +76,6 @@ export function MediaGridSkeleton({ count = 8 }: { count?: number }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-export function MediaGridLoading() {
-  return (
-    <div className="flex items-center justify-center gap-2 py-12 text-dim">
-      <Loader2 className="size-5 animate-spin" />
-      Chargement…
     </div>
   );
 }

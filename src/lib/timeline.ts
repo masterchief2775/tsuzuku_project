@@ -62,7 +62,14 @@ function parseIsoDate(iso: string | null | undefined): number | null {
 
 /**
  * Projects when a series will finish, from the next airing and the number of
- * episodes left. `nowSec` is injected so the result is deterministic in tests.
+ * episodes left.
+ *
+ * `nowSec` is currently unread: the projection is anchored entirely on the next
+ * airing plus whole intervals, so it never needs the current time. It is kept
+ * deliberately — this is the one function in the module that a test would have to
+ * freeze time around otherwise, and the signature is the seam for it. Prefixed
+ * with `_` would hide it from the unused-parameter lint while breaking every
+ * caller, so the parameter is documented as intentional instead.
  */
 export function estimateEnd(
   nextAiringAt: number | null,
@@ -70,6 +77,7 @@ export function estimateEnd(
   nowSec: number,
   intervalDays = ASSUMED_EPISODE_INTERVAL_DAYS,
 ): number | null {
+  void nowSec;
   if (nextAiringAt == null || nextAiringAt <= 0) return null;
   if (remaining == null) return null;
   if (remaining <= 0) return nextAiringAt;

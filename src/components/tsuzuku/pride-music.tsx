@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Themed background media (Pride = audio only, Lagtrain = visible MV + audio).
- * Singleton survives route changes. Mount <ThemeMediaBootstrap /> once in root.
+ * Singleton survives route changes. Mount <PrideMusic /> once in root.
  */
 
 type MediaMode = "audio" | "video";
@@ -511,9 +511,6 @@ export function PrideMusic() {
   }, []);
   return null;
 }
-
-/** Alias */
-export const ThemeMediaBootstrap = PrideMusic;
 
 /** Footer controls for any media theme (pride / lagtrain) */
 export function PrideMusicControls({ className }: { className?: string }) {

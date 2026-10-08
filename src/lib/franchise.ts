@@ -1,4 +1,4 @@
-import type { AniListMedia, AniListRelation, AniListRelationType } from "./watchlist.ts";
+﻿import type { AniListMedia, AniListRelation, AniListRelationType } from "./watchlist.ts";
 
 /**
  * Franchises & watch order — pure graph logic, no network.
@@ -580,7 +580,7 @@ export function buildFranchises(input: {
       break;
     }
 
-const members: FranchiseMemberView[] = order.map((id, position) => {
+    const members: FranchiseMemberView[] = order.map((id, position) => {
       const m = byId.get(id)!;
       const status = input.statusOf(id);
       return {

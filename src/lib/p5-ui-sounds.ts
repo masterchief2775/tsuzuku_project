@@ -54,14 +54,6 @@ function volume(): number {
   return 0.7;
 }
 
-export function setP5UiVolume(v: number) {
-  try {
-    localStorage.setItem(VOL_KEY, String(Math.max(0, Math.min(1, v))));
-  } catch {
-    /* */
-  }
-}
-
 function pathsFor(kind: SoundKind): string[] {
   const out: string[] = [];
   for (const ext of EXTS) out.push(`/sounds/p5/custom/${kind}.${ext}`);

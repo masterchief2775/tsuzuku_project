@@ -8,6 +8,7 @@ import {
   markActivityRead,
   type ActivityItem,
 } from "@/lib/activity-client";
+import { authEnabled } from "@/lib/auth/client";
 import { useVisiblePolling } from "@/lib/polling";
 import { cn } from "@/lib/utils";
 
@@ -71,9 +72,13 @@ export function ActivityFeed({ compact = true }: { compact?: boolean }) {
   const { user } = useCurrentUserState();
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(false);
+  // `/api/activity` requires a real session and answers 503 "Auth disabled"
+  // otherwise. With auth off the shared dev user still has an id, so gating on
+  // `user?.id` alone polled an endpoint that can only ever fail.
+  const canFetch = Boolean(user?.id) && authEnabled;
 
   const reload = useCallback(async () => {
-    if (!user?.id) return;
+    if (!canFetch) return;
     try {
       const list = await fetchFriendActivity(compact ? 4 : 15);
       setItems(list);
@@ -82,18 +87,18 @@ export function ActivityFeed({ compact = true }: { compact?: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, compact]);
+  }, [canFetch, compact]);
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!canFetch) {
       setItems([]);
       return;
     }
     setLoading(true);
-  }, [user?.id]);
+  }, [canFetch]);
 
   // Was 45s in all tabs (hidden included) — now 90s visible, 5min hidden.
-  useVisiblePolling(reload, 90_000, Boolean(user?.id));
+  useVisiblePolling(reload, 90_000, canFetch);
 
   useEffect(() => {
     if (!user?.id || items.length === 0) return;

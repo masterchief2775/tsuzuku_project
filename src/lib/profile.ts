@@ -131,16 +131,15 @@ export type ProfileRow = {
 
 // Pure projections live in `profile-mapping.ts` (unit-tested); re-exported
 // here so existing `import { mapRow } from "@/lib/profile"` sites keep working.
+// The other helpers are imported from `@/lib/profile-mapping` directly.
 import {
-  MAX_FAVORITES,
   mapRow,
   normalizeVisibility,
-  parseFavorites,
   sanitizeFavorites,
   sanitizeUrl,
 } from "@/lib/profile-mapping";
 
-export { MAX_FAVORITES, mapRow, normalizeVisibility, parseFavorites, sanitizeFavorites, sanitizeUrl };
+export { mapRow };
 
 async function getPresence(userId: string): Promise<Pick<PublicProfile, "isOnline" | "lastSeen">> {
   try {

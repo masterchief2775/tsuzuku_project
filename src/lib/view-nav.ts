@@ -20,10 +20,6 @@ export function isViewId(value: unknown): value is ViewId {
   return typeof value === "string" && (VIEW_IDS as readonly string[]).includes(value);
 }
 
-export function viewSearch(view: ViewId): string {
-  return `/?v=${view}`;
-}
-
 const VIEW_TITLES: Record<ViewId, string> = {
   dashboard: "Accueil · Tsuzuku",
   list: "Ma liste · Tsuzuku",

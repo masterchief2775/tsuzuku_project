@@ -150,13 +150,13 @@ export function useFranchises(): UseFranchises {
     // and it is at most a handful of ids.
     void (async () => {
       const cached = readBridgeCache();
-      const ids = bridgeEndpointIds(CURATED_BRIDGES).filter((id) => !cached[id]);
-      if (ids.length === 0) {
+      const missing = bridgeEndpointIds(CURATED_BRIDGES).filter((id) => !cached[id]);
+      if (missing.length === 0) {
         if (isCurrent()) setBridgeById(cached);
         return;
       }
       try {
-        const fetched = await fetchMediaByIds(ids);
+        const fetched = await fetchMediaByIds(missing);
         if (!isCurrent()) return;
         const next: Record<number, AniListMedia> = {};
         for (const m of fetched) next[m.id] = m;
