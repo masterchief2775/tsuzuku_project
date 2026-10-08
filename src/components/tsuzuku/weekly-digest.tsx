@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CalendarRange, RotateCw } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { SectionTitle } from "@/components/tsuzuku/ui";
 import { getWeeklyDigest, type DigestItem } from "@/lib/activity";
 
 function kindText(item: DigestItem): string {
@@ -62,20 +63,20 @@ export function WeeklyDigest() {
 
   return (
     <section className="rounded-[14px] border border-lime/25 bg-lime/[0.04] p-4 sm:p-5">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="font-serif flex items-center gap-2 text-base font-medium">
-          <CalendarRange className="size-4 text-lime" />
-          Cette semaine chez tes amis
-        </h2>
-        <button
-          type="button"
-          onClick={() => setReloadKey((n) => n + 1)}
-          className="rounded p-1 text-dim hover:text-lime"
-          aria-label="Actualiser le récap"
-        >
-          <RotateCw className="size-3.5" />
-        </button>
-      </div>
+      <SectionTitle
+        icon={CalendarRange}
+        title="Cette semaine chez tes amis"
+        action={
+          <button
+            type="button"
+            onClick={() => setReloadKey((n) => n + 1)}
+            className="rounded-[8px] p-1.5 text-dim transition hover:bg-bg hover:text-lime"
+            aria-label="Actualiser le récap"
+          >
+            <RotateCw className="size-3.5" />
+          </button>
+        }
+      />
       <ul className="space-y-2">
         {items.slice(0, 8).map((item) => (
           <li

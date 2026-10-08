@@ -131,7 +131,7 @@ export function ShareSettings({ open, onClose }: { open: boolean; onClose: () =>
               </p>
             </div>
           ) : null}
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="text-sm text-crimson">{error}</p> : null}
         </div>
       </div>
     </div>

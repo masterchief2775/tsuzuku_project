@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Dices, Flame, History, Loader2, Plus, Shuffle, Sparkles, Star, X } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
+import { PageHeader } from "@/components/tsuzuku/ui";
 import {
   collectFacets,
   fetchRoulettePool,
@@ -291,12 +292,11 @@ export function RouletteView() {
 
   return (
     <div className="animate-fade-up mx-auto max-w-3xl overflow-x-clip">
-      <div className="mb-5">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Roulette</h1>
-        <p className="mt-1 text-sm text-dim">
-          Le hasard décide — dans ta liste ou dans le catalogue AniList.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Découverte"
+        title="Roulette"
+        description="Le hasard décide — dans ta liste ou dans le catalogue AniList."
+      />
 
       {/* Source */}
       <div className="mb-3 flex gap-1.5 rounded-[12px] border border-line bg-raised p-1">
@@ -808,7 +808,7 @@ function WinnerCard({
             ))}
           </div>
         ) : null}
-        <p className="mt-2 text-[11.5px] text-dim/80">{why}</p>
+        <p className="mt-2 text-[11.5px] text-dim">{why}</p>
 
         <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
           {item.entry ? (

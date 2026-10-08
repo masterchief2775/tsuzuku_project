@@ -388,7 +388,7 @@ export function EntryModal() {
           </Field>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Progression">
+            <Field label="Progression" htmlFor="entry-progress">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -399,6 +399,7 @@ export function EntryModal() {
                   <Minus className="size-3.5" />
                 </button>
                 <input
+                  id="entry-progress"
                   type="number"
                   min={0}
                   value={entry.progress}
@@ -446,8 +447,9 @@ export function EntryModal() {
             </Field>
           </div>
 
-          <Field label="Avis personnel">
+          <Field label="Avis personnel" htmlFor="entry-comment">
             <textarea
+              id="entry-comment"
               rows={3}
               placeholder="Tes impressions, à chaud ou à froid…"
               defaultValue={entry.comment}
@@ -457,7 +459,7 @@ export function EntryModal() {
             />
           </Field>
 
-          <Field label="Tags">
+          <Field label="Tags" htmlFor="entry-tags">
             <div className="flex flex-wrap items-center gap-1.5">
               {entry.tags.map((t) => (
                 <span
@@ -477,6 +479,7 @@ export function EntryModal() {
                 </span>
               ))}
               <input
+                id="entry-tags"
                 value={tagDraft}
                 onChange={(ev) => setTagDraft(ev.target.value)}
                 onKeyDown={(ev) => {
@@ -513,7 +516,7 @@ export function EntryModal() {
               {legacyNames.map((name) => (
                 <span
                   key={name}
-                  className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11.5px] text-amber-200"
+                  className="flex items-center gap-1 rounded-full border border-status-hold/30 bg-status-hold/10 px-2.5 py-1 text-[11.5px] text-status-hold"
                   title="Ancien nom libre — retire-le ou remplace-le par un ami"
                 >
                   {name}
@@ -660,10 +663,10 @@ function StartPartyButton({ entry }: { entry: { title: string; anilistId: number
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children, htmlFor }: { label: string; children: ReactNode; htmlFor?: string }) {
   return (
     <div className="mb-4">
-      <label className="mb-1.5 block text-[11.5px] font-semibold text-dim">{label}</label>
+      <label htmlFor={htmlFor} className="mb-1.5 block text-[11.5px] font-semibold text-dim">{label}</label>
       {children}
     </div>
   );

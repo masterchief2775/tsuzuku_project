@@ -281,7 +281,7 @@ function PublicProfilePage() {
           </div>
         ) : null}
 
-        {error ? <p className="text-center text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="text-center text-sm text-crimson">{error}</p> : null}
         {actionMsg ? <p className="text-center text-sm text-lime">{actionMsg}</p> : null}
 
         {profile === null && !error ? (
@@ -329,8 +329,8 @@ function PublicProfilePage() {
                 <h1 className="font-serif mt-4 text-2xl font-semibold">{profile.displayName}</h1>
               )}
               <p className="text-sm text-dim">@{profile.username}</p>
-              <p className={cn("mt-2 text-xs font-semibold", profile.isOnline ? "text-emerald-400" : "text-dim")}>
-                <span className={cn("mr-1.5 inline-block size-2 rounded-full", profile.isOnline ? "bg-emerald-400" : "bg-dim/70")} />
+              <p className={cn("mt-2 text-xs font-semibold", profile.isOnline ? "text-status-completed" : "text-dim")}>
+                <span className={cn("mr-1.5 inline-block size-2 rounded-full", profile.isOnline ? "bg-status-completed" : "bg-dim/70")} />
                 {profilePresenceLabel(profile)}
               </p>
               {profile.bio || isSelf ? (

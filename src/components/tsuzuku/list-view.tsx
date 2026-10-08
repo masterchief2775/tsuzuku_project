@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { EntryCard, EntryRow } from "@/components/tsuzuku/entry-card";
+import { EmptyState, PageHeader } from "@/components/tsuzuku/ui";
 import { collectFacets, filterEntries, STATUSES, type StatusKey } from "@/lib/watchlist";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore, type SortId } from "@/store/watchlist-store";
@@ -109,21 +110,24 @@ export function ListView() {
 
   return (
     <div className="animate-fade-up">
-      <header className="mb-4">
-        <h1 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">Ma liste</h1>
-        <p className="mt-0.5 text-[13px] text-dim">
-          {entries.length} titre{entries.length === 1 ? "" : "s"} au total
-          {statusFilter !== "Tous" ? (
-            <>
-              {" "}
-              · filtre{" "}
-              <span className="font-semibold text-ink">
-                {STATUSES.find((s) => s.key === statusFilter)?.label ?? statusFilter}
-              </span>
-            </>
-          ) : null}
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Collection"
+        title="Ma liste"
+        description={
+          <>
+            {entries.length} titre{entries.length === 1 ? "" : "s"} au total
+            {statusFilter !== "Tous" ? (
+              <>
+                {" "}
+                · filtre{" "}
+                <span className="font-semibold text-ink">
+                  {STATUSES.find((s) => s.key === statusFilter)?.label ?? statusFilter}
+                </span>
+              </>
+            ) : null}
+          </>
+        }
+      />
 
       {/* Search */}
       <div className="mb-3 flex items-center gap-2.5 rounded-[12px] border border-line bg-raised px-3.5 py-2.5 text-dim focus-within:border-lime/40">
@@ -287,7 +291,7 @@ export function ListView() {
             type="button"
             disabled={selectedIds.length === 0}
             onClick={() => setConfirmDelete(true)}
-            className="ml-auto flex items-center gap-1 rounded-[9px] border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-[12px] font-semibold text-red-300 disabled:opacity-40"
+            className="ml-auto flex items-center gap-1 rounded-[9px] border border-crimson/40 bg-crimson/10 px-2.5 py-1.5 text-[12px] font-semibold text-crimson disabled:opacity-40"
           >
             <Trash2 className="size-3.5" />
             Supprimer
@@ -323,7 +327,7 @@ export function ListView() {
               </button>
               <button
                 type="button"
-                className="flex-1 rounded-[9px] bg-red-500 px-3 py-2.5 text-sm font-bold text-white"
+                className="flex-1 rounded-[9px] bg-crimson px-3 py-2.5 text-sm font-bold text-bg"
                 onClick={() => {
                   bulkRemove();
                   setConfirmDelete(false);
@@ -413,37 +417,38 @@ export function ListView() {
       </div>
 
       {list.length === 0 ? (
-        <div className="rounded-[14px] border border-dashed border-line px-5 py-14 text-center">
-          <p className="mb-1 font-serif text-lg font-medium">
-            {entries.length === 0 ? "Liste vide" : "Aucun résultat"}
-          </p>
-          <p className="mb-5 text-sm text-dim">
-            {entries.length === 0
+        <EmptyState
+          icon={Search}
+          title={entries.length === 0 ? "Liste vide" : "Aucun résultat"}
+          hint={
+            entries.length === 0
               ? "Cherche un anime pour commencer ta watchlist."
-              : "Aucun titre ne correspond à ces filtres."}
-          </p>
-          {entries.length === 0 ? (
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-[9px] bg-lime px-[18px] py-[11px] text-sm font-bold text-bg"
-              onClick={() => setView("search")}
-            >
-              <Search className="size-4" />
-              Chercher un anime
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="text-sm font-semibold text-lime hover:underline"
-              onClick={() => {
-                setStatusFilter("Tous");
-                clearAdvancedFilters();
-              }}
-            >
-              Effacer les filtres
-            </button>
-          )}
-        </div>
+              : "Aucun titre ne correspond à ces filtres."
+          }
+          actions={
+            entries.length === 0 ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-[10px] bg-lime px-[18px] py-[11px] text-sm font-bold text-bg transition hover:brightness-105"
+                onClick={() => setView("search")}
+              >
+                <Search className="size-4" />
+                Chercher un anime
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="text-sm font-semibold text-lime hover:underline"
+                onClick={() => {
+                  setStatusFilter("Tous");
+                  clearAdvancedFilters();
+                }}
+              >
+                Effacer les filtres
+              </button>
+            )
+          }
+        />
       ) : layout === "grid" ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] sm:gap-4">
           {list.map((e) => (

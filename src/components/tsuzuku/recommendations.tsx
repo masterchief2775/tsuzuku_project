@@ -80,7 +80,7 @@ export function Recommendations() {
             {topGenres.map((g, i) => (
               <span key={g}>
                 {i > 0 ? ", " : ""}
-                <span className="text-ink/80">{g}</span>
+                <span className="text-ink">{g}</span>
               </span>
             ))}
             )

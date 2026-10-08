@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   BellOff,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -24,6 +23,7 @@ import {
   type ReminderPrefs,
 } from "@/lib/airing-reminders";
 import { useWatchlistStore } from "@/store/watchlist-store";
+import { EmptyState, PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 import { cn } from "@/lib/utils";
 
 /** Local-midnight key (seconds) — same boundary `airingOnDay` groups by. */
@@ -124,14 +124,12 @@ export function CalendarView() {
 
   return (
     <div className="mx-auto max-w-[900px] animate-fade-up">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-serif flex items-center gap-2 text-xl font-semibold tracking-tight">
-            <CalendarDays className="size-5 text-lime" />
-            Calendrier
-          </h1>
-          <p className="mt-1 text-sm text-dim">
-            Sorties des titres <strong className="text-ink/80">en cours</strong> sur ta watchlist.
+      <PageHeader
+        eyebrow="Diffusions"
+        title="Calendrier"
+        description={
+          <>
+            Sorties des titres <strong className="text-ink">en cours</strong> sur ta watchlist.
             {todayCount > 0 ? (
               <>
                 {" "}
@@ -140,37 +138,39 @@ export function CalendarView() {
                 </span>
               </>
             ) : null}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void onRefresh()}
-            disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-[9px] border border-line bg-raised px-3 py-2 text-[12.5px] font-semibold text-dim hover:text-ink disabled:opacity-50"
-          >
-            {refreshing ? <Loader2 className="size-3.5 animate-spin" /> : null}
-            Actualiser
-          </button>
-          <button
-            type="button"
-            onClick={() => void toggleReminders()}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-[9px] border px-3 py-2 text-[12.5px] font-semibold",
-              prefs.enabled && perm === "granted"
-                ? "border-lime/40 bg-lime/10 text-lime"
-                : "border-line bg-raised text-dim hover:text-ink",
-            )}
-          >
-            {prefs.enabled && perm === "granted" ? (
-              <Bell className="size-3.5" />
-            ) : (
-              <BellOff className="size-3.5" />
-            )}
-            {prefs.enabled && perm === "granted" ? "Rappels ON" : "Activer les rappels"}
-          </button>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => void onRefresh()}
+              disabled={refreshing}
+              className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-raised px-3 py-2 text-[12.5px] font-semibold text-dim transition hover:border-lime/40 hover:text-ink disabled:opacity-50"
+            >
+              {refreshing ? <Loader2 className="size-3.5 animate-spin" /> : null}
+              Actualiser
+            </button>
+            <button
+              type="button"
+              onClick={() => void toggleReminders()}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-[10px] border px-3 py-2 text-[12.5px] font-semibold transition",
+                prefs.enabled && perm === "granted"
+                  ? "border-lime/40 bg-lime/10 text-lime"
+                  : "border-line bg-raised text-dim hover:border-lime/40 hover:text-ink",
+              )}
+            >
+              {prefs.enabled && perm === "granted" ? (
+                <Bell className="size-3.5" />
+              ) : (
+                <BellOff className="size-3.5" />
+              )}
+              {prefs.enabled && perm === "granted" ? "Rappels ON" : "Activer les rappels"}
+            </button>
+          </>
+        }
+      />
 
       {/* Reminder settings */}
       <section className="mb-5 rounded-[14px] border border-line bg-raised p-4">
@@ -276,13 +276,12 @@ export function CalendarView() {
 
       {/* Agenda list 14 days */}
       <section>
-        <h2 className="font-serif mb-3 text-[17px] font-medium">Prochaines sorties</h2>
+        <SectionTitle title="Prochaines sorties" />
         {upcoming.length === 0 ? (
-          <div className="rounded-[14px] border border-dashed border-line px-4 py-8 text-center text-sm text-dim">
-            Aucune diffusion annoncée pour tes titres en cours.
-            <br />
-            Passe des animes en <strong className="text-ink/80">En cours</strong> et actualise.
-          </div>
+          <EmptyState
+            title="Aucune diffusion annoncée pour tes titres en cours."
+            hint="Passe des animes en « En cours » et actualise."
+          />
         ) : (
           <ul className="space-y-2">
             {upcoming.map((e) => {

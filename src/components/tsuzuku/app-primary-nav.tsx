@@ -100,6 +100,7 @@ export function AppPrimaryNav({ className }: { className?: string }) {
               to={item.to}
               className={cn(baseClass, "relative")}
               title={item.label}
+              aria-current={active ? "page" : undefined}
               onClick={() => setMobileOpen(false)}
             >
               <Icon className="size-3.5 shrink-0 sm:size-4" />
@@ -127,6 +128,7 @@ export function AppPrimaryNav({ className }: { className?: string }) {
               to="/"
               className={baseClass}
               title={item.label}
+              aria-current={active ? "page" : undefined}
               onClick={() => {
                 setMobileOpen(false);
                 window.setTimeout(() => setView(item.id), 0);
@@ -145,6 +147,7 @@ export function AppPrimaryNav({ className }: { className?: string }) {
             type="button"
             className={baseClass}
             title={item.label}
+            aria-current={active ? "page" : undefined}
             onClick={() => {
               setMobileOpen(false);
               setView(item.id);

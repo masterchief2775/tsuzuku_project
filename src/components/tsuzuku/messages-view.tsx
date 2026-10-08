@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { ArrowLeft, Mail, Send } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import {
@@ -371,15 +372,14 @@ export function MessagesView() {
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-12rem)] max-h-[calc(100dvh-12rem)] w-full max-w-2xl animate-fade-up flex-col overflow-hidden">
-      <div className="mb-5 shrink-0">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Messages</h1>
-        <p className="mt-1 text-sm text-dim">Échange en direct avec les utilisateurs de Tsuzuku.</p>
-      </div>
+      <PageHeader
+        eyebrow="Direct"
+        title="Messages"
+        description="Échange en direct avec les utilisateurs de Tsuzuku."
+      />
 
       <section className="ui-panel mb-4 shrink-0 p-4 sm:p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-          <Send className="size-4 text-lime" /> Nouvelle conversation
-        </h2>
+        <SectionTitle icon={Send} title="Nouvelle conversation" />
         <div className="relative">
           <input
             value={composeUsername}
@@ -413,9 +413,7 @@ export function MessagesView() {
       </section>
 
       <section className="ui-panel flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
-        <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold">
-          <Mail className="size-4 text-lime" /> Conversations
-        </h2>
+        <SectionTitle icon={Mail} title="Conversations" />
         {!conversationsLoaded ? (
           <p className="py-8 text-center text-sm text-dim">Chargement…</p>
         ) : conversationsError ? (

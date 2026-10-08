@@ -59,14 +59,14 @@ const SECRET_THEMES: { id: SecretThemeId; label: string; swatch: [string, string
   { id: "ember", label: "Ember", swatch: ["#170d0b", "#ff8a65", "#ffcc33"] },
   { id: "neon", label: "Neon", swatch: ["#070b16", "#a3ff12", "#ff4bd6"] },
   { id: "aurora", label: "Aurora", swatch: ["#071d22", "#62e6c5", "#17484a"] },
-  { id: "manga", label: "Manga", swatch: ["#fff8ed", "#ff5d73", "#ffe0a8"] },
+  { id: "manga", label: "Manga", swatch: ["#fff8ed", "#d93656", "#ffe0a8"] },
   { id: "mono", label: "Monochrome", swatch: ["#101010", "#f5f5f5", "#353535"] },
   { id: "qc-sombre", label: "Québec sombre", swatch: ["#0a1628", "#3d7cff", "#1a2f4d"] },
   { id: "qc-clair", label: "Québec clair", swatch: ["#f4f7fb", "#003da5", "#ffffff"] },
   { id: "pride", label: "Pride", swatch: ["#1a0f1f", "#ff2d95", "#ffd400"] },
   { id: "lagtrain", label: "Lagtrain", swatch: ["#0c0e18", "#7eb6ff", "#2a3148"] },
   { id: "lost-umbrella", label: "Lost Umbrella", swatch: ["#10131c", "#9fb0d9", "#2a2f42"] },
-  { id: "persona5", label: "Persona 5", swatch: ["#0a0a0a", "#e60012", "#ffffff"] },
+  { id: "persona5", label: "Persona 5", swatch: ["#0a0a0a", "#f52236", "#ffffff"] },
 ];
 
 export const THEMES: { id: ThemeId; label: string; swatch: [string, string, string] }[] = [

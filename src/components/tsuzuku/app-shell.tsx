@@ -307,13 +307,13 @@ export function AppShell() {
   return (
     <div className="ambient-bg flex min-h-dvh flex-col bg-bg text-ink">
       {!online ? (
-        <div className="bg-amber-500/15 px-4 py-2 text-center text-[12.5px] font-semibold text-amber-200">
+        <div className="bg-status-hold/15 px-4 py-2 text-center text-[12.5px] font-semibold text-status-hold">
           Mode hors-ligne — ta liste locale reste utilisable ; les changements se synchroniseront au
           retour du réseau.
         </div>
       ) : pendingCount > 0 ? (
         <div
-          className="bg-sky-500/15 px-4 py-2 text-center text-[12.5px] font-semibold text-sky-200"
+          className="bg-status-plan/15 px-4 py-2 text-center text-[12.5px] font-semibold text-status-plan"
           role="status"
           aria-live="polite"
         >
@@ -368,7 +368,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main id="contenu" className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-7">
+      <main id="contenu" className="mx-auto w-full max-w-[1100px] flex-1 px-4 pt-6 pb-10 sm:px-7 sm:pb-12">
         {!hydrated ? (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (

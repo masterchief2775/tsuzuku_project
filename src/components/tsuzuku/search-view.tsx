@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Flame, Loader2, Plus, Search, SearchX } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
+import { EmptyState, PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 import {
   CACHE_LIMIT,
   SEARCH_DEBOUNCE_MS,
@@ -127,8 +128,13 @@ export function SearchView({ inputRef }: { inputRef: RefObject<HTMLInputElement 
   const q = query.trim();
 
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-2.5 rounded-[10px] border border-line bg-raised px-4 py-3 text-dim">
+    <div className="animate-fade-up">
+      <PageHeader
+        eyebrow="Explorer"
+        title="Rechercher"
+        description="Titres, studios et genres — directement depuis AniList."
+      />
+      <div className="mb-5 flex items-center gap-2.5 rounded-[12px] border border-line bg-raised px-4 py-3 text-dim transition focus-within:border-lime/40 sm:mb-6">
         <Search className="size-4 shrink-0" />
         <input
           ref={inputRef}
@@ -150,13 +156,14 @@ export function SearchView({ inputRef }: { inputRef: RefObject<HTMLInputElement 
         <SkeletonGrid />
       ) : null}
       {!error && q.length === 0 && results.length === 0 && !searching ? (
-        <div className="flex items-center gap-2 p-5 text-dim">
-          Commence à écrire pour chercher un anime.
-        </div>
+        <EmptyState
+          title="Commence à écrire pour chercher un anime."
+          hint="Titre japonais, anglais ou romaji — les tendances s'affichent en attendant."
+        />
       ) : null}
       {!error && q.length === 0 && results.length > 0 ? (
         <>
-          <div className="mb-3 text-xs font-semibold text-dim">Tendances du moment</div>
+          <SectionTitle icon={Flame} title="Tendances du moment" level={3} className="mb-3" />
           <ResultsGrid
             results={results}
             query=""
@@ -167,7 +174,11 @@ export function SearchView({ inputRef }: { inputRef: RefObject<HTMLInputElement 
       ) : null}
       {!error && q.length > 0 && results.length === 0 && searching ? <SkeletonGrid /> : null}
       {!error && q.length > 0 && results.length === 0 && !searching ? (
-        <div className="p-5 text-dim">Aucun résultat pour « {query} ».</div>
+        <EmptyState
+          icon={SearchX}
+          title={`Aucun résultat pour « ${query} »`}
+          hint="Vérifie l'orthographe ou essaie le titre anglais, japonais ou romaji."
+        />
       ) : null}
       {!error && q.length > 0 && results.length > 0 ? (
         <ResultsGrid

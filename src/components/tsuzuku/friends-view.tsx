@@ -37,6 +37,7 @@ import { searchProfiles, type PublicProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 import { useVisiblePolling } from "@/lib/polling";
 import { FriendCompareButton } from "@/components/tsuzuku/friend-compare";
+import { PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 
 function presenceLabel(friend: FriendProfile): string {
   if (friend.isOnline) return "En ligne";
@@ -149,9 +150,14 @@ export function FriendsView() {
   if (!user) return <RedirectToSignIn />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl animate-fade-up space-y-5 sm:space-y-6">
+      <PageHeader
+        eyebrow="Social"
+        title="Amis"
+        description="Demandes, comparaisons et activité de ton cercle."
+      />
         {error ? (
-          <p className="rounded-[10px] border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          <p className="rounded-[10px] border border-crimson/30 bg-crimson/10 px-3 py-2 text-sm text-crimson">
             {error}
           </p>
         ) : null}
@@ -163,8 +169,8 @@ export function FriendsView() {
 
         {/* Search & add */}
         <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <h2 className="font-serif text-base font-medium">Ajouter un ami</h2>
-          <p className="mt-1 text-xs text-dim">
+          <SectionTitle title="Ajouter un ami" />
+          <p className="-mt-1 mb-3 text-xs text-dim">
             Cherche un pseudo Tsuzuku et envoie une demande.
           </p>
           <div className="relative mt-3">
@@ -236,9 +242,7 @@ export function FriendsView() {
         {/* Incoming */}
         {incoming.length > 0 ? (
           <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-            <h2 className="font-serif text-base font-medium">
-              Demandes reçues ({incoming.length})
-            </h2>
+            <SectionTitle title={`Demandes reçues`} count={incoming.length} />
             <ul className="mt-3 space-y-2">
               {incoming.map((r) => (
                 <li
@@ -287,9 +291,7 @@ export function FriendsView() {
         {/* Outgoing */}
         {outgoing.length > 0 ? (
           <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-            <h2 className="font-serif text-base font-medium">
-              Demandes envoyées ({outgoing.length})
-            </h2>
+            <SectionTitle title="Demandes envoyées" count={outgoing.length} />
             <ul className="mt-3 space-y-2">
               {outgoing.map((r) => (
                 <li
@@ -329,7 +331,7 @@ export function FriendsView() {
 
 
         <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <h2 className="font-serif text-base font-medium">Activité récente</h2>
+          <SectionTitle title="Activité récente" />
           {activity.length === 0 ? (
             <p className="mt-3 text-sm text-dim">
               Quand un ami termine un titre, le note, ou t’envoie une demande, ça apparaît ici.
@@ -385,7 +387,7 @@ export function FriendsView() {
 
         {/* Friend list */}
         <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <h2 className="font-serif text-base font-medium">Ma liste d’amis</h2>
+          <SectionTitle title="Ma liste d'amis" count={friends.length} />
           {loading ? (
             <div className="flex justify-center py-10 text-dim">
               <Loader2 className="size-5 animate-spin" />
@@ -406,7 +408,7 @@ export function FriendsView() {
                     <span
                       className={cn(
                         "absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-bg",
-                        f.isOnline ? "bg-emerald-400" : "bg-dim/70",
+                        f.isOnline ? "bg-status-completed" : "bg-dim/70",
                       )}
                       title={f.isOnline ? "En ligne" : "Hors ligne"}
                       aria-label={f.isOnline ? "En ligne" : "Hors ligne"}
@@ -422,7 +424,7 @@ export function FriendsView() {
                     </Link>
                     <div className="flex items-center gap-1.5 text-xs text-dim">
                       <span>@{f.username}</span>
-                      <span className={f.isOnline ? "text-emerald-400" : "text-dim/80"}>
+                      <span className={f.isOnline ? "text-status-completed" : "text-dim"}>
                         · {presenceLabel(f)}
                       </span>
                     </div>
@@ -474,10 +476,7 @@ export function FriendsView() {
         </section>
 
         <section className="rounded-[14px] border border-line bg-raised p-4 sm:p-5">
-          <h2 className="font-serif flex items-center gap-2 text-base font-medium">
-            <Ban className="size-4 text-dim" />
-            Utilisateurs bloqués
-          </h2>
+          <SectionTitle icon={Ban} title="Utilisateurs bloqués" count={blocked.length} />
           {blocked.length === 0 ? (
             <p className="mt-3 text-sm text-dim">Personne n’est bloqué pour le moment.</p>
           ) : (

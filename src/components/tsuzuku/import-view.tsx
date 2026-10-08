@@ -233,7 +233,7 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
                   }}
                 />
               </div>
-              {error ? <p className="text-sm text-red-400">{error}</p> : null}
+              {error ? <p className="text-sm text-crimson">{error}</p> : null}
             </>
           ) : null}
 
@@ -251,7 +251,7 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
                 <ul className="space-y-1 text-sm">
                   {Object.entries(preview.counts.byStatus).map(([label, n]) => (
                     <li key={label} className="flex justify-between gap-2">
-                      <span className={label.startsWith("Ambigu") ? "text-amber-400" : ""}>
+                      <span className={label.startsWith("Ambigu") ? "text-status-hold" : ""}>
                         {label}
                       </span>
                       <span className="tabular-nums text-dim">{n}</span>
@@ -260,7 +260,7 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
                 </ul>
               </div>
               {preview.counts.ambiguous > 0 ? (
-                <p className="rounded-[8px] border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12.5px] text-amber-200">
+                <p className="rounded-[8px] border border-status-hold/30 bg-status-hold/10 px-3 py-2 text-[12.5px] text-status-hold">
                   {preview.counts.ambiguous} statut{preview.counts.ambiguous > 1 ? "s" : ""}{" "}
                   ambigu{preview.counts.ambiguous > 1 ? "s" : ""} (ex. Rewatching) → mappé
                   vers « En cours » à la confirmation, plutôt que deviné silencieusement.
@@ -322,7 +322,7 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
                   <span className="tabular-nums text-dim">{result.unresolved}</span>
                 </li>
                 {result.ambiguousMapped > 0 ? (
-                  <li className="flex justify-between text-amber-200">
+                  <li className="flex justify-between text-status-hold">
                     <span>Statuts ambigus mappés</span>
                     <span className="tabular-nums">{result.ambiguousMapped}</span>
                   </li>

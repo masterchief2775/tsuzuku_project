@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CalendarClock, Flag, Infinity as InfinityIcon, TriangleAlert } from "lucide-react";
 import { Cover } from "@/components/tsuzuku/cover";
+import { EmptyState, PageHeader } from "@/components/tsuzuku/ui";
 import { cn } from "@/lib/utils";
 import { formatAiringTime } from "@/lib/watchlist";
 import {
@@ -136,7 +137,7 @@ function TimelineRowCard({ row, pct }: { row: TimelineRow; pct: (ts: number | nu
                 title={`Ép. ${row.nextEpisode} — ${formatAiringTime(row.nextAiringAt, { withDay: true })}`}
                 className={cn(
                   "absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-raised",
-                  row.estimatedEndAt == null ? "bg-amber-400" : "bg-ink",
+                  row.estimatedEndAt == null ? "bg-status-hold" : "bg-ink",
                 )}
                 style={{ left: `${Math.max(1, Math.min(99, openPct))}%` }}
               />
@@ -196,12 +197,10 @@ export function TimelineView() {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-[14px] border border-dashed border-line px-4 py-14 text-center">
-        <p className="text-sm text-dim">
-          Rien n'est en cours de diffusion dans ta liste. Passe des titres en « En cours » pour
-          voir ici ce qui se termine, et quand.
-        </p>
-      </div>
+      <EmptyState
+        title="Rien à projeter pour l'instant."
+        hint="Rien n'est en cours de diffusion dans ta liste. Passe des titres en « En cours » pour voir ici ce qui se termine, et quand."
+      />
     );
   }
 
@@ -210,22 +209,24 @@ export function TimelineView() {
   const stillAiring = stillAiringCount(rows);
 
   return (
-    <div>
-      <header className="mb-4">
-        <h2 className="font-serif text-xl font-semibold tracking-tight">Chronologie</h2>
-        <p className="mt-1 text-[13px] text-dim">
-          {totalRemaining(rows)} épisode{totalRemaining(rows) > 1 ? "s" : ""} à regarder sur{" "}
-          {rows.length} série{rows.length > 1 ? "s" : ""} suivie{rows.length > 1 ? "s" : ""}.
-          {finished > 0 ? ` ${finished} terminée${finished > 1 ? "s" : ""}, à rattraper.` : ""}
-          {stillAiring < rows.length ? ` ${stillAiring} encore en diffusion.` : ""}
-          {openEnded > 0 ? ` ${openEnded} sans date de fin annoncée.` : ""}
-        </p>
-        <p className="mt-1 text-[12px] text-dim/80">
-          Les dates de fin sont estimées à un épisode par semaine : AniList ne publie que le
-          prochain épisode, jamais le calendrier complet. Les séries déjà terminées affichent leur
-          vraie date de fin.
-        </p>
-      </header>
+    <div className="animate-fade-up">
+      <PageHeader
+        eyebrow="Projections"
+        title="Chronologie"
+        description={
+          <>
+            {totalRemaining(rows)} épisode{totalRemaining(rows) > 1 ? "s" : ""} à regarder sur{" "}
+            {rows.length} série{rows.length > 1 ? "s" : ""} suivie{rows.length > 1 ? "s" : ""}.
+            {finished > 0 ? ` ${finished} terminée${finished > 1 ? "s" : ""}, à rattraper.` : ""}
+            {stillAiring < rows.length ? ` ${stillAiring} encore en diffusion.` : ""}
+            {openEnded > 0 ? ` ${openEnded} sans date de fin annoncée.` : ""}{" "}
+            <span className="text-dim">
+              Dates de fin estimées à un épisode par semaine — AniList ne publie que le prochain
+              épisode. Les séries terminées affichent leur vraie date de fin.
+            </span>
+          </>
+        }
+      />
 
       <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Trier la chronologie">
         {SORTS.map((s) => (
@@ -252,7 +253,7 @@ export function TimelineView() {
         ))}
       </ul>
 
-      <p className="mt-4 text-[11.5px] text-dim/80">
+      <p className="mt-4 text-[11.5px] text-dim">
         Intervalle supposé : {ASSUMED_EPISODE_INTERVAL_DAYS} jours par épisode.
       </p>
     </div>

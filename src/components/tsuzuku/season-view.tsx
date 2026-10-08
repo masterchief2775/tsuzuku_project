@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MediaGrid, MediaGridSkeleton } from "@/components/tsuzuku/media-grid";
+import { EmptyState, PageHeader } from "@/components/tsuzuku/ui";
 import {
   fetchBySeason,
   recentSeasonOptions,
@@ -77,38 +78,37 @@ export function SeasonView() {
   const selectValue = `${season}|${year}`;
 
   return (
-    <div>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-xl font-medium">Saison en cours</h2>
-          <p className="mt-0.5 text-sm text-dim">
-            Parcours les sorties d&apos;une saison et ajoute-les en un clic.
-          </p>
-        </div>
-        <label className="flex flex-col gap-1 text-xs font-semibold text-dim">
-          Saison
-          <select
-            value={selectValue}
-            onChange={(e) => {
-              const [s, y] = e.target.value.split("|");
-              setSeason(s as AniListSeason);
-              setYear(Number(y));
-            }}
-            className="rounded-[9px] border border-line bg-raised px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-lime"
-          >
-            {options.map((o) => (
-              <option key={`${o.season}|${o.year}`} value={`${o.season}|${o.year}`}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+    <div className="animate-fade-up">
+      <PageHeader
+        eyebrow="Explorer"
+        title="Saison en cours"
+        description="Parcours les sorties d'une saison et ajoute-les en un clic."
+        actions={
+          <label className="flex items-center gap-2 text-xs font-semibold text-dim">
+            Saison
+            <select
+              value={selectValue}
+              onChange={(e) => {
+                const [s, y] = e.target.value.split("|");
+                setSeason(s as AniListSeason);
+                setYear(Number(y));
+              }}
+              className="rounded-[10px] border border-line bg-raised px-3 py-2 text-sm font-semibold text-ink outline-none transition focus:border-lime"
+            >
+              {options.map((o) => (
+                <option key={`${o.season}|${o.year}`} value={`${o.season}|${o.year}`}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      />
 
       {error ? <div className="mb-4 text-sm text-crimson">{error}</div> : null}
       {loading ? <MediaGridSkeleton count={12} /> : null}
       {!loading && !error && results.length === 0 ? (
-        <p className="py-10 text-center text-sm text-dim">Aucun titre pour cette saison.</p>
+        <EmptyState title="Aucun titre pour cette saison." />
       ) : null}
       {!loading && results.length > 0 ? (
         <>

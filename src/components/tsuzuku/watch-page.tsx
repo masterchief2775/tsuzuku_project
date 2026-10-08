@@ -275,7 +275,7 @@ export function WatchPage() {
                         : "Chargement du titre…"}
                   </p>
                   {hydrated && !entry ? (
-                    <p className="mt-1 text-[12px] text-dim/80">
+                    <p className="mt-1 text-[12px] text-dim">
                       Ce titre n&apos;est pas dans ta liste : ajoute-le pour suivre ta progression ici.
                     </p>
                   ) : null}
@@ -453,7 +453,7 @@ export function WatchPage() {
                             <span
                               className={cn(
                                 "block truncate text-[12.5px] font-semibold",
-                                current ? "text-ink" : "text-ink/85",
+                                current ? "text-ink" : "text-dim",
                               )}
                             >
                               {episodeNumberLabel(ep.number)}
@@ -481,7 +481,7 @@ export function WatchPage() {
               </div>
             </div>
 
-            <p className="mt-3 px-1 text-[11.5px] leading-relaxed text-dim/80">
+            <p className="mt-3 px-1 text-[11.5px] leading-relaxed text-dim">
               Épisodes listés d&apos;après AniList. Les durées sont estimées tant qu&apos;aucune source
               n&apos;est branchée.
             </p>

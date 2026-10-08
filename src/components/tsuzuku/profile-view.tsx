@@ -89,8 +89,8 @@ export function ProfileView() {
     <>
       <div className="mx-auto w-full max-w-2xl space-y-8">
         {error && !loading ? (
-          <div className="rounded-[12px] border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">
-            <p className="font-semibold text-red-300">Erreur de chargement</p>
+          <div className="rounded-[12px] border border-crimson/40 bg-crimson/10 px-4 py-3 text-sm">
+            <p className="font-semibold text-crimson">Erreur de chargement</p>
             <p className="mt-1 text-dim">{error}</p>
             <button
               type="button"
@@ -311,7 +311,7 @@ export function ProfileView() {
                 </p>
                 <div className="mb-2 flex flex-wrap gap-2">
                   {favorites.length === 0 ? (
-                    <span className="text-[12px] text-dim/80">Aucun favori pour l&apos;instant.</span>
+                    <span className="text-[12px] text-dim">Aucun favori pour l&apos;instant.</span>
                   ) : (
                     favorites.map((f, idx) => (
                       <span
@@ -388,7 +388,7 @@ export function ProfileView() {
                 </div>
               </details>
 
-              {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+              {error ? <p className="mt-3 text-sm text-crimson">{error}</p> : null}
               {okMsg ? <p className="mt-3 text-sm text-lime">{okMsg}</p> : null}
 
               <button
@@ -420,7 +420,7 @@ export function ProfileView() {
               <p className="mb-3 text-xs text-dim">
                 Disponible si tu t&apos;es inscrit avec e-mail / mot de passe.
               </p>
-              {pwdErr ? <p className="mb-2 text-sm text-red-400">{pwdErr}</p> : null}
+              {pwdErr ? <p className="mb-2 text-sm text-crimson">{pwdErr}</p> : null}
               {pwdMsg ? <p className="mb-2 text-sm text-lime">{pwdMsg}</p> : null}
               <div className="space-y-3">
                 <Field label="Mot de passe actuel">
@@ -475,8 +475,8 @@ export function ProfileView() {
             </section>
 
             {/* Danger zone */}
-            <section className="rounded-[12px] border border-red-500/30 bg-red-500/5 p-5">
-              <h2 className="font-serif text-base font-medium text-red-300">Zone dangereuse</h2>
+            <section className="rounded-[12px] border border-crimson/30 bg-crimson/5 p-5">
+              <h2 className="font-serif text-base font-medium text-crimson">Zone dangereuse</h2>
               <p className="mt-1 text-sm text-dim">
                 La suppression est définitive : watchlist, partages, profil et sessions.
               </p>
@@ -484,7 +484,7 @@ export function ProfileView() {
                 <button
                   type="button"
                   onClick={() => setDeleteOpen(true)}
-                  className="mt-3 inline-flex items-center gap-2 rounded-[9px] border border-red-500/40 px-3 py-2 text-sm font-semibold text-red-300"
+                  className="mt-3 inline-flex items-center gap-2 rounded-[9px] border border-crimson/40 px-3 py-2 text-sm font-semibold text-crimson"
                 >
                   <Trash2 className="size-4" />
                   Supprimer mon compte
@@ -514,7 +514,7 @@ export function ProfileView() {
                       type="button"
                       disabled={deleting || deleteConfirm !== "SUPPRIMER"}
                       onClick={() => void removeAccount()}
-                      className="flex-1 rounded-[9px] bg-red-500 px-3 py-2 text-sm font-bold text-white disabled:opacity-40"
+                      className="flex-1 rounded-[9px] bg-crimson px-3 py-2 text-sm font-bold text-bg disabled:opacity-40"
                     >
                       {deleting ? "Suppression…" : "Confirmer"}
                     </button>

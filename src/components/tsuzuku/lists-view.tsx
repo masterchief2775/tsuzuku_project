@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { EmptyState, PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
   addSharedListItem,
@@ -160,12 +161,11 @@ function ListsIndex() {
 
   return (
     <div className="mx-auto max-w-[720px] animate-fade-up">
-      <div className="mb-6">
-        <h1 className="font-serif text-xl font-medium">Listes partagées</h1>
-        <p className="mt-1 text-sm text-dim">
-          Espace collab : ajoutez, votez, suivez ce que vous regardez ensemble.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Collab"
+        title="Listes partagées"
+        description="Espace collab : ajoutez, votez, suivez ce que vous regardez ensemble."
+      />
 
       <form
         onSubmit={onCreate}
@@ -194,12 +194,11 @@ function ListsIndex() {
           <Loader2 className="size-5 animate-spin" />
         </div>
       ) : error ? null : lists.length === 0 ? (
-        <div className="rounded-[14px] border border-dashed border-line px-4 py-10 text-center">
-          <p className="text-sm text-dim">
-            Aucune liste. Crée-en une, invite des amis, ajoutez 3 titres et votez pour la prochaine
-            séance.
-          </p>
-        </div>
+        <EmptyState
+          icon={ListPlus}
+          title="Aucune liste pour l'instant."
+          hint="Crée-en une, invite des amis, ajoutez 3 titres et votez pour la prochaine séance."
+        />
       ) : (
         <ul className="space-y-2">
           {lists.map((l) => (
@@ -365,55 +364,61 @@ function ListDetail({ listId }: { listId: string }) {
 
   return (
     <div className="mx-auto max-w-[720px] animate-fade-up">
-      <div className="mb-5 flex items-start gap-3">
+      <div className="flex items-start gap-2.5">
         <button
           type="button"
           onClick={() => void navigate({ to: "/lists", search: { id: undefined, join: undefined } })}
-          className="rounded-[8px] border border-line bg-raised p-2 text-dim hover:text-ink"
+          className="mt-1 shrink-0 rounded-[10px] border border-line bg-raised p-2.5 text-dim transition hover:border-lime/40 hover:text-ink"
           aria-label="Retour aux listes"
         >
           <ArrowLeft className="size-4" />
         </button>
-        <div className="min-w-0 flex-1">
-          <h1 className="font-serif text-xl font-medium">{list.name}</h1>
-          {list.description ? (
-            <p className="mt-1 text-sm text-dim">{list.description}</p>
-          ) : null}
-          <p className="mt-1 text-[11.5px] text-dim">
-            {items.length} titres · {members.length} membres ·{" "}
-            {isOwner ? "Propriétaire" : canEdit ? "Éditeur" : "Lecteur"}
-          </p>
-        </div>
-        {isOwner ? (
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                setEditName(list.name);
-                setEditDesc(list.description || "");
-                setEditOpen((v) => !v);
-              }}
-              className="rounded-[8px] border border-line p-2 text-dim hover:text-lime"
-              aria-label="Modifier"
-            >
-              <Pencil className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                if (!window.confirm("Supprimer cette liste pour tout le monde ?")) return;
-                void run(async () => {
-                  await deleteSharedList(list.id);
-                  void navigate({ to: "/lists", search: { id: undefined, join: undefined } });
-                });
-              }}
-              className="rounded-[8px] border border-line px-2.5 py-1.5 text-xs font-semibold text-dim hover:border-crimson/40 hover:text-crimson"
-            >
-              Supprimer
-            </button>
-          </div>
-        ) : null}
+        <PageHeader
+          className="min-w-0 flex-1"
+          eyebrow="Liste partagée"
+          title={list.name}
+          description={
+            <>
+              {list.description ? <>{list.description} </> : null}
+              <span className="text-dim">
+                {items.length} titres · {members.length} membres ·{" "}
+                {isOwner ? "Propriétaire" : canEdit ? "Éditeur" : "Lecteur"}
+              </span>
+            </>
+          }
+          actions={
+            isOwner ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditName(list.name);
+                    setEditDesc(list.description || "");
+                    setEditOpen((v) => !v);
+                  }}
+                  className="rounded-[10px] border border-line p-2.5 text-dim transition hover:border-lime/40 hover:text-lime"
+                  aria-label="Modifier"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    if (!window.confirm("Supprimer cette liste pour tout le monde ?")) return;
+                    void run(async () => {
+                      await deleteSharedList(list.id);
+                      void navigate({ to: "/lists", search: { id: undefined, join: undefined } });
+                    });
+                  }}
+                  className="rounded-[10px] border border-line px-2.5 py-2 text-xs font-semibold text-dim transition hover:border-crimson/40 hover:text-crimson"
+                >
+                  Supprimer
+                </button>
+              </>
+            ) : undefined
+          }
+        />
       </div>
 
       {editOpen && isOwner ? (
@@ -561,37 +566,41 @@ function ListDetail({ listId }: { listId: string }) {
 
       {/* Members + invite */}
       <section className="mb-5 rounded-[14px] border border-line bg-raised p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Membres ({members.length})</h2>
-          <div className="flex flex-wrap gap-2">
-            {isOwner ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    if (list.inviteEnabled) await disableSharedListInvite(list.id);
-                    else await enableSharedListInvite(list.id);
-                  })
-                }
-                className="inline-flex items-center gap-1 text-xs font-semibold text-dim hover:text-lime"
-              >
-                <Link2 className="size-3.5" />
-                {list.inviteEnabled ? "Désactiver le lien" : "Lien d’invitation"}
-              </button>
-            ) : null}
-            {canEdit || isOwner ? (
-              <button
-                type="button"
-                onClick={() => setMemberOpen((v) => !v)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-lime"
-              >
-                <UserPlus className="size-3.5" />
-                Inviter un ami
-              </button>
-            ) : null}
-          </div>
-        </div>
+        <SectionTitle
+          icon={Users}
+          title="Membres"
+          count={members.length}
+          action={
+            <div className="flex flex-wrap gap-2">
+              {isOwner ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      if (list.inviteEnabled) await disableSharedListInvite(list.id);
+                      else await enableSharedListInvite(list.id);
+                    })
+                  }
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-dim hover:text-lime"
+                >
+                  <Link2 className="size-3.5" />
+                  {list.inviteEnabled ? "Désactiver le lien" : "Lien d’invitation"}
+                </button>
+              ) : null}
+              {canEdit || isOwner ? (
+                <button
+                  type="button"
+                  onClick={() => setMemberOpen((v) => !v)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-lime"
+                >
+                  <UserPlus className="size-3.5" />
+                  Inviter un ami
+                </button>
+              ) : null}
+            </div>
+          }
+        />
 
         {inviteUrl ? (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[10px] border border-lime/30 bg-lime/5 px-3 py-2">
@@ -672,18 +681,21 @@ function ListDetail({ listId }: { listId: string }) {
 
       {/* Titles */}
       <section className="rounded-[14px] border border-line bg-raised p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Titres ({items.length})</h2>
-          {canEdit ? (
-            <button
-              type="button"
-              onClick={() => setPickOpen((v) => !v)}
-              className="text-xs font-semibold text-lime"
-            >
-              {pickOpen ? "Fermer l’ajout" : "Ajouter des titres"}
-            </button>
-          ) : null}
-        </div>
+        <SectionTitle
+          title="Titres"
+          count={items.length}
+          action={
+            canEdit ? (
+              <button
+                type="button"
+                onClick={() => setPickOpen((v) => !v)}
+                className="text-xs font-semibold text-lime"
+              >
+                {pickOpen ? "Fermer l’ajout" : "Ajouter des titres"}
+              </button>
+            ) : undefined
+          }
+        />
 
         <div className="mb-3 flex flex-wrap gap-1.5">
           <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>

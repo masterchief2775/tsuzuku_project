@@ -4,6 +4,7 @@ import { EntryCard } from "@/components/tsuzuku/entry-card";
 import { Cover } from "@/components/tsuzuku/cover";
 import { Recommendations } from "@/components/tsuzuku/recommendations";
 import { ActivityFeed } from "@/components/tsuzuku/activity-feed";
+import { EmptyState, PageHeader, SectionTitle } from "@/components/tsuzuku/ui";
 import { WeeklyDigest } from "@/components/tsuzuku/weekly-digest";
 import { HabitsCard } from "@/components/tsuzuku/habits-card";
 import {
@@ -123,7 +124,7 @@ export function Dashboard() {
     return (
       <div className="px-5 py-14 text-center sm:py-20">
         <div className="font-serif text-5xl text-line">見</div>
-        <h2 className="font-serif mt-1 text-xl font-medium">Bienvenue sur Tsuzuku</h2>
+        <h1 className="font-serif mt-1 text-xl font-medium text-balance">Bienvenue sur Tsuzuku</h1>
         <p className="mx-auto mt-1 mb-6 max-w-md text-sm text-dim">
           Trois façons de commencer — choisis celle qui te ressemble, tu pourras
           tout changer plus tard.
@@ -177,20 +178,18 @@ export function Dashboard() {
 
   return (
     <div className="animate-fade-up">
-      <header className="mb-5">
-        <p className="text-[12.5px] font-semibold tracking-wide text-dim uppercase">
-          {greetingLabel()}
-        </p>
-        <h2 className="font-serif mt-0.5 text-xl font-semibold tracking-tight sm:text-2xl">
-          {featured
+      <PageHeader
+        eyebrow={greetingLabel()}
+        title={
+          featured
             ? availableCount > 0
               ? availableCount === 1
                 ? "Un épisode t’attend"
                 : `${availableCount} épisodes t’attendent`
               : "Reprends où tu en étais"
-            : "Ta watchlist"}
-        </h2>
-      </header>
+            : "Ta watchlist"
+        }
+      />
 
       {todayAiring.length > 0 ? (
         <button
@@ -227,22 +226,24 @@ export function Dashboard() {
 
       {featured ? (
         <section className="mb-8">
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <h3 className="font-serif text-[17px] font-medium">Continuer</h3>
-            {watchingAll.length > 1 ? (
-              <button
-                type="button"
-                className="text-[12px] font-semibold text-lime hover:underline"
-                onClick={() => {
-                  useWatchlistStore.getState().setStatusFilter("Watching");
-                  useWatchlistStore.getState().clearAdvancedFilters();
-                  setView("list");
-                }}
-              >
-                Voir tout ({watchingAll.length})
-              </button>
-            ) : null}
-          </div>
+          <SectionTitle
+            title="Continuer"
+            action={
+              watchingAll.length > 1 ? (
+                <button
+                  type="button"
+                  className="text-[12px] font-semibold text-lime hover:underline"
+                  onClick={() => {
+                    useWatchlistStore.getState().setStatusFilter("Watching");
+                    useWatchlistStore.getState().clearAdvancedFilters();
+                    setView("list");
+                  }}
+                >
+                  Voir tout ({watchingAll.length})
+                </button>
+              ) : undefined
+            }
+          />
 
           <ContinueHero
             entry={featured}
@@ -264,43 +265,39 @@ export function Dashboard() {
           ) : null}
         </section>
       ) : (
-        <section className="mb-8 rounded-[14px] border border-dashed border-line bg-raised/40 px-4 py-6 text-center">
-          <p className="text-sm text-dim">Rien en cours pour le moment.</p>
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-lime hover:underline"
-              onClick={() => {
-                useWatchlistStore.getState().setStatusFilter("Plan to Watch");
-                useWatchlistStore.getState().clearAdvancedFilters();
-                setView("list");
-              }}
-            >
-              <Play className="size-3.5" /> Liste à regarder
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-dim hover:text-lime"
-              onClick={() => setView("search")}
-            >
-              <Search className="size-3.5" /> Chercher
-            </button>
-          </div>
-        </section>
+        <EmptyState
+          title="Rien en cours pour le moment."
+          hint="Passe un titre en « En cours » ou explore la recherche pour reprendre une série."
+          className="mb-8"
+          actions={
+            <>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-lime hover:underline"
+                onClick={() => {
+                  useWatchlistStore.getState().setStatusFilter("Plan to Watch");
+                  useWatchlistStore.getState().clearAdvancedFilters();
+                  setView("list");
+                }}
+              >
+                <Play className="size-3.5" /> Liste à regarder
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-dim hover:text-lime"
+                onClick={() => setView("search")}
+              >
+                <Search className="size-3.5" /> Chercher
+              </button>
+            </>
+          }
+        />
       )}
 
       {/* 2. Cette semaine — groupé par jour */}
       {entries.some((e) => e.status === "Watching") ? (
         <section className="mb-8">
-          <h3 className="font-serif mb-3 flex items-center gap-2 text-[17px] font-medium">
-            <CalendarClock className="size-4 text-lime" />
-            Cette semaine
-            {upcomingCount > 0 ? (
-              <span className="rounded-full bg-lime/15 px-2 py-0.5 text-[11px] font-bold text-lime tabular-nums">
-                {upcomingCount}
-              </span>
-            ) : null}
-          </h3>
+          <SectionTitle icon={CalendarClock} title="Cette semaine" count={upcomingCount} />
           {upcomingGroups.length > 0 ? (
             <div className="space-y-4">
               {upcomingGroups.map((group) => (
@@ -346,9 +343,11 @@ export function Dashboard() {
               ))}
             </div>
           ) : (
-            <div className="rounded-[12px] border border-dashed border-line bg-raised/40 px-4 py-4 text-center text-sm text-dim">
-              Aucun épisode annoncé dans les 7 prochains jours.
-            </div>
+            <EmptyState
+              icon={CalendarClock}
+              title="Semaine calme."
+              hint="Aucun épisode annoncé dans les 7 prochains jours."
+            />
           )}
         </section>
       ) : null}
@@ -372,7 +371,7 @@ export function Dashboard() {
               >
                 <span className="size-2 rounded-full" style={{ background: s.color }} />
                 {s.label}
-                <span className="tabular-nums text-ink/80">{n}</span>
+                <span className="tabular-nums text-ink">{n}</span>
               </button>
             );
           })}
@@ -388,7 +387,7 @@ export function Dashboard() {
             <span className="font-semibold text-ink tabular-nums">
               {stats.avgRating == null ? "—" : stats.avgRating.toFixed(1)}
             </span>
-            {stats.ratedCount ? <span className="text-dim/80"> ({stats.ratedCount})</span> : null}
+            {stats.ratedCount ? <span className="text-dim"> ({stats.ratedCount})</span> : null}
           </span>
           {stats.topGenres.length > 0 ? (
             <>
@@ -415,20 +414,22 @@ export function Dashboard() {
 
       {/* 5. Ajouts récents */}
       <section className="mb-8">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <h3 className="font-serif text-[17px] font-medium">Ajouts récents</h3>
-          <button
-            type="button"
-            className="text-[12px] font-semibold text-dim hover:text-lime"
-            onClick={() => {
-              useWatchlistStore.getState().setStatusFilter("Tous");
-              useWatchlistStore.getState().clearAdvancedFilters();
-              setView("list");
-            }}
-          >
-            Toute la liste
-          </button>
-        </div>
+        <SectionTitle
+          title="Ajouts récents"
+          action={
+            <button
+              type="button"
+              className="text-[12px] font-semibold text-dim hover:text-lime"
+              onClick={() => {
+                useWatchlistStore.getState().setStatusFilter("Tous");
+                useWatchlistStore.getState().clearAdvancedFilters();
+                setView("list");
+              }}
+            >
+              Toute la liste
+            </button>
+          }
+        />
         <div className="flex gap-3.5 overflow-x-auto pb-1.5">
           {recent.map((e) => (
             <EntryCard key={e.id} entry={e} compact onOpen={setActiveEntryId} />

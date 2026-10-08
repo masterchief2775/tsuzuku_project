@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { SectionTitle } from "@/components/tsuzuku/ui";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
   fetchFriendActivity,
@@ -124,15 +125,15 @@ export function ActivityFeed({ compact = true }: { compact?: boolean }) {
         compact ? "p-3.5" : "p-4 sm:p-5",
       )}
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="font-serif flex items-center gap-2 text-base font-medium">
-          <Bell className="size-4 text-lime" />
-          Activité récente
-        </h2>
-        <Link to="/friends" className="text-xs font-semibold text-dim hover:text-lime">
-          Voir tout
-        </Link>
-      </div>
+      <SectionTitle
+        icon={Bell}
+        title="Activité récente"
+        action={
+          <Link to="/friends" className="text-xs font-semibold text-dim hover:text-lime">
+            Voir tout
+          </Link>
+        }
+      />
       {loading && items.length === 0 ? (
         <p className="text-sm text-dim">Chargement…</p>
       ) : items.length === 0 ? (

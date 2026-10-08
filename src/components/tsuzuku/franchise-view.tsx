@@ -1,6 +1,7 @@
 import { AlertTriangle, BookMarked, ChevronDown, Loader2, Network, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Cover } from "@/components/tsuzuku/cover";
+import { EmptyState, PageHeader } from "@/components/tsuzuku/ui";
 import { useFranchises } from "@/components/tsuzuku/use-franchises";
 import { cn } from "@/lib/utils";
 import { statusMeta } from "@/lib/watchlist";
@@ -120,7 +121,7 @@ function FranchiseCard({ franchise }: { franchise: Franchise }) {
       </div>
 
       {franchise.missingPrerequisites.length > 0 ? (
-        <p className="mt-3 flex items-start gap-1.5 rounded-[10px] border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[12px] text-amber-100">
+        <p className="mt-3 flex items-start gap-1.5 rounded-[10px] border border-status-hold/30 bg-status-hold/10 px-2.5 py-2 text-[12px] text-status-hold">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           <span>
             Préalable{franchise.missingPrerequisites.length > 1 ? "s" : ""} manquant
@@ -170,21 +171,24 @@ export function FranchiseView() {
   const mistakes = franchises.reduce((n, f) => n + f.outOfOrder.length, 0);
 
   return (
-    <div>
-      <header className="mb-4">
-        <h2 className="font-serif text-xl font-semibold tracking-tight">Franchises</h2>
-        <p className="mt-1 text-[13px] text-dim">
-          {franchises.length === 0
-            ? "Aucune franchise détectée pour l’instant."
-            : `${franchises.length} franchise${franchises.length > 1 ? "s" : ""} détectée${franchises.length > 1 ? "s" : ""}.`}
-          {gaps > 0 ? ` ${gaps} préalable${gaps > 1 ? "s" : ""} manquant${gaps > 1 ? "s" : ""}.` : ""}
-          {mistakes > 0 ? ` ${mistakes} visionnage${mistakes > 1 ? "s" : ""} hors ordre.` : ""}
-        </p>
-        <p className="mt-1 text-[12px] text-dim/80">
-          AniList décrit les liens entre titres mais ne publie pas l’ordre de visionnage : sans
-          donnée vérifiée, l’ordre est déduit et signalé comme estimé.
-        </p>
-      </header>
+    <div className="animate-fade-up">
+      <PageHeader
+        eyebrow="Ordre de visionnage"
+        title="Franchises"
+        description={
+          <>
+            {franchises.length === 0
+              ? "Aucune franchise détectée pour l'instant."
+              : `${franchises.length} franchise${franchises.length > 1 ? "s" : ""} détectée${franchises.length > 1 ? "s" : ""}.`}
+            {gaps > 0 ? ` ${gaps} préalable${gaps > 1 ? "s" : ""} manquant${gaps > 1 ? "s" : ""}.` : ""}
+            {mistakes > 0 ? ` ${mistakes} visionnage${mistakes > 1 ? "s" : ""} hors ordre.` : ""}{" "}
+            <span className="text-dim">
+              AniList décrit les liens entre titres mais ne publie pas l'ordre de visionnage :
+              sans donnée vérifiée, l'ordre est déduit et signalé comme estimé.
+            </span>
+          </>
+        }
+      />
 
       {error ? (
         <p role="alert" className="mb-3 text-sm text-crimson">
@@ -207,14 +211,15 @@ export function FranchiseView() {
       ) : null}
 
       {franchises.length === 0 && !loading ? (
-        <div className="rounded-[14px] border border-dashed border-line px-4 py-14 text-center">
-          <BookMarked className="mx-auto mb-3 size-6 text-dim" aria-hidden="true" />
-          <p className="text-sm text-dim">
-            {pendingCount > 0
-              ? "Lecture des relations en cours…"
-              : "Ajoute au moins deux titres liés pour voir apparaître leur franchise ici."}
-          </p>
-        </div>
+        <EmptyState
+          icon={BookMarked}
+          title={pendingCount > 0 ? "Lecture des relations en cours…" : "Aucune franchise ici pour l'instant."}
+          hint={
+            pendingCount > 0
+              ? undefined
+              : "Ajoute au moins deux titres liés pour voir apparaître leur franchise ici."
+          }
+        />
       ) : (
         <ul className="space-y-3">
           {franchises.map((f) => (

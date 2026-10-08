@@ -475,7 +475,7 @@ function PartyRoomPage() {
                   m.status === "done"
                     ? "bg-lime/15 text-lime"
                     : m.status === "paused"
-                      ? "bg-amber-500/15 text-amber-200"
+                      ? "bg-status-hold/15 text-status-hold"
                       : "bg-bg text-dim",
                 )}
               >
