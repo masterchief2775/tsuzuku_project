@@ -1,4 +1,4 @@
-import type { CuratedTable } from "./franchise.ts";
+import type { CuratedBridge, CuratedTable } from "./franchise.ts";
 
 /**
  * Community watch orders for franchises where the narrative order is NOT the
@@ -51,4 +51,31 @@ export const CURATED_ORDERS: CuratedTable = [
       "Mobile Suit Gundam F91",
     ],
   },
+];
+
+/**
+ * One hand-checked relation AniList is missing, between two AniList ids.
+ *
+ * The curated fragments above only *reorder* titles we already discovered. A
+ * bridge is needed when the relation genuinely does not exist upstream, so
+ * walking the graph can never reach the rest of the franchise.
+ *
+ * The only one so far, and the bar for adding more: JoJo's chain is fully
+ * modelled by AniList (Egypt-hen → Diamond → Golden Wind → Stone Ocean → Stone
+ * Ocean Part 2) but **Steel Ball Run is attached to nothing** — no PREQUEL, no
+ * SIDE_STORY. So owning a Steel Ball Run episode showed a two-title franchise
+ * while JoJo has the whole run of parts above it.
+ *
+ * Deliberately ONE relation, not a hand-written JoJo list: everything else stays
+ * AniList's own graph, so the order is still derived from data rather than from
+ * my guess. A full hand-curated JoJo table was rejected on purpose — AniList has
+ * no entries at all for Battle Tendency (part 3) or JoJolion (part 7), and
+ * 14719/20474 look like two entries for the same 2012 series, so such a list
+ * would be both incomplete and wrong while claiming to be "verified".
+ */
+export const CURATED_BRIDGES: readonly CuratedBridge[] = [
+  // JoJo's Bizarre Adventure part 7 follows Stone Ocean part 2. Verified on the
+  // live API: Stone Ocean Part 2 (146722, 2022) has no successor, and Steel Ball
+  // Run 1st STAGE (190327, 2026) has no predecessor.
+  { before: 146722, after: 190327 },
 ];

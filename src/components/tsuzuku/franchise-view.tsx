@@ -64,6 +64,19 @@ function MemberRow({ member, position }: { member: FranchiseMemberView; position
   );
 }
 
+/**
+ * Names the gaps, but not all of them: a long chain like JoJo has nine missing
+ * titles before the entry the user owns, and listing every one is a wall of text
+ * that buries the first thing worth doing.
+ */
+const PREREQUISITE_PREVIEW = 3;
+
+function prerequisiteLabel(franchise: Franchise): string {
+  const titles = franchise.missingPrerequisites.map((m) => m.title);
+  if (titles.length <= PREREQUISITE_PREVIEW) return titles.join(", ");
+  return `${titles.slice(0, PREREQUISITE_PREVIEW).join(", ")} +${titles.length - PREREQUISITE_PREVIEW} autres`;
+}
+
 function findEntryId(anilistId: number): string | null {
   return useWatchlistStore.getState().entries.find((e) => e.anilistId === anilistId)?.id ?? null;
 }
@@ -110,10 +123,9 @@ function FranchiseCard({ franchise }: { franchise: Franchise }) {
         <p className="mt-3 flex items-start gap-1.5 rounded-[10px] border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[12px] text-amber-100">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           <span>
-            Préalable manquant :{" "}
-            <strong className="font-bold">
-              {franchise.missingPrerequisites.map((m) => m.title).join(", ")}
-            </strong>
+            Préalable{franchise.missingPrerequisites.length > 1 ? "s" : ""} manquant
+            {franchise.missingPrerequisites.length > 1 ? "s" : ""} :{" "}
+            <strong className="font-bold">{prerequisiteLabel(franchise)}</strong>
           </span>
         </p>
       ) : null}

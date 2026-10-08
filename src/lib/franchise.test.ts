@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   applyCuratedOrder,
+  bridgeEndpointIds,
+  bridgeRelationFor,
   buildFranchises,
   rankFranchises,
   splitMembersForDisplay,
@@ -9,6 +11,7 @@ import {
   type FranchiseMember,
   type MemberStatus,
 } from "./franchise.ts";
+import { CURATED_BRIDGES } from "./franchise-order.ts";
 import type { AniListRelation } from "./watchlist.ts";
 
 function node(id: number, title: string, extra: Partial<AniListRelation["node"]> = {}) {
@@ -468,6 +471,121 @@ describe("rankFranchises", () => {
     });
     const ranked = rankFranchises([...complete, ...withGap]);
     assert.equal(ranked[0]?.key, withGap[0]?.key);
+  });
+});
+
+const bridge = { before: 146722, after: 190327 };
+const stoneOceanP2 = {
+  id: 146722,
+  title: { romaji: "Stone Ocean Part 2", english: null, native: null },
+  coverImage: { large: null, color: null },
+  episodes: 12,
+  genres: null,
+  seasonYear: 2022,
+  studios: null,
+  averageScore: null,
+  format: "ONA" as const,
+};
+const steelBallRun = { ...stoneOceanP2, id: 190327, title: { romaji: "Steel Ball Run 1st STAGE", english: null, native: null }, seasonYear: 2026 };
+
+describe("curated bridges", () => {
+  it("attaches the counterpart as a prequel when this member is the sequel", () => {
+    const rel = bridgeRelationFor(190327, [bridge], new Map([[146722, stoneOceanP2]]));
+    assert.equal(rel?.type, "PREQUEL");
+    assert.equal(rel?.node.id, 146722);
+    // Format and date must travel with the node or it is filtered out.
+    assert.equal(rel?.node.format, "ONA");
+    assert.equal(rel?.node.seasonYear, 2022);
+  });
+
+  it("attaches the counterpart as a sequel when this member is the prequel", () => {
+    const rel = bridgeRelationFor(146722, [bridge], new Map([[190327, steelBallRun]]));
+    assert.equal(rel?.type, "SEQUEL");
+    assert.equal(rel?.node.id, 190327);
+  });
+
+  it("does nothing for an unrelated id or a missing counterpart", () => {
+    assert.equal(bridgeRelationFor(1, [bridge], new Map([[146722, stoneOceanP2]])), null);
+    // Metadata missing => the bridge is a no-op rather than a half-built relation.
+    assert.equal(bridgeRelationFor(190327, [bridge], new Map()), null);
+  });
+
+  it("lists both endpoints so the caller knows what to fetch", () => {
+    assert.deepEqual(bridgeEndpointIds([bridge]), [146722, 190327]);
+    assert.deepEqual(bridgeEndpointIds(CURATED_BRIDGES).length, new Set(bridgeEndpointIds(CURATED_BRIDGES)).size);
+  });
+
+  it("walks a chain whose ids are in the wrong key order", () => {
+    // Object keys that look like integers iterate in ASCENDING NUMERIC order, so
+    // 131942 is visited before 146722 creates it. A single pass over the cached
+    // relations therefore stopped the chain at Stone Ocean and the rest of JoJo
+    // vanished from the franchise.
+    const extraRelations = new Map<number, AniListRelation[]>([
+      [131942, [{ type: "PREQUEL", node: node(102883, "Ougon no Kaze", { seasonYear: 2018 }) }]],
+      [102883, [{ type: "PREQUEL", node: node(21450, "Diamond", { seasonYear: 2016 }) }]],
+      [146722, [{ type: "PREQUEL", node: node(131942, "Stone Ocean", { seasonYear: 2021 }) }]],
+    ]);
+    const f = buildFranchises({
+      media: [media(190327, "Steel Ball Run 1st STAGE", [], { format: "ONA", seasonYear: 2026 })],
+      statusOf: has(190327),
+      curated: [],
+      bridges: [bridge],
+      bridgeMedia: new Map([[146722, stoneOceanP2]]),
+      extraRelations,
+    });
+    const titles = f[0]!.members.map((m) => m.title);
+    // The bridge plus all three chained links must be present.
+    assert.ok(titles.includes("Stone Ocean Part 2"), "bridge endpoint missing");
+    assert.ok(titles.includes("Stone Ocean"), "chain broke at the numeric key order");
+    assert.ok(titles.includes("Ougon no Kaze"));
+    assert.ok(titles.includes("Diamond"));
+  });
+
+  it("joins a disconnected title to the rest of its franchise", () => {
+    // The real JoJo shape: Steel Ball Run is attached to nothing upstream, so
+    // without the bridge the franchise stops at its own two episodes.
+    const owned = media(210482, "Steel Ball Run 2nd & 3rd", [
+      { type: "PREQUEL", node: node(190327, "Steel Ball Run 1st STAGE", { format: "ONA", seasonYear: 2026 }) },
+    ], { format: "ONA", seasonYear: 2026 });
+
+    const without = buildFranchises({
+      media: [owned],
+      statusOf: has(210482),
+      curated: [],
+    });
+    assert.equal(without[0]?.members.length, 2, "without the bridge: only its own two episodes");
+
+    const with_ = buildFranchises({
+      media: [owned],
+      statusOf: has(210482),
+      curated: [],
+      bridges: [bridge],
+      bridgeMedia: new Map([[146722, stoneOceanP2]]),
+      // Diamond, which AniList links to the rest of JoJo.
+      extraRelations: new Map([
+        [146722, [{ type: "PREQUEL", node: node(21450, "Diamond Is Unbreakable", { seasonYear: 2016 }) }]],
+      ]),
+    });
+    // 2 Steel Ball Run episodes + Stone Ocean Part 2 (the bridge) + Diamond (via it).
+    assert.equal(with_[0]?.members.length, 4);
+    const titles = with_[0]!.members.map((m) => m.title);
+    assert.ok(titles.includes("Diamond Is Unbreakable"));
+    // The bridge must also order: 2022 before 2026.
+    assert.ok(titles.indexOf("Stone Ocean Part 2") < titles.indexOf("Steel Ball Run 2nd & 3rd"));
+  });
+
+  it("ignores a bridge whose counterpart metadata never arrived", () => {
+    const owned = media(210482, "Steel Ball Run 2nd & 3rd", [
+      { type: "PREQUEL", node: node(190327, "Steel Ball Run 1st STAGE", { format: "ONA", seasonYear: 2026 }) },
+    ], { format: "ONA", seasonYear: 2026 });
+    const f = buildFranchises({
+      media: [owned],
+      statusOf: has(210482),
+      curated: [],
+      bridges: [bridge],
+      bridgeMedia: new Map(),
+    });
+    assert.equal(f[0]?.members.length, 2);
   });
 });
 

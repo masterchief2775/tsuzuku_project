@@ -1,4 +1,4 @@
-import type { AniListRelation, AniListRelationType } from "./watchlist.ts";
+import type { AniListMedia, AniListRelation, AniListRelationType } from "./watchlist.ts";
 
 /**
  * Franchises & watch order — pure graph logic, no network.
@@ -159,17 +159,95 @@ function displayTitle(m: { title: { romaji: string | null; english: string | nul
 }
 
 /**
+ * One hand-checked relation AniList is missing, between two AniList ids.
+ *
+ * Curated fragments only *reorder* titles already discovered. A bridge is needed
+ * when the relation does not exist upstream at all, so walking the graph can
+ * never reach the rest of the franchise. The data lives in `franchise-order.ts`;
+ * the mechanics are here so the whole rule is testable without a network call.
+ */
+export type CuratedBridge = {
+  /** The title that comes first in the story. */
+  before: number;
+  /** The title that continues it. */
+  after: number;
+};
+
+/** Every id a bridge touches, so the caller knows what metadata to fetch. */
+export function bridgeEndpointIds(bridges: readonly CuratedBridge[]): number[] {
+  return [...new Set(bridges.flatMap((b) => [b.before, b.after]))];
+}
+
+/**
+ * The relation that joins `anilistId` to its bridge counterpart, or null when
+ * there is no bridge (or no metadata for the other side).
+ *
+ * The counterpart's metadata is required: a relation node with no format is
+ * filtered straight out of the franchise, so a bridge without it would silently
+ * do nothing at all.
+ */
+export function bridgeRelationFor(
+  anilistId: number,
+  bridges: readonly CuratedBridge[],
+  mediaById: ReadonlyMap<number, AniListMedia>,
+): AniListRelation | null {
+  for (const bridge of bridges) {
+    const other =
+      bridge.before === anilistId
+        ? bridge.after
+        : bridge.after === anilistId
+          ? bridge.before
+          : null;
+    if (other == null) continue;
+    const media = mediaById.get(other);
+    if (!media) continue;
+    return {
+      // The counterpart is the earlier side, so it is a prequel of this member.
+      type: other === bridge.before ? "PREQUEL" : "SEQUEL",
+      node: {
+        id: media.id,
+        title: media.title,
+        coverImage: { large: media.coverImage?.large ?? null },
+        format: media.format,
+        episodes: media.episodes,
+        seasonYear: media.seasonYear,
+      },
+    };
+  }
+  return null;
+}
+
+/**
  * Flatten AniList nodes referenced by relations into known members.
  *
  * `extraRelations` carries the relations of members that were only discovered as
  * a relation node; it is applied in a second pass, because a node first seen as
  * someone else's relation may itself lead to more titles.
+ *
+ * `bridges` is applied last, and to EVERY member rather than to the user's own
+ * entries: the endpoint that needs it is usually itself a synthetic member (Steel
+ * Ball Run 1st STAGE is only ever seen as a relation node), so attaching it in
+ * the caller would silently never fire.
  */
 function withRelatedNodes(
   media: FranchiseMember[],
   extraRelations?: ReadonlyMap<number, AniListRelation[]>,
+  bridges?: readonly CuratedBridge[],
+  bridgeMedia?: ReadonlyMap<number, AniListMedia>,
 ): Map<number, FranchiseMember> {
   const known = new Map<number, FranchiseMember>();
+  const addFromNode = (node: AniListRelation["node"]) => {
+    if (known.has(node.id)) return;
+    known.set(node.id, {
+      id: node.id,
+      title: displayTitle(node),
+      image: node.coverImage?.large ?? null,
+      format: node.format ?? null,
+      episodes: node.episodes ?? null,
+      seasonYear: node.seasonYear ?? null,
+      relations: [],
+    });
+  };
   for (const m of media) known.set(m.id, m);
   // A franchise is only as good as its edges: the related nodes must exist as
   // members even when the user does not track them (they are the "missing"
@@ -179,40 +257,51 @@ function withRelatedNodes(
       // Only family relations create a member. A manga adaptation or a
       // character crossover would otherwise show up as an unwatched "member".
       if (!isFamilyRelation(rel)) continue;
-      if (known.has(rel.node.id)) continue;
-      known.set(rel.node.id, {
-        id: rel.node.id,
-        title: displayTitle(rel.node),
-        image: rel.node.coverImage?.large ?? null,
-        format: rel.node.format ?? null,
-        episodes: rel.node.episodes ?? null,
-        seasonYear: rel.node.seasonYear ?? null,
-        relations: [],
-      });
+      addFromNode(rel.node);
     }
   }
-  // Second pass: attach relations we fetched for a discovered member, and let
-  // those introduce further members.
+  // Hand-checked links AniList is missing. Runs BEFORE `extraRelations` so a
+  // member the bridge creates can itself receive fetched relations, and once
+  // more after, in case an endpoint only showed up in that pass.
+  const bridged = new Set<number>();
+  const applyBridges = () => {
+    if (!bridges?.length || !bridgeMedia) return;
+    for (const m of [...known.values()]) {
+      if (bridged.has(m.id)) continue;
+      const rel = bridgeRelationFor(m.id, bridges, bridgeMedia);
+      if (!rel) continue;
+      bridged.add(m.id);
+      m.relations = [...m.relations, rel];
+      if (isFamilyRelation(rel)) addFromNode(rel.node);
+    }
+  };
+  applyBridges();
+  // Attach fetched relations until nothing new appears.
+  //
+  // One pass is NOT enough, and the reason is subtle: object keys that look like
+  // integers come back in ascending numeric order, not insertion order. So the
+  // cached id 131942 (Stone Ocean) is visited *before* 146722 (Stone Ocean Part
+  // 2) creates it, and a single pass silently dropped the rest of JoJo. Repeating
+  // until no member is added walks the chain properly; each id is filled once, so
+  // it terminates.
   if (extraRelations) {
-    for (const [id, relations] of extraRelations) {
-      const member = known.get(id);
-      if (!member || member.relations.length > 0) continue;
-      member.relations = relations;
-      for (const rel of relations) {
-        if (!isFamilyRelation(rel)) continue;
-        if (known.has(rel.node.id)) continue;
-        known.set(rel.node.id, {
-          id: rel.node.id,
-          title: displayTitle(rel.node),
-          image: rel.node.coverImage?.large ?? null,
-          format: rel.node.format ?? null,
-          episodes: rel.node.episodes ?? null,
-          seasonYear: rel.node.seasonYear ?? null,
-          relations: [],
-        });
+    for (let pass = 0; pass < 64; pass++) {
+      let added = 0;
+      for (const [id, relations] of extraRelations) {
+        const member = known.get(id);
+        if (!member || member.relations.length > 0) continue;
+        member.relations = relations;
+        for (const rel of relations) {
+          if (!isFamilyRelation(rel)) continue;
+          const before = known.size;
+          addFromNode(rel.node);
+          if (known.size > before) added++;
+        }
       }
+      if (added === 0) break;
     }
   }
+  applyBridges();
   return known;
 }
 
@@ -421,8 +510,12 @@ export function buildFranchises(input: {
    * of the chain. Supplying the second hop here pulls in 10.
    */
   extraRelations?: ReadonlyMap<number, AniListRelation[]>;
+  /** Hand-checked relations AniList is missing; data in `franchise-order.ts`. */
+  bridges?: readonly CuratedBridge[];
+  /** Metadata for the bridge endpoints, keyed by AniList id. */
+  bridgeMedia?: ReadonlyMap<number, AniListMedia>;
 }): Franchise[] {
-  const byId = withRelatedNodes(input.media, input.extraRelations);
+  const byId = withRelatedNodes(input.media, input.extraRelations, input.bridges, input.bridgeMedia);
   const all = [...byId.values()];
   const { find, union } = makeGroups();
 
