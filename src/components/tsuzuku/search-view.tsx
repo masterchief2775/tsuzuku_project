@@ -216,7 +216,7 @@ function ResultsGrid({
         return (
           <div
             key={m.id}
-            className="flex h-full flex-col overflow-hidden rounded-[12px] border border-line bg-raised shadow-sm"
+            className="hover-lift flex h-full flex-col overflow-hidden rounded-[12px] border border-line bg-raised shadow-sm"
           >
             <Cover
               src={m.coverImage?.large}
@@ -266,7 +266,7 @@ function SkeletonGrid() {
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="overflow-hidden rounded-lg border border-line bg-raised">
+          <div key={i} className="overflow-hidden rounded-[12px] border border-line bg-raised">
           <div className="h-[210px] animate-pulse bg-line/60" />
           <div className="space-y-2 p-3">
             <div className="h-2.5 rounded bg-line" />

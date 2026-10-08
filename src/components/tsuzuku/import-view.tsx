@@ -186,7 +186,7 @@ export function ImportView({ open, onClose }: { open: boolean; onClose: () => vo
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-sm p-1.5 text-dim hover:bg-bg"
+            className="rounded-[8px] p-1.5 text-dim hover:bg-bg"
             aria-label="Fermer"
           >
             <X className="size-4" />

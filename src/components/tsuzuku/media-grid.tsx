@@ -19,7 +19,7 @@ export function MediaGrid({
         return (
           <div
             key={m.id}
-            className="flex h-full flex-col overflow-hidden rounded-[12px] border border-line bg-raised shadow-sm"
+            className="hover-lift flex h-full flex-col overflow-hidden rounded-[12px] border border-line bg-raised shadow-sm"
           >
             <Cover
               src={m.coverImage?.large}

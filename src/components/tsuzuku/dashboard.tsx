@@ -131,7 +131,7 @@ export function Dashboard() {
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-[9px] bg-lime px-[18px] py-[11px] text-sm font-bold text-bg"
+            className="inline-flex items-center gap-2 rounded-[9px] bg-lime px-[18px] py-[11px] text-sm font-bold text-bg transition hover:brightness-105"
             onClick={() => setView("search")}
           >
             <Search className="size-4" />
@@ -139,7 +139,7 @@ export function Dashboard() {
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-[9px] border border-line bg-raised px-[18px] py-[11px] text-sm font-semibold text-ink"
+            className="inline-flex items-center gap-2 rounded-[9px] border border-line bg-raised px-[18px] py-[11px] text-sm font-semibold text-ink transition hover:border-lime/40"
             onClick={() => window.dispatchEvent(new CustomEvent("tsuzuku:open-import"))}
           >
             <Upload className="size-4" />
@@ -147,7 +147,7 @@ export function Dashboard() {
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-[9px] border border-line bg-raised px-[18px] py-[11px] text-sm font-semibold text-ink"
+            className="inline-flex items-center gap-2 rounded-[9px] border border-line bg-raised px-[18px] py-[11px] text-sm font-semibold text-ink transition hover:border-lime/40"
             onClick={() => setView("roulette")}
           >
             <Dices className="size-4" />

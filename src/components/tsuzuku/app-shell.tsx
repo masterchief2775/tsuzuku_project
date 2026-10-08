@@ -284,7 +284,7 @@ export function AppShell() {
       <div className="ambient-bg min-h-dvh bg-bg text-ink">
         <header className="flex items-center justify-between border-b border-line px-4 py-5 sm:px-7">
           <div className="flex items-center gap-3">
-            <span className="size-[38px] animate-pulse rounded-sm bg-raised" />
+            <span className="size-[38px] animate-pulse rounded-[10px] bg-raised" />
             <div className="space-y-2">
               <div className="h-5 w-24 animate-pulse rounded bg-raised" />
               <div className="h-3 w-28 animate-pulse rounded bg-raised" />

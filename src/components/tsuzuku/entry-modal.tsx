@@ -289,7 +289,7 @@ export function EntryModal() {
               <Link
                 to="/watch"
                 search={{ m: String(entry.anilistId) }}
-                className="mt-3 inline-flex items-center gap-2 rounded-[10px] bg-lime px-4 py-2.5 text-[13.5px] font-bold text-bg transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-lime px-4 py-2.5 text-[13.5px] font-bold text-bg transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime sm:w-auto"
               >
                 <Play className="size-4 fill-current" />
                 Regarder maintenant
@@ -373,7 +373,7 @@ export function EntryModal() {
                     "rounded-full border px-2.5 py-1.5 text-[11.5px] font-semibold",
                     entry.status === s.key
                       ? "border-transparent text-bg"
-                      : "border-line bg-bg text-dim",
+                      : "border-line bg-bg text-dim hover:border-dim/60 hover:text-ink",
                   )}
                   style={
                     entry.status === s.key
@@ -393,7 +393,7 @@ export function EntryModal() {
                 <button
                   type="button"
                   aria-label="Épisode précédent"
-                  className="flex size-11 items-center justify-center rounded-sm border border-line bg-bg sm:size-[30px]"
+                  className="flex size-11 items-center justify-center rounded-[8px] border border-line bg-bg sm:size-[30px]"
                   onClick={() => bumpProgress(entry.id, -1)}
                 >
                   <Minus className="size-3.5" />
@@ -403,13 +403,13 @@ export function EntryModal() {
                   min={0}
                   value={entry.progress}
                   onChange={(ev) => setProgress(entry.id, Number(ev.target.value) || 0)}
-                  className="w-[50px] rounded-sm border border-line bg-bg py-1.5 text-center text-sm"
+                  className="w-[50px] rounded-[8px] border border-line bg-bg py-1.5 text-center text-sm"
                 />
                 <span className="text-xs text-dim">/ {totalLabel}</span>
                 <button
                   type="button"
                   aria-label="Épisode suivant"
-                  className="flex size-11 items-center justify-center rounded-sm border border-line bg-bg sm:size-[30px]"
+                  className="flex size-11 items-center justify-center rounded-[8px] border border-line bg-bg sm:size-[30px]"
                   onClick={() => bumpProgress(entry.id, 1)}
                 >
                   <Plus className="size-3.5" />
@@ -426,7 +426,7 @@ export function EntryModal() {
                     // Ten stars across, so the button stays the size of the
                     // icon visually: negative margin cancels the extra padding
                     // while the tap area grows from 16px to ~36px.
-                    className="-m-2 rounded-sm p-2 transition hover:bg-bg"
+                      className="-m-2 rounded-[8px] p-2 transition hover:bg-bg"
                     onClick={() => updateEntry(entry.id, { rating: entry.rating === n ? null : n })}
                   >
                     <Star
@@ -453,7 +453,7 @@ export function EntryModal() {
               defaultValue={entry.comment}
               key={entry.id + "-comment"}
               onBlur={(ev) => updateEntry(entry.id, { comment: ev.target.value })}
-              className="w-full resize-y rounded-sm border border-line bg-bg p-2.5 text-[13px]"
+              className="w-full resize-y rounded-[8px] border border-line bg-bg p-2.5 text-[13px]"
             />
           </Field>
 

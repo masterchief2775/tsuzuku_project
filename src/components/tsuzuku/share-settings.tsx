@@ -84,7 +84,7 @@ export function ShareSettings({ open, onClose }: { open: boolean; onClose: () =>
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="rounded-sm p-1.5 text-dim hover:bg-bg"
+            className="rounded-[8px] p-1.5 text-dim hover:bg-bg"
           >
             <X className="size-4" />
           </button>

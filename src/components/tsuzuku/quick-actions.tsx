@@ -123,7 +123,7 @@ export function QuickActions({ entry, compact }: { entry: WatchlistEntry; compac
                       aria-label={`Note ${n}`}
                       // Keeps the visual size of the icon but grows the tap area
                       // (the negative margin cancels the extra padding).
-                      className="-m-2 rounded-sm p-2 transition hover:bg-bg"
+                      className="-m-2 rounded-[8px] p-2 transition hover:bg-bg"
                       onClick={() => {
                         updateEntry(entry.id, { rating: entry.rating === n ? null : n });
                         setOpen(false);

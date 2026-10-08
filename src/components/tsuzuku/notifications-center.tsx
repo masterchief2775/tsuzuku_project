@@ -178,7 +178,7 @@ export function NotificationsCenter() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "relative rounded-sm border border-line bg-raised p-2 text-dim hover:text-ink",
+          "relative rounded-[10px] border border-line/80 bg-raised/95 p-2.5 text-dim shadow-sm transition hover:border-lime/40 hover:text-ink",
           open && "border-lime/40 text-lime",
         )}
         aria-label={

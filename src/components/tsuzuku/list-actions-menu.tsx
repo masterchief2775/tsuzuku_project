@@ -23,7 +23,7 @@ export function ListActionsMenu({
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          className="rounded-sm border border-line bg-raised p-2 text-dim hover:text-ink"
+          className="rounded-[10px] border border-line/80 bg-raised/95 p-2.5 text-dim shadow-sm transition hover:border-lime/40 hover:text-ink"
           aria-label="Actions de la liste"
           title="Actions de la liste"
         >
