@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { ListActionsMenu } from "@/components/tsuzuku/list-actions-menu";
+import { AccountMenu } from "@/components/tsuzuku/account-menu";
 import { Dashboard } from "@/components/tsuzuku/dashboard";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
 import { FriendsView } from "@/components/tsuzuku/friends-view";
@@ -27,7 +28,7 @@ import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { MessagesView } from "@/components/tsuzuku/messages-view";
 import { AdminView } from "@/components/tsuzuku/admin-view";
 import { getAdminStatus } from "@/lib/admin";
-import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
+import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { heartbeatPresence } from "@/lib/presence";
 import { useFocusTrap } from "@/components/tsuzuku/use-focus-trap";
@@ -363,9 +364,11 @@ export function AppShell() {
             <PartyBadge />
             <NotificationsCenter />
             <ThemePicker />
-            <UserButton />
-            {/* N4+U1: one overflow menu on every screen (was 4 icon buttons,
-                3 of them desktop-only, hiding share/export from phones). */}
+            <AccountMenu />
+            {/* Header cluster: live-session badge (conditional) + notifications
+                bell + theme + account menu + list-actions menu. Profile, public
+                profile and sign-out live inside the account menu (AccountMenu),
+                so the row stays at four buttons max. */}
             <ListActionsMenu
               onShare={() => setShareOpen(true)}
               onImport={() => setImportOpen(true)}

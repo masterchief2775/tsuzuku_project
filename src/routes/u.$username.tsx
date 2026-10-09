@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { AccountMenu } from "@/components/tsuzuku/account-menu";
 import { useConfirmDialog } from "@/components/tsuzuku/use-confirm-dialog";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
 import { AppPrimaryNav } from "@/components/tsuzuku/app-primary-nav";
@@ -44,7 +45,7 @@ import { profileCardTitle } from "@/lib/profile-mapping";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore } from "@/store/watchlist-store";
 import { prepareAvatarDataUrl } from "@/lib/avatar";
-import { UserButton, writeAvatarCache } from "@/lib/auth/gates";
+import { writeAvatarCache } from "@/lib/auth/gates";
 
 export const Route = createFileRoute("/u/$username")({
   // SSR loader so crawlers (no JS) see a real <title> — the platform OG
@@ -252,7 +253,7 @@ function PublicProfilePage() {
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemePicker />
-            <UserButton />
+            <AccountMenu />
             <ListActionsMenu
               onShare={() => setShareOpen(true)}
               onImport={() => setImportOpen(true)}

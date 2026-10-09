@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
+  ChevronDown,
   Clapperboard,
+  Compass,
   Dices,
   GanttChart,
   Home,
@@ -16,6 +18,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useWatchlistStore, type ViewId } from "@/store/watchlist-store";
 import { useBadgeCounts } from "@/lib/activity-client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -25,19 +28,57 @@ type NavItem =
   | { kind: "view"; id: ViewId; label: string; short: string; icon: LucideIcon }
   | { kind: "route"; to: "/friends" | "/lists" | "/messages"; label: string; short: string; icon: LucideIcon };
 
+type NavGroup = { label: string; icon: LucideIcon; items: NavItem[] };
+
+const DASHBOARD: NavItem = { kind: "view", id: "dashboard", label: "Accueil", short: "Accueil", icon: Home };
+const LIST: NavItem = { kind: "view", id: "list", label: "Ma liste", short: "Ma liste", icon: List };
+const SEARCH: NavItem = { kind: "view", id: "search", label: "Rechercher", short: "Recherche", icon: Search };
+
+const GROUPS: NavGroup[] = [
+  {
+    label: "Explorer",
+    icon: Compass,
+    items: [
+      SEARCH,
+      { kind: "view", id: "season", label: "Saison", short: "Saison", icon: Clapperboard },
+      { kind: "view", id: "roulette", label: "Roulette", short: "Roulette", icon: Dices },
+    ],
+  },
+  {
+    label: "Suivi",
+    icon: CalendarDays,
+    items: [
+      { kind: "view", id: "calendar", label: "Calendrier", short: "Agenda", icon: CalendarDays },
+      { kind: "view", id: "timeline", label: "Chronologie", short: "Chrono", icon: GanttChart },
+      { kind: "view", id: "franchises", label: "Franchises", short: "Franch.", icon: Network },
+    ],
+  },
+  {
+    label: "Social",
+    icon: Users,
+    items: [
+      { kind: "route", to: "/friends", label: "Amis", short: "Amis", icon: Users },
+      { kind: "route", to: "/lists", label: "Listes partagées", short: "Listes", icon: Library },
+      { kind: "route", to: "/messages", label: "Messages", short: "Messages", icon: MessageCircle },
+    ],
+  },
+];
+
+/** Flat order for the mobile overlay grid (every destination stays one tap away). */
 const ITEMS: NavItem[] = [
-  { kind: "view", id: "dashboard", label: "Accueil", short: "Accueil", icon: Home },
-  { kind: "view", id: "list", label: "Ma liste", short: "Ma liste", icon: List },
-  { kind: "route", to: "/friends", label: "Amis", short: "Amis", icon: Users },
-  { kind: "route", to: "/lists", label: "Listes partagées", short: "Listes", icon: Library },
-  { kind: "route", to: "/messages", label: "Messages", short: "Messages", icon: MessageCircle },
-  { kind: "view", id: "calendar", label: "Calendrier", short: "Agenda", icon: CalendarDays },
-  { kind: "view", id: "timeline", label: "Chronologie", short: "Chrono", icon: GanttChart },
-  { kind: "view", id: "franchises", label: "Franchises", short: "Franch.", icon: Network },
+  DASHBOARD,
+  LIST,
+  ...GROUPS[2]!.items,
+  ...GROUPS[1]!.items,
   { kind: "view", id: "season", label: "Saison", short: "Saison", icon: Clapperboard },
   { kind: "view", id: "roulette", label: "Roulette", short: "Roulette", icon: Dices },
-  { kind: "view", id: "search", label: "Rechercher", short: "Recherche", icon: Search },
+  SEARCH,
 ];
+
+const DROPDOWN_PANEL =
+  "z-50 min-w-[230px] rounded-[12px] border border-line bg-raised p-1.5 shadow-xl";
+const DROPDOWN_ITEM =
+  "flex cursor-pointer items-center gap-2.5 rounded-[8px] px-2.5 py-2.5 text-sm outline-none transition hover:bg-bg focus:bg-bg";
 
 export function AppPrimaryNav({ className }: { className?: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -86,79 +127,172 @@ export function AppPrimaryNav({ className }: { className?: string }) {
     }
   };
 
-  const renderItem = (item: NavItem, variant: "bar" | "overlay") => {
-    const Icon = item.icon;
-    const active = isActive(item);
-    const overlay = variant === "overlay";
+  const unreadBadge = (active: boolean) =>
+    unreadMessages > 0 ? (
+      <span
+        className={cn(
+          "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold",
+          active ? "bg-bg text-lime" : "bg-crimson text-bg",
+        )}
+        aria-label={`${unreadMessages} message${unreadMessages > 1 ? "s" : ""} non lu${unreadMessages > 1 ? "s" : ""}`}
+      >
+        {unreadMessages > 9 ? "9+" : unreadMessages}
+      </span>
+    ) : null;
 
-    const itemClass = cn(
-      "flex items-center gap-1.5 rounded-[10px] font-semibold transition-all duration-200",
-      overlay
-        ? "min-h-12 gap-3 px-3 py-3 text-sm"
-        : "shrink-0 px-2.5 py-1.5 text-xs sm:px-3 sm:text-[13px]",
+  /** Leaf content shared by the bar, the dropdowns and the mobile overlay. */
+  const leafContent = (item: NavItem, active: boolean, large: boolean) => {
+    const Icon = item.icon;
+    return (
+      <>
+        <Icon className={cn("shrink-0", large ? "size-5" : "size-4")} />
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        {item.kind === "route" && item.to === "/messages" ? unreadBadge(active) : null}
+      </>
+    );
+  };
+
+  /** One destination inside a desktop dropdown menu. */
+  const dropdownLeaf = (item: NavItem) => {
+    const active = isActive(item);
+    const cls = cn(DROPDOWN_ITEM, active ? "bg-lime/15 font-semibold text-lime" : "text-ink");
+    if (item.kind === "route" || !onHome) {
+      return (
+        <DropdownMenu.Item key={item.kind === "route" ? item.to : item.id} asChild>
+          <Link
+            to={item.kind === "route" ? item.to : "/"}
+            className={cls}
+            aria-current={active ? "page" : undefined}
+            onClick={() => {
+              if (item.kind !== "route") goView(item.id);
+            }}
+          >
+            {leafContent(item, active, false)}
+          </Link>
+        </DropdownMenu.Item>
+      );
+    }
+    return (
+      <DropdownMenu.Item
+        key={item.id}
+        className={cls}
+        aria-current={active ? "page" : undefined}
+        onSelect={() => goView(item.id)}
+      >
+        {leafContent(item, active, false)}
+      </DropdownMenu.Item>
+    );
+  };
+
+  const barPill = (active: boolean) =>
+    cn(
+      "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[13px] font-semibold transition-all duration-200",
       active
         ? "bg-lime text-bg shadow-[0_8px_18px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]"
         : "text-dim hover:bg-bg hover:text-ink",
     );
 
-    const content = (
-      <>
-        <Icon className={cn("shrink-0", overlay ? "size-5" : "size-3.5 sm:size-4")} />
-        <span className="min-w-0 flex-1 truncate">{item.label}</span>
-        {item.kind === "route" && item.to === "/messages" && unreadMessages > 0 ? (
-          <span
-            className={cn(
-              "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold",
-              active ? "bg-bg text-lime" : "bg-crimson text-bg",
-            )}
-            aria-label={`${unreadMessages} message${unreadMessages > 1 ? "s" : ""} non lu${unreadMessages > 1 ? "s" : ""}`}
+  /** Top-level desktop entry: direct pill or grouped dropdown. */
+  const renderBarEntry = (entry: NavItem | NavGroup, key: string) => {
+    if (!("items" in entry)) {
+      const active = isActive(entry);
+      if (entry.kind === "route" || !onHome) {
+        return (
+          <Link
+            key={key}
+            to={entry.kind === "route" ? entry.to : "/"}
+            className={barPill(active)}
+            title={entry.label}
+            aria-current={active ? "page" : undefined}
+            onClick={() => {
+              if (entry.kind !== "route") goView(entry.id);
+            }}
           >
-            {unreadMessages > 9 ? "9+" : unreadMessages}
-          </span>
-        ) : null}
-      </>
+            {leafContent(entry, active, false)}
+          </Link>
+        );
+      }
+      return (
+        <button
+          key={key}
+          type="button"
+          className={barPill(active)}
+          title={entry.label}
+          aria-current={active ? "page" : undefined}
+          onClick={() => goView(entry.id)}
+        >
+          {leafContent(entry, active, false)}
+        </button>
+      );
+    }
+
+    const groupActive = entry.items.some((item) => isActive(item));
+    const GroupIcon = entry.icon;
+    const showBadge = entry.label === "Social" && unreadMessages > 0;
+    // Non-modal: a modal dropdown locks body scroll and compensates with a
+    // padding-right, which visibly shoves the whole centered page left.
+    return (
+      <DropdownMenu.Root key={key} modal={false}>
+        <DropdownMenu.Trigger asChild>
+          <button
+            type="button"
+            className={cn(
+              barPill(false),
+              groupActive && "bg-lime/15 text-lime ring-1 ring-lime/30 hover:bg-lime/20 hover:text-lime",
+            )}
+            aria-label={`Menu ${entry.label}`}
+          >
+            <GroupIcon className="size-4 shrink-0" />
+            <span>{entry.label}</span>
+            <ChevronDown className="size-3.5 opacity-70" />
+            {showBadge ? unreadBadge(groupActive) : null}
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content align="start" sideOffset={6} className={DROPDOWN_PANEL}>
+            {entry.items.map((item) => dropdownLeaf(item))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     );
+  };
 
-    if (item.kind === "route") {
+  /** Flat destination cell in the mobile overlay grid. */
+  const renderOverlayItem = (item: NavItem) => {
+    const active = isActive(item);
+    const cls = cn(
+      "flex min-h-12 items-center gap-3 rounded-[10px] px-3 py-3 text-sm font-semibold transition-all duration-200",
+      active
+        ? "bg-lime text-bg shadow-[0_8px_18px_color-mix(in_oklab,var(--color-lime)_25%,transparent)]"
+        : "text-dim hover:bg-bg hover:text-ink",
+    );
+    if (item.kind === "route" || !onHome) {
       return (
         <Link
-          key={item.to}
-          to={item.to}
-          className={cn(itemClass, "relative")}
+          key={item.kind === "route" ? item.to : item.id}
+          to={item.kind === "route" ? item.to : "/"}
+          className={cls}
           title={item.label}
           aria-current={active ? "page" : undefined}
-          onClick={() => setMobileOpen(false)}
+          onClick={() => {
+            setMobileOpen(false);
+            if (item.kind !== "route") goView(item.id);
+          }}
         >
-          {content}
+          {leafContent(item, active, true)}
         </Link>
       );
     }
-
-    if (!onHome) {
-      return (
-        <Link
-          key={item.id}
-          to="/"
-          className={itemClass}
-          title={item.label}
-          aria-current={active ? "page" : undefined}
-          onClick={() => goView(item.id)}
-        >
-          {content}
-        </Link>
-      );
-    }
-
     return (
       <button
         key={item.id}
         type="button"
-        className={cn(itemClass, overlay && "w-full text-left")}
+        className={cn(cls, "w-full text-left")}
         title={item.label}
         aria-current={active ? "page" : undefined}
         onClick={() => goView(item.id)}
       >
-        {content}
+        {leafContent(item, active, true)}
       </button>
     );
   };
@@ -194,16 +328,16 @@ export function AppPrimaryNav({ className }: { className?: string }) {
             id="primary-navigation-items"
             className="max-h-[70dvh] overflow-y-auto rounded-[14px] border border-line bg-raised p-2 shadow-2xl"
           >
-            <div className="grid grid-cols-2 gap-1">
-              {ITEMS.map((item) => renderItem(item, "overlay"))}
-            </div>
+            <div className="grid grid-cols-2 gap-1">{ITEMS.map((item) => renderOverlayItem(item))}</div>
           </div>
         </div>
       ) : null}
 
-      {/* Desktop and up: wrapping pill row, no horizontal scrolling. */}
-      <div className="ui-panel hidden max-w-full flex-row flex-wrap gap-1 p-1 sm:flex">
-        {ITEMS.map((item) => renderItem(item, "bar"))}
+      {/* Desktop and up: direct entries + grouped dropdowns, no scrolling. */}
+      <div className="ui-panel hidden max-w-full flex-row flex-wrap items-center gap-1 p-1 sm:flex">
+        {renderBarEntry(DASHBOARD, "dashboard")}
+        {renderBarEntry(LIST, "list")}
+        {GROUPS.map((group) => renderBarEntry(group, group.label))}
       </div>
     </nav>
   );

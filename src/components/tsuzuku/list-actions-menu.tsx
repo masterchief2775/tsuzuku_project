@@ -18,8 +18,10 @@ export function ListActionsMenu({
   onExport: () => void;
   onHelp?: () => void;
 }) {
+  // Non-modal: a modal dropdown locks body scroll and compensates with a
+  // padding-right, which visibly shoves the whole centered page left.
   return (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
         <button
           type="button"

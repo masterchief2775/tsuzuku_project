@@ -1,11 +1,4 @@
-import { useEffect, useState } from "react";
-import { Link, Navigate } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
-import { authEnabled, signOut } from "./client";
-import { useWatchlistStore } from "@/store/watchlist-store";
-import { useCurrentUser } from "./use-current-user";
-import { getMyProfile } from "@/lib/profile";
-import { ProfileAvatar } from "@/components/tsuzuku/profile-avatar";
+import { Navigate } from "@tanstack/react-router";
 
 /**
  * Auth state components — plain wrappers around `useCurrentUserState()`.
@@ -32,24 +25,7 @@ export function RedirectToSignIn({ to = SIGN_IN_PATH }: { to?: string }) {
   return <Navigate to={to} />;
 }
 
-/**
- * Minimal signed-in identity chip + sign-out. Restyle freely (see the
- * `design-ui` skill). Sign-out is only shown when auth is enabled (the
- * disabled-auth dev user has nothing to sign out of).
- */
 const AVATAR_CACHE_KEY = "tsuzuku-avatar-cache";
-
-function readAvatarCache(userId: string): { url: string | null; name: string | null } | null {
-  try {
-    const raw = localStorage.getItem(AVATAR_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { userId?: string; url?: string | null; name?: string | null };
-    if (parsed.userId !== userId) return null;
-    return { url: parsed.url ?? null, name: parsed.name ?? null };
-  } catch {
-    return null;
-  }
-}
 
 export function writeAvatarCache(userId: string, url: string | null, name: string | null) {
   try {
@@ -57,101 +33,4 @@ export function writeAvatarCache(userId: string, url: string | null, name: strin
   } catch {
     /* quota */
   }
-}
-
-export function UserButton() {
-  const user = useCurrentUser();
-  // Sign-out can take a moment (and can fail when deployed), so the control
-  // shows it is working and cannot be fired twice.
-  const [signingOut, setSigningOut] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    const cached = readAvatarCache(user.id);
-    if (cached) {
-      setAvatarUrl(cached.url);
-      setDisplayName(cached.name);
-    } else if (user.profileImageUrl) {
-      setAvatarUrl(user.profileImageUrl);
-    }
-    let cancelled = false;
-    void getMyProfile()
-      .then((p) => {
-        if (cancelled) return;
-        setAvatarUrl(p.avatarUrl);
-        setDisplayName(p.displayName);
-        setUsername(p.username);
-        writeAvatarCache(user.id, p.avatarUrl, p.displayName);
-      })
-      .catch(() => {
-        /* keep session/cache avatar */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, user?.profileImageUrl]);
-
-  if (!user) return null;
-  const label = displayName ?? user.displayName ?? user.primaryEmail ?? "Account";
-  return (
-    <div className="flex items-center gap-2">
-      {username ? (
-        <Link
-          to="/u/$username"
-          params={{ username }}
-          className="flex cursor-pointer items-center gap-2 rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-lime"
-          title="Voir mon profil public"
-          aria-label="Voir mon profil public"
-        >
-          <ProfileAvatar name={label} src={avatarUrl || user.profileImageUrl} size="sm" />
-          <span className="hidden text-sm font-medium sm:inline">{label}</span>
-        </Link>
-      ) : (
-        <Link
-          to="/profile"
-          className="flex cursor-pointer items-center gap-2 rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-lime"
-          title="Voir mon profil public"
-          aria-label="Voir mon profil public"
-        >
-          <ProfileAvatar name={label} src={avatarUrl || user.profileImageUrl} size="sm" />
-          <span className="hidden text-sm font-medium sm:inline">{label}</span>
-        </Link>
-      )}
-      {authEnabled && (
-        <button
-          type="button"
-          disabled={signingOut}
-          onClick={() => {
-            setSigningOut(true);
-            // Flush watchlist to the server BEFORE clearing the session, otherwise
-            // the last debounced push is lost and the next login loads an empty list.
-            void (async () => {
-              try {
-                await useWatchlistStore.getState().flushSync();
-              } catch {
-                /* still sign out — local copy remains */
-              }
-              useWatchlistStore.getState().resetSession();
-              try {
-                await signOut();
-              } catch {
-                setSigningOut(false);
-              }
-            })();
-          }}
-            className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-raised/90 px-2.5 py-2 text-dim shadow-sm transition hover:border-crimson/40 hover:text-crimson disabled:cursor-wait disabled:opacity-60"
-            aria-label="Se déconnecter"
-            title="Se déconnecter"
-        >
-            <LogOut className="size-4" />
-            <span className="hidden text-xs font-semibold sm:inline">
-              {signingOut ? "Déconnexion…" : "Déconnexion"}
-            </span>
-        </button>
-      )}
-    </div>
-  );
 }

@@ -4,10 +4,10 @@ import { ArrowLeft, ChevronDown, ListVideo, Loader2, TriangleAlert } from "lucid
 import { PlayerSurface } from "@/components/tsuzuku/player-surface";
 import { useWatchSession } from "@/components/tsuzuku/use-watch-session";
 import { AppFooter } from "@/components/tsuzuku/app-footer";
+import { AccountMenu } from "@/components/tsuzuku/account-menu";
 import { BrandMark } from "@/components/tsuzuku/brand-mark";
 import { Cover } from "@/components/tsuzuku/cover";
 import { ThemePicker } from "@/components/tsuzuku/theme-picker";
-import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { fetchMediaById } from "@/lib/watchlist";
 import {
@@ -258,7 +258,7 @@ export function WatchPage() {
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemePicker />
-            <UserButton />
+            <AccountMenu />
             <button
               type="button"
               onClick={exit}

@@ -214,7 +214,7 @@ function waitForPopupToken(popup: Window): Promise<string | null> {
  *
  * **Rejects when deployed if the server never confirms.** There the session is
  * an HttpOnly cookie only the server can clear, so redirecting anyway would
- * report a sign-out that did not happen. `<UserButton />` handles that for you;
+ * report a sign-out that did not happen. `<AccountMenu />` handles that for you;
  * a hand-rolled control must catch it and let the visitor retry. In the live
  * preview the local clear is sufficient, so it always resolves.
  */
